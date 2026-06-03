@@ -1,28 +1,132 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "../common/Icon";
+import { getCustomerOrders, deleteOrder, updateOrder } from "../../api/client";
+import { toast } from "../../lib/toast";
+import CustomerOrderEditModal from "./modals/CustomerOrderEditModal";
 
-const CustomerOrders = ({ orders, onViewDetails, onRepeatOrder, onGiveFeedback }) => {
+const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback }) => {
   const [filter, setFilter] = useState("Todos");
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editOrder, setEditOrder] = useState(null);
+
   const filters = ["Todos", "Em andamento", "Aguardando", "Concluídos", "Cancelados"];
-  
-  const filteredOrders = filter === "Todos" 
-    ? orders 
-    : filter === "Em andamento" 
-      ? orders.filter(o => o.statusCode === "in_progress" || o.status === "Em entrega" || o.status === "Atribuído")
+
+  const toShortId = (id) => {
+    if (!id) return "---";
+    const hex = id.replace(/-/g, "").toUpperCase();
+    return `#${hex.slice(-6)}`;
+  };
+
+  const backendToStatus = (order) => {
+    const s = order.status;
+    if (s === "in_transit") return "Em entrega";
+    if (s === "pending_approval") return "Aguardando";
+    if (s === "completed") return "Concluído";
+    if (s === "cancelled") return "Cancelado";
+    if (s === "approved") return "Aprovado";
+    if (s === "scheduled") return "Agendado";
+    return s || "Pendente";
+  };
+
+  const getStatusCode = (order) => {
+    const s = order.status;
+    if (s === "in_transit") return "in_progress";
+    if (s === "completed") return "completed";
+    if (s === "pending_approval") return "pending_approval";
+    if (s === "cancelled") return "cancelled";
+    return s;
+  };
+
+  const filteredOrders = filter === "Todos"
+    ? orders
+    : filter === "Em andamento"
+      ? orders.filter(o => ["in_transit", "assigned", "scheduled"].includes(o.status))
       : filter === "Aguardando"
-        ? orders.filter(o => o.statusCode === "pending_approval" || o.status === "Pendente" || o.status === "Aprovado")
+        ? orders.filter(o => o.status === "pending_approval" || o.status === "approved")
         : filter === "Concluídos"
-          ? orders.filter(o => o.statusCode === "completed" || o.status === "Concluído")
-          : orders.filter(o => o.status === "Cancelado");
+          ? orders.filter(o => o.status === "completed")
+          : orders.filter(o => o.status === "cancelled");
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const response = await getCustomerOrders();
+        setOrders(response.data);
+      } catch (error) {
+        let errorMessage = "Erro ao carregar pedidos";
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        }
+        toast.error(errorMessage);
+        console.error("Error fetching customer orders:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchOrders();
+    }
+  }, [user]);
+
+  const handleRepeatOrder = (order) => {
+    if (onRepeatOrder) {
+      onRepeatOrder({
+        ...order,
+        type: order.serviceType || "delivery",
+        statusCode: getStatusCode(order),
+        status: backendToStatus(order)
+      });
+    }
+  };
+
+  const handleViewDetails = (order) => {
+    const displayStatus = backendToStatus(order);
+    onViewDetails({
+      ...order,
+      statusCode: getStatusCode(order),
+      status: displayStatus,
+      total: order.total
+    });
+  };
+
+  const handleGiveFeedbackWrapper = (order) => {
+    onGiveFeedback({
+      ...order,
+      statusCode: getStatusCode(order),
+      status: backendToStatus(order)
+    });
+  };
+
+  const handleDeleteOrder = async (order) => {
+    if (!window.confirm(`Deseja cancelar o pedido ${toShortId(order.id)}?`)) return;
+    try {
+      await deleteOrder(order.id);
+      setOrders(prev => prev.filter(o => o.id !== order.id));
+      toast.success("Pedido cancelado com sucesso");
+    } catch (error) {
+      let errorMessage = "Erro ao cancelar pedido";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleOrderUpdated = (updatedOrder) => {
+    setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+  };
 
   const getStatusBadge = (order) => {
-    const status = order.status || order.statusCode;
-    switch(status) {
-      case "Em entrega": case "in_progress": return "bg-blue-100 text-blue-700";
+    const status = backendToStatus(order);
+    switch (status) {
+      case "Em entrega": return "bg-blue-100 text-blue-700";
       case "Aprovado": return "bg-teal-100 text-teal-700";
-      case "Pendente": case "pending_approval": return "bg-amber-100 text-amber-700";
-      case "Concluído": case "completed": return "bg-green-100 text-green-700";
-      case "Cancelado": case "cancelled": return "bg-red-100 text-red-700";
+      case "Aguardando": return "bg-amber-100 text-amber-700";
+      case "Concluído": return "bg-green-100 text-green-700";
+      case "Cancelado": return "bg-red-100 text-red-700";
+      case "Agendado": return "bg-purple-100 text-purple-700";
       default: return "bg-slate-100 text-slate-700";
     }
   };
@@ -37,55 +141,94 @@ const CustomerOrders = ({ orders, onViewDetails, onRepeatOrder, onGiveFeedback }
           </button>
         ))}
       </div>
-      
-      {filteredOrders.length > 0 ? (
-        filteredOrders.map(order => (
-          <div key={order.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-800">{order.id}</span>
-                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${getStatusBadge(order)}`}>
-                  {order.status || order.statusCode === "in_progress" ? "Em entrega" : 
-                   order.statusCode === "completed" ? "Concluído" :
-                   order.statusCode === "pending_approval" ? "Aguardando" :
-                   order.status === "Aprovado" ? "Aprovado" : order.status}
-                </span>
+
+      {loading ? (
+        <div className="text-center py-10">
+          <div className="animate-spin w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+          <p className="text-sm text-slate-500">A carregar pedidos...</p>
+        </div>
+      ) : filteredOrders.length > 0 ? (
+        filteredOrders.map(order => {
+          const displayStatus = backendToStatus(order);
+          const isDelivery = order.serviceType !== "taxi";
+          return (
+            <div key={order.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-bold text-slate-800">{toShortId(order.id)}</span>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${getStatusBadge(order)}`}>
+                    {displayStatus}
+                  </span>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                    isDelivery ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"
+                  }`}>
+                    {isDelivery ? (
+                      <span className="inline-flex items-center gap-1"><Icon name="package" size={10} /> Entrega</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1"><Icon name="car" size={10} /> Táxi</span>
+                    )}
+                  </span>
+                </div>
+                <span className="text-sm font-bold text-orange-500"> {order.total} MZN</span>
               </div>
-              <span className="text-sm font-bold text-orange-500">{order.total}</span>
-            </div>
-            <p className="text-sm font-medium text-slate-700">{order.productName}</p>
-            <p className="text-xs text-slate-400 mt-1">{order.dest}</p>
-            <p className="text-xs text-slate-400">{order.orderDate}</p>
-            <div className="flex gap-2 mt-3">
-              <button onClick={() => onViewDetails(order)} className="flex-1 text-xs bg-slate-100 text-slate-600 font-semibold py-2 rounded-lg">
-                Detalhes
-              </button>
-              {(order.status === "Concluído" || order.statusCode === "completed") && (
-                <>
-                  <button onClick={() => onGiveFeedback(order)} className="flex-1 text-xs bg-amber-100 text-amber-600 font-semibold py-2 rounded-lg">
-                    Avaliar
-                  </button>
-                  <button onClick={() => onRepeatOrder(order)} className="flex-1 text-xs bg-orange-50 text-orange-600 font-semibold py-2 rounded-lg">
-                    Repetir
-                  </button>
-                </>
+              <p className="text-sm font-medium text-slate-700">{order.productName || order.product?.name || (isDelivery ? "Entrega" : "Corrida")}</p>
+              <p className="text-xs text-slate-400 mt-1">
+                {isDelivery ? `${order.origin || ""} → ${order.dest || ""}` : `${order.pickupLocation || ""} → ${order.dropoffLocation || ""}`}
+              </p>
+              {order.driver && (
+                <p className="text-xs text-slate-500 mt-0.5">
+                  <Icon name="users" size={10} className="inline mr-1" />
+                  {typeof order.driver === 'string' ? order.driver : (order.driver?.name || 'Motorista atribuído')}
+                </p>
               )}
-              {(order.status === "Em entrega" || order.statusCode === "in_progress") && (
-                <button onClick={() => onViewDetails(order)} className="flex-1 text-xs bg-blue-100 text-blue-600 font-semibold py-2 rounded-lg">
-                  Acompanhar
+              <p className="text-xs text-slate-400">{order.time || new Date(order.createdAt).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}</p>
+              <div className="flex gap-2 mt-3">
+                <button onClick={() => handleViewDetails(order)} className="flex-1 text-xs bg-slate-100 text-slate-600 font-semibold py-2 rounded-lg">
+                  Detalhes
                 </button>
-              )}
+                {(displayStatus === "Concluído" || order.status === "completed") && (
+                  <>
+                    <button onClick={() => handleGiveFeedbackWrapper(order)} className="flex-1 text-xs bg-amber-100 text-amber-600 font-semibold py-2 rounded-lg">
+                      Avaliar
+                    </button>
+                    <button onClick={() => handleRepeatOrder(order)} className="flex-1 text-xs bg-orange-50 text-orange-600 font-semibold py-2 rounded-lg">
+                      Repetir
+                    </button>
+                  </>
+                )}
+                {(displayStatus === "Em entrega" || order.status === "in_transit") && (
+                  <button onClick={() => handleViewDetails(order)} className="flex-1 text-xs bg-blue-100 text-blue-600 font-semibold py-2 rounded-lg">
+                    Acompanhar
+                  </button>
+                )}
+                {displayStatus !== "Concluído" && displayStatus !== "Cancelado" && (
+                  <button onClick={() => handleDeleteOrder(order)} className="flex-1 text-xs bg-red-50 text-red-600 font-semibold py-2 rounded-lg">
+                    Cancelar
+                  </button>
+                )}
+                {displayStatus === "Aguardando" && (
+                  <button onClick={() => setEditOrder(order)} className="flex-1 text-xs bg-blue-50 text-blue-600 font-semibold py-2 rounded-lg">
+                    Alterar local
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        ))
+          );
+        })
       ) : (
         <div className="text-center py-10">
           <Icon name="package" size={48} className="text-slate-300 mx-auto mb-2" />
           <p className="text-sm text-slate-500">Nenhum pedido encontrado</p>
-          <button className="mt-4 text-sm bg-orange-500 text-white px-4 py-2 rounded-xl">
-            Fazer primeiro pedido
-          </button>
         </div>
+      )}
+      
+      {editOrder && (
+        <CustomerOrderEditModal
+          isOpen={!!editOrder}
+          onClose={() => setEditOrder(null)}
+          order={editOrder}
+          onUpdated={handleOrderUpdated}
+        />
       )}
     </div>
   );

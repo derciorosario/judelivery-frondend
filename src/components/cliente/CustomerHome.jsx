@@ -240,11 +240,6 @@ fill="currentColor" viewBox="0 0 24 24" >
           }}
           user={user}
           customerData={customerData}
-          onOrderCreated={() => {
-            setShowServiceModal(false);
-            setSelectedService(null);
-            onCreateOrder();
-          }}
           serviceType={selectedService}
         />
       )}

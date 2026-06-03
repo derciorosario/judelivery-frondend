@@ -250,7 +250,7 @@ export const deleteManager = (id) => client.delete(`/users/managers/${id}`);
 // ==================== DRIVERS API ====================
 
 // Get all drivers
-export const getDrivers = () => client.get('/drivers');
+export const getDrivers = (params) => client.get('/drivers', { params });
 
 // Get driver by ID
 export const getDriver = (id) => client.get(`/drivers/${id}`);
@@ -280,5 +280,19 @@ export const updateCustomer = (id, formData) => uploadClient.put(`/customers/${i
 
 // Delete customer
 export const deleteCustomer = (id) => client.delete(`/customers/${id}`);
+
+// ==================== ORDERS API ====================
+
+export const getOrders = () => client.get('/orders');
+
+export const getOrder = (id) => client.get(`/orders/${id}`);
+
+export const createOrder = (data) => client.post('/orders', data);
+
+export const updateOrder = (id, data) => client.put(`/orders/${id}`, data);
+
+export const deleteOrder = (id) => client.delete(`/orders/${id}`);
+
+export const getCustomerOrders = () => client.get('/orders/mine');
 
 

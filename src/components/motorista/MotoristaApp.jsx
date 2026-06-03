@@ -4,11 +4,11 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { NOTIFICATIONS } from "../../data/mockData";
 import BottomNav from "../common/BottomNav";
 import Header from "../common/Header";
-import AdminNotifications from "../admin/AdminNotifications";
 import MotoristaHome from "./MotoristaHome";
 import MotoristaOrders from "./MotoristaOrders";
 import MotoristaHistory from "./MotoristaHistory";
 import MotoristaProfile from "./MotoristaProfile";
+import MotoristaMap from "./MotoristaMap";
 
 const MotoristaApp = () => {
   const [online, setOnline] = useState(true);
@@ -18,16 +18,19 @@ const MotoristaApp = () => {
 
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },
+    { id: "map", label: "Mapa", icon: "map", path: "/map" },
     { id: "orders", label: "Pedidos", icon: "package", path: "/orders" },
     { id: "history", label: "Histórico", icon: "clock", path: "/history" },
     { id: "profile", label: "Perfil", icon: "settings", path: "/profile" },
-    { id: "notifications", label: "Notificações", icon: "bell", path: "/notifications" },
   ];
 
   const getTabFromPath = () => {
-    const path = location.pathname;
-    if (path === "/") return "home";
-    const tab = tabs.find(t => t.path === path);
+    const rawPath = location.pathname;
+    const normalized = rawPath.replace(/\/$/, "") || "/";
+    const tab = tabs.find(t => {
+      if (t.id === "home") return t.path === rawPath || t.path === rawPath.replace(/\/$/, "");
+      return normalized === t.path || normalized === "/" + t.path || ("/" + t.path) === normalized;
+    });
     return tab ? tab.id : "home";
   };
 
@@ -53,10 +56,10 @@ const MotoristaApp = () => {
       />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
         {activeTab === "home" && <MotoristaHome online={online} setOnline={setOnline} />}
+        {activeTab === "map" && <MotoristaMap online={online} onToggleOnline={setOnline} />}
         {activeTab === "orders" && <MotoristaOrders />}
         {activeTab === "history" && <MotoristaHistory />}
         {activeTab === "profile" && <MotoristaProfile user={user} />}
-        {activeTab === "notifications" && <AdminNotifications />}
       </div>
       <BottomNav tabs={tabs} active={activeTab} setActive={setTab} />
     </div>

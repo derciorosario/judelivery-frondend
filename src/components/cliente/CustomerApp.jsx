@@ -142,13 +142,11 @@ const CustomerApp = () => {
         )}
         {activeTab === "orders" && (
           <CustomerOrders
-            orders={customerOrders}
-            pendingOrders={pendingOrders}
-            completedOrders={completedOrders}
+            user={user}
             onViewDetails={handleViewOrderDetails}
             onRepeatOrder={(order) => {
               setSelectedOrder(order);
-              setSelectedServiceType(order.type || "delivery"); // Set service type based on order type
+              setSelectedServiceType(order.serviceType || "delivery");
               setShowCreateOrder(true);
             }}
             onGiveFeedback={handleGiveFeedback}
@@ -188,11 +186,6 @@ const CustomerApp = () => {
         }}
         user={user}
         customerData={customerData}
-        onOrderCreated={() => {
-          setShowCreateOrder(false);
-          setSelectedOrder(null);
-          setSelectedServiceType(null);
-        }}
         repeatOrder={selectedOrder}
         serviceType={selectedServiceType}
       />

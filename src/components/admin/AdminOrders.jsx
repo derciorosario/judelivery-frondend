@@ -1,33 +1,92 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "../common/Icon";
-import OrderCard from "../common/OrderCard";
-import AddOrderModal from "../modals/AddOrderModal";
-import { ORDERS } from "../../data/mockData";
+import { getOrders, deleteOrder } from "../../api/client";
+import { toast } from "../../lib/toast";
+import Modal from "../common/Modal";
+import AdminOrderDetailModal from "./AdminOrderDetailModal";
 
-const AdminOrders = () => {
+const AdminOrders = ({ onOpenCreateDelivery, refreshKey }) => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("Todos");
-  const [showAddModal, setShowAddModal] = useState(false);
-  const statuses = ["Todos", "Pendente", "Em entrega", "Concluído", "Cancelado", "Aprovado"];
-  const filtered = filter === "Todos" ? ORDERS : ORDERS.filter(o => o.status === filter);
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
-  const handleAddOrder = (newOrder) => {
-    ORDERS.push(newOrder);
-    setFilter(filter);
+  const statuses = ["Todos", "Pendente", "Aprovado", "Atribuído", "Em entrega", "Concluído", "Cancelado"];
+
+  const backendStatusLabels = {
+    pending_approval: "Pendente",
+    approved: "Aprovado",
+    assigned: "Atribuído",
+    in_transit: "Em entrega",
+    completed: "Concluído",
+    cancelled: "Cancelado",
+    scheduled: "Agendado"
   };
 
-  const handleAssignDriver = (order) => {
-    console.log("Assign driver to order", order);
+  const toShortId = (id) => {
+    if (!id) return "---";
+    const hex = id.replace(/-/g, "").toUpperCase();
+    return `#${hex.slice(-6)}`;
+  };
+
+  const backendToFrontend = (status) => backendStatusLabels[status] || status || "Pendente";
+
+  const filteredOrders = filter === "Todos"
+    ? orders
+    : orders.filter(o => backendToFrontend(o.status) === filter);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      setLoading(true);
+      try {
+        const response = await getOrders();
+        setOrders(response.data);
+      } catch (error) {
+        let errorMessage = "Erro ao carregar pedidos";
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        }
+        toast.error(errorMessage);
+        console.error("Error fetching orders:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [refreshKey]);
+
+  const handleDeleteOrder = async (order) => {
+    if (!window.confirm(`Deseja remover o pedido ${toShortId(order.id)}?`)) return;
+    try {
+      await deleteOrder(order.id);
+      setOrders(prev => prev.filter(o => o.id !== order.id));
+      toast.success("Pedido removido com sucesso");
+    } catch (error) {
+      let errorMessage = "Erro ao remover pedido";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleOrderUpdated = (updatedOrder) => {
+    setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-slate-700">Gestão de Pedidos</p>
-        <button onClick={() => setShowAddModal(true)} className="flex items-center gap-1 bg-orange-500 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm shadow-orange-300">
-          <Icon name="plus" size={14} /> Novo
+        <button
+          onClick={() => onOpenCreateDelivery && onOpenCreateDelivery()}
+          className="flex items-center gap-1 bg-orange-500 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm shadow-orange-300"
+        >
+          <Icon name="plus" size={14} /> Nova Entrega
         </button>
       </div>
-      <AddOrderModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onAdd={handleAddOrder} />
+
       <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
         {statuses.map(s => (
           <button key={s} onClick={() => setFilter(s)}
@@ -36,7 +95,88 @@ const AdminOrders = () => {
           </button>
         ))}
       </div>
-      {filtered.map(o => <div key={o.id} className="mb-3"><OrderCard order={o} showAssign onAssign={handleAssignDriver} /></div>)}
+
+      {loading ? (
+        <div className="text-center py-10">
+          <div className="animate-spin w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+          <p className="text-sm text-slate-500">A carregar pedidos...</p>
+        </div>
+      ) : filteredOrders.length === 0 ? (
+        <div className="text-center py-10">
+          <Icon name="package" size={48} className="text-slate-300 mx-auto mb-2" />
+          <p className="text-sm text-slate-500">Nenhum pedido encontrado</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredOrders.map(order => {
+            const displayStatus = backendToFrontend(order.status);
+            const isDelivery = order.serviceType !== "taxi";
+
+            const statusBadge =
+              displayStatus === "Em entrega" ? "bg-blue-100 text-blue-700" :
+              displayStatus === "Concluído" ? "bg-green-100 text-green-700" :
+              displayStatus === "Cancelado" ? "bg-red-100 text-red-700" :
+              displayStatus === "Aprovado" ? "bg-teal-100 text-teal-700" :
+              displayStatus === "Agendado" ? "bg-purple-100 text-purple-700" :
+              "bg-amber-100 text-amber-700";
+
+            return (
+              <div key={order.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-bold text-slate-800">{toShortId(order.id)}</span>
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${statusBadge}`}>{displayStatus}</span>
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                      isDelivery ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"
+                    }`}>
+                      {isDelivery ? (
+                        <span className="inline-flex items-center gap-1"><Icon name="package" size={10} /> Entrega</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1"><Icon name="car" size={10} /> Táxi</span>
+                      )}
+                    </span>
+                  </div>
+                  <span className="text-sm font-bold text-orange-500"> {order.total} MZN</span>
+                </div>
+
+                <p className="text-sm font-medium text-slate-700">
+                  {order.client?.name || order.client || "Cliente"}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {isDelivery ? `${order.origin || ""} → ${order.dest || ""}` : `${order.pickupLocation || ""} → ${order.dropoffLocation || ""}`}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {order.time || new Date(order.createdAt).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
+                </p>
+
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={() => setSelectedOrder(order)}
+                    className="flex-1 text-xs bg-slate-100 text-slate-600 font-semibold py-2 rounded-lg hover:bg-blue-100 hover:text-blue-700"
+                  >
+                    Detalhes / ações
+                  </button>
+                  <button
+                    onClick={() => handleDeleteOrder(order)}
+                    className="flex-1 text-xs bg-slate-100 text-slate-600 font-semibold py-2 rounded-lg hover:bg-red-100 hover:text-red-700"
+                  >
+                    Remover
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {selectedOrder && (
+        <AdminOrderDetailModal
+          isOpen={!!selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+          order={selectedOrder}
+          onUpdate={handleOrderUpdated}
+        />
+      )}
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Icon from "../../common/Icon";
-import { ORDERS, CUSTOMER_ORDERS, NOTIFICATIONS } from "../../../data/mockData";
+import { createOrder as apiCreateOrder } from "../../../api/client";
 import { useJsApiLoader } from "@react-google-maps/api";
 import { GoogleMap, Marker, DirectionsRenderer, Autocomplete } from "@react-google-maps/api";
 import LocationStep from "./LocationStep";
@@ -32,6 +32,8 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     pickupLocation: false,
     dropoffLocation: false
   });
+  const [saving, setSaving] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState('idle');
   
   const [form, setForm] = useState({
     origin: "",
@@ -437,7 +439,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     setStep(step + 1);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (step < (serviceType === "taxi" ? 4 : 4)) {
@@ -449,199 +451,73 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
       return;
     }
     
-    if (serviceType === "taxi") {
+    setSaving(true);
+    setSubmitStatus('loading');
+    try {
+      const paymentMap = { "Transferência": "bank_transfer", "M-Pesa": "mpesa", "e-Mola": "emola", "Cash": "cash" };
       const distance = calculateDistance();
-      const duration = calculateDuration();
-      const total = calculateRidePrice();
+      const duration = serviceType === "taxi" ? calculateDuration() : calculateDeliveryDuration();
+      const total = serviceType === "taxi" ? calculateRidePrice() : calculateDeliveryPrice();
       
-      const newOrder = {
-        id: `#TAXI${String(ORDERS.length + CUSTOMER_ORDERS.length + 1).padStart(3, "0")}`,
-        clientId: user.id,
-        client: user.name,
-        serviceType: "taxi",
-        pickupLocation: form.pickupLocation,
-        dropoffLocation: form.dropoffLocation,
-        pickupCoords: form.pickupCoords,
-        dropoffCoords: form.dropoffCoords,
-        passengerCount: form.passengerCount,
-        returnTrip: form.returnTrip,
-        waitingTime: form.waitingTime,
-        hasLuggage: form.hasLuggage,
-        instructions: form.rideInstructions,
-        isScheduled: form.isScheduledRide,
-        scheduledRideTime: form.scheduledRideTime,
-        distance: `${distance} km`,
-        duration: `${duration} min`,
-        status: form.isScheduledRide ? "Agendado" : "Pendente",
-        statusCode: form.isScheduledRide ? "scheduled" : "pending_approval",
-        driver: null,
-        total: `${total} MZN`,
-        totalValue: total,
-        orderDate: new Date().toISOString().split('T')[0],
-        orderTime: new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }),
-        paymentMethod: form.paymentMethod,
-        paymentStatus: "Pendente",
-        timeline: form.isScheduledRide ? [
-          { time: "Agora", status: "Corrida agendada", completed: true },
-          { time: form.scheduledRideTime, status: "Motorista a caminho", completed: false },
-          { time: "Em breve", status: "Em viagem", completed: false },
-          { time: "Em breve", status: "Destino alcançado", completed: false }
-        ] : [
-          { time: "Agora", status: "Corrida solicitada", completed: true },
-          { time: "Em breve", status: "Procurando motorista", completed: false },
-          { time: "Em breve", status: "Motorista a caminho", completed: false },
-          { time: "Em breve", status: "Em viagem", completed: false },
-          { time: "Em breve", status: "Destino alcançado", completed: false }
-        ]
-      };
+      const companyId = user?.companyId || customerData?.companyId || null;
       
-      CUSTOMER_ORDERS.push(newOrder);
-      ORDERS.push({
-        id: newOrder.id,
-        client: user.name,
-        clientId: user.id,
-        serviceType: "taxi",
-        pickupLocation: form.pickupLocation,
-        dropoffLocation: form.dropoffLocation,
-        status: newOrder.status,
-        driver: "—",
-        total: newOrder.total,
-        time: newOrder.orderTime,
-        distance: newOrder.distance,
-        duration: newOrder.duration,
-        passengerCount: form.passengerCount,
-        paymentMethod: form.paymentMethod,
-        paymentStatus: "Pendente"
-      });
+      if (serviceType === "taxi") {
+        await apiCreateOrder({
+          companyId,
+          clientId: user?.id || null,
+          serviceType: "taxi",
+          status: form.isScheduledRide ? "scheduled" : "pending_approval",
+          pickupLocation: form.pickupLocation,
+          dropoffLocation: form.dropoffLocation,
+          pickupCoords: form.pickupCoords,
+          dropoffCoords: form.dropoffCoords,
+          passengerCount: form.passengerCount,
+          hasLuggage: form.hasLuggage,
+          returnTrip: form.returnTrip,
+          waitingTime: form.waitingTime,
+          instructions: form.rideInstructions,
+          scheduledTime: form.isScheduledRide ? form.scheduledRideTime : null,
+          contactOrigin: form.contactOrigin,
+          contactDest: form.contactDest,
+          total,
+          dist: `${distance} km`,
+          time: new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }),
+          paymentMethod: paymentMap[form.paymentMethod] || "bank_transfer",
+          paymentStatus: "pending"
+        });
+      } else {
+        await apiCreateOrder({
+          companyId,
+          clientId: user?.id || null,
+          serviceType: "delivery",
+          status: form.isScheduled ? "scheduled" : "pending_approval",
+          origin: form.origin,
+          dest: form.dest,
+          originCoords: form.originCoords,
+          destCoords: form.destCoords,
+          urgencyLevel: form.urgencyLevel,
+          productName: form.productName,
+          quantity: form.quantity,
+          instructions: form.instructions,
+          observations: form.observations,
+          scheduledTime: form.isScheduled ? form.scheduledTime : null,
+          contactOrigin: form.contactOrigin,
+          contactDest: form.contactDest,
+          total,
+          dist: `${distance} km`,
+          time: new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }),
+          paymentMethod: paymentMap[form.paymentMethod] || "bank_transfer",
+          paymentStatus: "pending"
+        });
+      }
       
-      NOTIFICATIONS.unshift({
-        id: NOTIFICATIONS.length + 1,
-        type: "ride",
-        title: form.isScheduledRide ? `Corrida Agendada ${newOrder.id}` : `Nova Corrida ${newOrder.id}`,
-        message: `${user.name} ${form.isScheduledRide ? 'agendou' : 'solicitou'} uma corrida`,
-        time: "agora",
-        read: false,
-        icon: "car",
-        userId: null
-      });
-    } else {
-      const distance = calculateDistance();
-      const duration = calculateDeliveryDuration();
-      const total = calculateDeliveryPrice();
-      
-      const newOrder = {
-        id: `#${String(ORDERS.length + CUSTOMER_ORDERS.length + 1).padStart(3, "0")}`,
-        clientId: user.id,
-        client: user.name,
-        serviceType: "delivery",
-        origin: form.origin,
-        dest: form.dest,
-        originCoords: form.originCoords,
-        destCoords: form.destCoords,
-        urgencyLevel: form.urgencyLevel,
-        distance: `${distance} km`,
-        duration: `${duration} min`,
-        status: form.isScheduled ? "Agendado" : "Pendente",
-        statusCode: form.isScheduled ? "scheduled" : "pending_approval",
-        driver: null,
-        total: `${total} MZN`,
-        totalValue: total,
-        orderDate: new Date().toISOString().split('T')[0],
-        orderTime: new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }),
-        productName: form.productName,
-        quantity: form.quantity,
-        paymentMethod: form.paymentMethod,
-        paymentStatus: "Pendente",
-        instructions: form.instructions,
-        observations: form.observations,
-        scheduledTime: form.scheduledTime,
-        timeline: form.isScheduled ? [
-          { time: "Agora", status: "Pedido agendado", completed: true },
-          { time: form.scheduledTime, status: "Preparando entrega", completed: false },
-          { time: "Em breve", status: "Motorista designado", completed: false },
-          { time: "Em breve", status: "Em coleta", completed: false },
-          { time: "Em breve", status: "Em rota de entrega", completed: false },
-          { time: "Em breve", status: "Entregue", completed: false }
-        ] : [
-          { time: "Agora", status: "Pedido enviado", completed: true },
-          { time: "Em breve", status: "Aguardando aprovação", completed: false },
-          { time: "Em breve", status: "Motorista designado", completed: false },
-          { time: "Em breve", status: "Em coleta", completed: false },
-          { time: "Em breve", status: "Em rota de entrega", completed: false },
-          { time: "Em breve", status: "Entregue", completed: false }
-        ]
-      };
-      
-      CUSTOMER_ORDERS.push(newOrder);
-      ORDERS.push({
-        id: newOrder.id,
-        client: user.name,
-        clientId: user.id,
-        origin: form.origin,
-        dest: form.dest,
-        status: newOrder.status,
-        driver: "—",
-        total: newOrder.total,
-        time: newOrder.orderTime,
-        distance: newOrder.distance,
-        duration: newOrder.duration,
-        productId: null,
-        productName: form.productName,
-        quantity: form.quantity,
-        paymentMethod: form.paymentMethod,
-        paymentStatus: "Pendente",
-        urgencyLevel: form.urgencyLevel
-      });
-      
-      NOTIFICATIONS.unshift({
-        id: NOTIFICATIONS.length + 1,
-        type: "order",
-        title: form.isScheduled ? `Pedido Agendado ${newOrder.id}` : `Novo Pedido ${newOrder.id}`,
-        message: `${user.name} fez um novo pedido - ${form.productName}`,
-        time: "agora",
-        read: false,
-        icon: "package",
-        userId: null
-      });
+      setSubmitStatus('success');
+    } catch (error) {
+      console.error("Failed to create order:", error);
+      setSubmitStatus('idle');
+      setSaving(false);
+      alert(error.response?.data?.message || "Falha ao criar pedido. Tente novamente.");
     }
-    
-    onOrderCreated();
-    onClose();
-    setStep(1);
-    setMapOpen(false);
-    setRouteMapOpen(false);
-    setMapTarget(null);
-    setMapMarker(null);
-    setDirections(null);
-    setRouteInfo(null);
-    setForm({
-      origin: "",
-      originCoords: null,
-      dest: "",
-      destCoords: null,
-      productName: "",
-      quantity: 1,
-      weight: "",
-      observations: "",
-      instructions: "",
-      scheduledTime: "",
-      isScheduled: false,
-      urgencyLevel: "normal",
-      paymentMethod: "Transferência",
-      contactOrigin: customerData?.phone || "",
-      contactDest: customerData?.phone || "",
-      pickupLocation: "",
-      pickupCoords: null,
-      dropoffLocation: "",
-      dropoffCoords: null,
-      passengerCount: 1,
-      isScheduledRide: false,
-      scheduledRideTime: "",
-      rideInstructions: "",
-      hasLuggage: false,
-      returnTrip: false,
-      waitingTime: 0
-    });
   };
   
   if (!isOpen) return null;
@@ -796,14 +672,14 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
               )}
               <button
                 type="submit"
+                disabled={saving}
                 className={`flex-1 py-2.5 rounded-xl text-white font-bold text-sm shadow-lg ${
                   serviceType === "taxi" 
                     ? "bg-blue-500 shadow-blue-500/30 hover:bg-blue-600" 
                     : "bg-orange-500 shadow-orange-500/30 hover:bg-orange-600"
-                } ${((serviceType === "taxi" && step === 1) || (serviceType === "delivery" && step === 2)) && !isCurrentStepValid ? "opacity-50 cursor-not-allowed" : ""}`}
-                disabled={((serviceType === "taxi" && step === 1) || (serviceType === "delivery" && step === 2)) && !isCurrentStepValid}
+                } ${((serviceType === "taxi" && step === 1) || (serviceType === "delivery" && step === 2)) && !isCurrentStepValid ? "opacity-50 cursor-not-allowed" : ""} ${saving ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                {step < 4 ? "Continuar" : "Confirmar"}
+                {saving ? "A criar..." : step < 4 ? "Continuar" : "Confirmar"}
               </button>
             </div>
           </form>
@@ -948,6 +824,80 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submission Feedback Popup */}
+      {submitStatus === 'loading' && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-xs text-center shadow-2xl">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+              <svg className="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            <h3 className="text-base font-bold text-slate-800 mb-1">A processar pedido</h3>
+            <p className="text-xs text-slate-500">Por favor, aguarde enquanto o seu pedido é enviado...</p>
+          </div>
+        </div>
+      )}
+
+      {submitStatus === 'success' && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-xs text-center shadow-2xl">
+            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-base font-bold text-slate-800 mb-1">Pedido enviado com sucesso!</h3>
+            <p className="text-xs text-slate-500 mb-5">O seu pedido foi recebido e está a ser processado. Em breve receberá confirmação.</p>
+            <button
+              onClick={() => {
+                setSubmitStatus('idle');
+                onClose();
+                setStep(1);
+                setMapOpen(false);
+                setRouteMapOpen(false);
+                setMapTarget(null);
+                setMapMarker(null);
+                setDirections(null);
+                setRouteInfo(null);
+                setForm({
+                  origin: "",
+                  originCoords: null,
+                  dest: "",
+                  destCoords: null,
+                  productName: "",
+                  quantity: 1,
+                  weight: "",
+                  observations: "",
+                  instructions: "",
+                  scheduledTime: "",
+                  isScheduled: false,
+                  urgencyLevel: "normal",
+                  paymentMethod: "Transferência",
+                  contactOrigin: customerData?.phone || "",
+                  contactDest: customerData?.phone || "",
+                  pickupLocation: "",
+                  pickupCoords: null,
+                  dropoffLocation: "",
+                  dropoffCoords: null,
+                  passengerCount: 1,
+                  isScheduledRide: false,
+                  scheduledRideTime: "",
+                  rideInstructions: "",
+                  hasLuggage: false,
+                  returnTrip: false,
+                  waitingTime: 0
+                });
+              }}
+              className="w-full py-2.5 rounded-xl bg-green-500 text-white font-bold text-sm shadow-lg shadow-green-500/30 hover:bg-green-600 transition-colors"
+            >
+              Entendi
+            </button>
           </div>
         </div>
       )}

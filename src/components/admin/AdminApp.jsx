@@ -14,10 +14,13 @@ import AdminReports from "./AdminReports";
 import AdminFinance from "./AdminFinance";
 import AdminRequests from "./AdminRequests";
 import AdminManagers from "./AdminManagers";
+import CreateOrderModal from "../cliente/modals/CreateOrderModal";
 import { CUSTOMER_REQUESTS, NOTIFICATIONS, ORDERS } from "../../data/mockData";
 
 const AdminApp = () => {
   const [customerRequests, setCustomerRequests] = useState(CUSTOMER_REQUESTS);
+  const [showAdminCreateOrder, setShowAdminCreateOrder] = useState(false);
+  const [orderRefreshKey, setOrderRefreshKey] = useState(0);
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -126,7 +129,12 @@ const AdminApp = () => {
       <Header user={user} onLogout={signOut} title="Painel Admin" notifs={NOTIFICATIONS.filter(n => !n.read).length} onNotificationClick={() => setTab("notifications")} />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
         {activeTab === "home" && <AdminHome customerRequests={customerRequests.filter(r => r.status === "pending")} />}
-        {activeTab === "orders" && <AdminOrders />}
+        {activeTab === "orders" && (
+          <AdminOrders
+            onOpenCreateDelivery={() => setShowAdminCreateOrder(true)}
+            refreshKey={orderRefreshKey}
+          />
+        )}
         {activeTab === "drivers" && <AdminDrivers />}
         {activeTab === "managers" && <AdminManagers />}
         {activeTab === "requests" && <AdminRequests requests={customerRequests} onApprove={handleApproveRequest} onReject={handleRejectRequest} />}
@@ -138,6 +146,19 @@ const AdminApp = () => {
         {activeTab === "notifications" && <AdminNotifications />}
       </div>
       <BottomNav tabs={tabs} active={activeTab} setActive={setTab} />
+
+      {showAdminCreateOrder && (
+        <CreateOrderModal
+          isOpen={showAdminCreateOrder}
+          onClose={() => setShowAdminCreateOrder(false)}
+          onOrderCreated={() => {
+            setShowAdminCreateOrder(false);
+            setOrderRefreshKey(k => k + 1);
+          }}
+          user={user}
+          serviceType="delivery"
+        />
+      )}
     </div>
   );
 };

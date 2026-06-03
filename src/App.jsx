@@ -7,15 +7,26 @@ import ResetPasswordPage from './components/auth/ResetPasswordPage';
 import RegisterPage from './components/auth/RegisterPage';
 import VerificationPage from './components/auth/VerificationPage';
 
-// Import all app components for admin sub-routes
 import AdminApp from './components/admin/AdminApp';
 import GestorApp from './components/gestor/GestorApp';
 import MotoristaApp from './components/motorista/MotoristaApp';
 import CustomerApp from './components/cliente/CustomerApp';
 
 import ProtectedRoute from './ProtectedRoute';
+import { SocketProvider } from './contexts/SocketContext';
+import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
+  return (
+    <AuthProvider>
+      <SocketProvider>
+        <InnerApp />
+      </SocketProvider>
+    </AuthProvider>
+  );
+}
+
+function InnerApp() {
   const { user, loading } = useAuth();
 
   if (loading) {

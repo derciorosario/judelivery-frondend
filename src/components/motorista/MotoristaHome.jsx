@@ -1,13 +1,65 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "../common/Icon";
 import { ORDERS } from "../../data/mockData";
 import NavigationModal from "./modals/NavigationModal";
+import { useSocket } from "../../contexts/SocketContext";
 
 const MotoristaHome = ({ online, setOnline }) => {
+  const { socket, connected } = useSocket();
   const myOrders = ORDERS.filter(o => o.driver === "João Motorista");
   const activeOrder = myOrders.find(o => o.status === "Em entrega");
   const [showNavigationModal, setShowNavigationModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [gpsPermission, setGpsPermission] = useState("prompt");
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setGpsPermission("granted");
+        if (socket && connected && online) {
+          socket.emit("driver:location", { lat: latitude, lng: longitude });
+        }
+      },
+      (err) => {
+        console.error("GPS error:", err);
+        setGpsPermission("denied");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+    );
+
+    if (online && socket && connected) {
+      socket.emit("driver:status", "online");
+    }
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+      if (socket && connected) {
+        socket.emit("driver:status", "offline");
+      }
+    };
+  }, [online, connected, socket]);
+
+  const handleToggleOnline = async () => {
+    const newOnline = !online;
+    setOnline(newOnline);
+
+    const permissionCb = () => {
+      if (!navigator.permissions) return Promise.resolve();
+      return navigator.permissions.query({ name: "geolocation" }).then((result) => {
+        if (newOnline && result.state === "denied") {
+          alert("A permissão de localização foi negada. Por favor, ative nas configurações do navegador.");
+        }
+      }).catch(() => {});
+    };
+    await permissionCb();
+
+    if (socket && connected) {
+      socket.emit("driver:status", newOnline ? "online" : "offline");
+    }
+  };
 
   const handleNavigate = (order) => {
     setSelectedOrder(order);
@@ -22,15 +74,48 @@ const MotoristaHome = ({ online, setOnline }) => {
         order={selectedOrder}
       />
 
+      {/* Location Permission Prompt */}
+      {gpsPermission === "denied" && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+              <Icon name="alertTriangle" size={18} className="text-red-600" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-slate-800">Localização Desactivada</p>
+              <p className="text-xs text-slate-500 mt-0.5">Active a permissão de localização nas configurações do navegador para receber pedidos.</p>
+              <button
+                onClick={() => window.open("about:preferences#privacy", "_blank")}
+                className="mt-2 text-xs bg-red-500 text-white px-3 py-1.5 rounded-lg font-semibold"
+              >
+                Abrir Configurações
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Status Card */}
-      <div className={`rounded-2xl p-4 flex items-center justify-between ${online ? "bg-gradient-to-r from-green-500 to-emerald-500" : "bg-gradient-to-r from-slate-500 to-slate-600"} text-white`}>
+      <div 
+        className={`rounded-2xl p-4 flex items-center justify-between ${
+          online && gpsPermission === "granted" 
+            ? "bg-gradient-to-r from-green-500 to-emerald-500" 
+            : "bg-gradient-to-r from-slate-500 to-slate-600"
+        } text-white cursor-pointer`}
+        onClick={handleToggleOnline}
+      >
         <div>
           <p className="text-xs font-semibold opacity-80">Estado Actual</p>
-          <p className="text-xl font-bold mt-0.5">{online ? "Online 🟢" : "Offline 🔴"}</p>
-          <p className="text-xs opacity-75">Toque para alterar</p>
+          <p className="text-xl font-bold mt-0.5">
+            {online && gpsPermission === "granted" ? "Online 🟢" : 
+             online && gpsPermission === "prompt" ? "A activar..." : "Offline 🔴"}
+          </p>
+          <p className="text-xs opacity-75">
+            {online && gpsPermission === "prompt" ? "A solicitar GPS..." : "Toque para alterar"}
+          </p>
         </div>
         <button
-          onClick={() => setOnline(!online)}
+          onClick={(e) => { e.stopPropagation(); handleToggleOnline(); }}
           className={`w-14 h-7 rounded-full relative transition-all ${online ? "bg-white/30" : "bg-white/20"}`}
         >
           <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-all ${online ? "left-7" : "left-0.5"}`} />
