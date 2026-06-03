@@ -1,0 +1,408 @@
+@import "tailwindcss";
+
+input, textarea, select{
+  color: #111 !important;
+}
+input::placeholder, textarea::placeholder{
+  color: #111111a8 !important;
+}
+
+#goog-gt-vt{
+  display: none !important;
+}
+body iframe.skiptranslate[id]{
+  display: none !important;
+}
+body{
+  top: 0 !important;
+}
+.goog-te-gadget-simple{
+  display: flex !important;
+  padding: 0.2rem !important;
+  border-radius: 0.5rem !important;
+}
+.goog-te-gadget-simple img{
+  display: none !important;
+}
+.goog-te-gadget-simple span a{
+  display: flex !important;
+}
+
+.goog-te-gadget-simple span a span:first-child{
+  max-width: 80px !important;
+  overflow: hidden !important;
+}
+
+
+
+
+/*************/
+
+.skiptranslate.goog-te-gadget *{
+ display: none;
+}
+
+.skiptranslate.goog-te-gadget{
+ color: transparent;
+}
+
+.skiptranslate.goog-te-gadget .goog-te-combo  {
+  display: block !important;
+  color: #111;
+  outline: none;
+  border: 1px solid #d1d5dc;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+  padding: 9px 5px !important;
+  font-size: 12px !important;
+}
+
+.VIpgJd-ZVi9od-aZ2wEe-wOHMyf, .VIpgJd-ZVi9od-aZ2wEe-wOHMyf-ti6hGc{
+  display: none !important;
+}
+ 
+@media (max-width:900px) {
+   .skiptranslate.goog-te-gadget .goog-te-combo {
+     width: 115px !important;
+   }
+   
+}
+
+
+.skiptranslate.goog-te-gadget .goog-te-combo option  {
+  display: block !important;
+}
+
+#google_translate_element, #google_translate_element_header, .google_translate_element_header_mobile{
+ height: 40px;
+ overflow: hidden;
+}
+
+
+.skiptranslate .indicator{
+  display:  none !important;
+}
+
+._vendor_section section{
+  margin-bottom: 0.5rem;
+}
+
+/* Custom styles for react-datepicker */
+.react-datepicker-wrapper {
+  width: 100%;
+}
+
+.react-datepicker__input-container {
+  width: 100%;
+}
+
+
+
+.react-datepicker__input-container input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  color: #000;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.react-datepicker__input-container input:focus {
+  border-color: #9CAA8E;
+  box-shadow: 0 0 0 2px rgba(156, 170, 142, 0.2);
+}
+
+.react-datepicker__input-container input::placeholder {
+  color: #9ca3af;
+}
+
+@theme {
+  /* Primary color palette */
+  --color-primary-50: #f4f7f2;
+  --color-primary-100: #e9eee5;
+  --color-primary-200: #dee5d8;
+  --color-primary-300: #d3dccb;
+  --color-primary-400: #b8c3ae;
+  --color-primary-500: #9CAA8E;
+  --color-primary-600: #7e8b71;
+  --color-primary-700: #616c57;
+  --color-primary-800: #444d3c;
+  --color-primary-900: #282e22;
+
+  /* Base color palette */
+  --color-base-50: #f8f6f3;
+  --color-base-100: #e9e7e3;
+  --color-base-200: #dad8d3;
+  --color-base-300: #cbc9c3;
+  --color-base-400: #b3b9a8;
+  --color-base-500: #9CAA8E;
+  --color-base-600: #7d8873;
+  --color-base-700: #5e6658;
+  --color-base-800: #3f443d;
+  --color-base-900: #202222;
+
+  /* Primary 2 color palette */
+  --color-primary-2-50: #f8f6f3;
+  --color-primary-2-100: #e9e7e3;
+  --color-primary-2-200: #dad8d3;
+  --color-primary-2-300: #cbc9c3;
+  --color-primary-2-400: #b3b9a8;
+  --color-primary-2-500: #9CAA8E;
+  --color-primary-2-600: #7d8873;
+  --color-primary-2-700: #5e6658;
+  --color-primary-2-800: #3f443d;
+  --color-primary-2-900: #202222;
+}
+
+
+
+@media print {
+
+    *::-webkit-scrollbar {
+      display: none;
+    }
+ 
+  
+  body {
+    padding: 0;
+    margin: 0;
+    background: #fff !important;
+    width: 100%;
+  }
+
+
+@page {
+  size: letter;
+  margin: .5in;
+}
+
+ ._footer {
+  width: 100%;
+  border:0 !important;
+}
+
+._header {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  height: 50px !important;
+  border:0 !important;
+}
+
+
+table.paging,  table.paging thead td {
+  height: 150px !important;
+  border:0 !important;
+}
+
+ table.paging tfoot td {
+  height: 150px !important;
+  border:0 !important;
+}
+
+
+._header, ._footer {
+  position: fixed;
+}
+
+._footer {
+  bottom: 0;
+}
+
+.ignore_in_print{
+  display: none !important;
+}
+
+.show_in_print{
+  display: block !important;
+}
+  
+._print_content table {
+  width: 100%;
+  border-collapse: collapse;
+  page-break-inside: auto;
+}
+
+._print_content thead {
+  display: table-header-group; 
+}
+
+._print_content tbody {
+  display: table-row-group;
+}
+
+._print_content tr {
+  page-break-inside: avoid;
+}
+
+._print_content table {
+border-collapse: collapse;
+width: 100%;
+}
+
+._print_content thead {
+display: table-header-group;
+}
+
+._print_content tbody {
+display: table-row-group;
+}
+
+._print_content tfoot {
+    display: table-footer-group; 
+}
+
+}
+
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  /*background-color:  #f4f7f2;*/
+  background-color:  #fff;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  font-weight: 500;
+  color: #000;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #000;
+}
+button{
+  cursor: pointer;
+}
+
+*{
+  /* font-family: "Playfair Display", serif !important;*/
+   font-optical-sizing: auto;
+}
+
+.bg_ring {
+  background-image: url('../assets/ring-bg.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
+
+.bg_vendor_1 {
+  background-image: url('../assets/vendor-1.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
+.bg_vendor_2 {
+  background-image: url('../assets/vendor-2.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
+.bg_vendor_3 {
+  background-image: url('../assets/vendor-3.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
+
+/* Safe area padding for mobile bottom sheets */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+/* Mobile optimized touch targets */
+@media (max-width: 768px) {
+  /* Ensure form inputs have proper touch size */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  textarea,
+  select {
+    font-size: 16px !important; /* Prevents iOS zoom on focus */
+  }
+  
+  /* Ensure buttons have minimum touch target size */
+  __button,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Smooth scrolling for mobile */
+@media (max-width: 768px) {
+  html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Prevent horizontal scroll on mobile */
+  body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+}
+
+/* Bottom sheet drag indicator */
+.bottom-sheet-handle {
+  width: 40px;
+  height: 4px;
+  background-color: #d1d5db;
+  border-radius: 2px;
+  margin: 0 auto 8px;
+}
+
+/* Improved modal animations */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+/* Leaflet map styles */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+}
+
+.leaflet-container .leaflet-control-attribution {
+  font-size: 10px;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+}
+
+.leaflet-popup-content {
+  margin: 8px 12px;
+}
