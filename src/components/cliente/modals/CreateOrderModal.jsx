@@ -35,6 +35,10 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
   const [saving, setSaving] = useState(false);
   const [submitStatus, setSubmitStatus] = useState('idle');
   
+  // Autocomplete refs
+  const autocompleteRef = useRef(null);
+  const [searchValue, setSearchValue] = useState("");
+  
   const [form, setForm] = useState({
     origin: "",
     originCoords: null,
@@ -237,21 +241,26 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
 
   const openMapSelector = async (field) => {
     setMapTarget(field);
+    setSearchValue("");
     let center = MAPUTO_CENTER;
     let hasCoords = false;
     
     if (field === "origin" && form.originCoords) {
       center = form.originCoords;
       hasCoords = true;
+      setSearchValue(form.origin);
     } else if (field === "dest" && form.destCoords) {
       center = form.destCoords;
       hasCoords = true;
+      setSearchValue(form.dest);
     } else if (field === "pickupLocation" && form.pickupCoords) {
       center = form.pickupCoords;
       hasCoords = true;
+      setSearchValue(form.pickupLocation);
     } else if (field === "dropoffLocation" && form.dropoffCoords) {
       center = form.dropoffCoords;
       hasCoords = true;
+      setSearchValue(form.dropoffLocation);
     }
     
     if (!hasCoords && navigator.geolocation) {
@@ -284,6 +293,40 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     const lat = e.latLng.lat();
     const lng = e.latLng.lng();
     setMapMarker({ lat, lng });
+    // Reverse geocode to get address for the clicked location
+    const geocoder = new window.google.maps.Geocoder();
+    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+      if (status === "OK" && results && results[0]) {
+        setSearchValue(results[0].formatted_address);
+      } else {
+        setSearchValue(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+      }
+    });
+  };
+
+  const onAutocompleteLoad = (autocomplete) => {
+    autocompleteRef.current = autocomplete;
+  };
+
+  const onPlaceChanged = () => {
+    if (autocompleteRef.current) {
+      const place = autocompleteRef.current.getPlace();
+      if (place && place.geometry && place.geometry.location) {
+        const lat = place.geometry.location.lat();
+        const lng = place.geometry.location.lng();
+        const address = place.formatted_address || place.name;
+        
+        setSearchValue(address);
+        setMapMarker({ lat, lng });
+        setMapCenter({ lat, lng });
+        
+        // Optionally zoom in to the location
+        if (window.google && mapRef.current) {
+          mapRef.current.panTo({ lat, lng });
+          mapRef.current.setZoom(16);
+        }
+      }
+    }
   };
 
   const confirmMapLocation = () => {
@@ -307,7 +350,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
           setRouteInfo(null);
         } else {
           const coords = { lat: mapMarker.lat, lng: mapMarker.lng };
-          const label = `${mapMarker.lat.toFixed(5)}, ${mapMarker.lng.toFixed(5)}`;
+          const label = searchValue || `${mapMarker.lat.toFixed(5)}, ${mapMarker.lng.toFixed(5)}`;
           if (mapTarget === "origin") {
             setForm(prev => ({ ...prev, origin: label, originCoords: coords }));
           } else if (mapTarget === "dest") {
@@ -323,6 +366,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
         setMapOpen(false);
         setMapTarget(null);
         setMapMarker(null);
+        setSearchValue("");
       });
     }
   };
@@ -331,6 +375,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     setMapOpen(false);
     setMapTarget(null);
     setMapMarker(null);
+    setSearchValue("");
   };
 
   const closeRouteMap = () => {
@@ -539,6 +584,13 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     ? (form.pickupCoords && form.dropoffCoords)
     : (form.originCoords && form.destCoords);
   
+  // Map ref for controlling the map
+  const mapRef = useRef(null);
+  
+  const onMapLoad = (map) => {
+    mapRef.current = map;
+  };
+  
   return (
     <div className="fixed inset-0 !mb-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -686,7 +738,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
         </div>
       </div>
 
-      {/* Map Selection Modal */}
+      {/* Map Selection Modal with Autocomplete */}
       {mapOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
@@ -702,6 +754,41 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                 <Icon name="x" size={18} />
               </button>
             </div>
+            
+            {/* Search Bar */}
+            <div className="px-4 pt-3 pb-2 border-b border-slate-100">
+              {isLoaded && (
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <Autocomplete
+                    onLoad={onAutocompleteLoad}
+                    onPlaceChanged={onPlaceChanged}
+                    restrictions={{ country: "mz" }}
+                    options={{
+                      componentRestrictions: { country: "mz" },
+                      types: ["geocode", "establishment"]
+                    }}
+                  >
+                    <input
+                      type="text"
+                      value={searchValue}
+                      onChange={(e) => setSearchValue(e.target.value)}
+                      placeholder="Pesquisar localização..."
+                      className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+                    />
+                  </Autocomplete>
+                </div>
+              )}
+              <p className="text-xs text-slate-400 mt-2 text-center">
+                Pesquise um local ou clique no mapa
+              </p>
+            </div>
+            
+            {/* Map */}
             <div className="h-80 bg-slate-100 relative">
               {!isLoaded || loadingLocations[mapTarget] ? (
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -716,21 +803,36 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                   center={mapCenter}
                   zoom={14}
                   onClick={handleMapClick}
-                  options={{ disableDefaultUI: true, zoomControl: true }}
+                  onLoad={onMapLoad}
+                  options={{ 
+                    disableDefaultUI: true, 
+                    zoomControl: true,
+                    streetViewControl: false,
+                    mapTypeControl: false,
+                    fullscreenControl: false
+                  }}
                 >
                   {mapMarker && <Marker position={mapMarker} />}
                 </GoogleMap>
               )}
             </div>
+            
+            {/* Selected location preview */}
+            {searchValue && mapMarker && (
+              <div className="px-4 py-2 bg-blue-50 border-b border-blue-100">
+                <p className="text-xs text-blue-700 font-medium truncate">
+                  📍 {searchValue}
+                </p>
+              </div>
+            )}
+            
+            {/* Actions */}
             <div className="px-4 py-3 border-t border-slate-100">
-              <p className="text-xs text-slate-500 mb-3 text-center">
-                Clique no mapa para selecionar uma localização
-              </p>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={closeMapSelector}
-                  className="flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm"
+                  className="flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors"
                 >
                   Cancelar
                 </button>
@@ -738,9 +840,9 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                   type="button"
                   onClick={confirmMapLocation}
                   disabled={!mapMarker}
-                  className={`flex-1 py-2 rounded-xl text-white font-bold text-sm shadow-lg ${
+                  className={`flex-1 py-2 rounded-xl text-white font-bold text-sm shadow-lg transition-colors ${
                     mapMarker 
-                      ? "bg-green-500 hover:bg-green-600" 
+                      ? "bg-green-500 hover:bg-green-600 active:bg-green-700" 
                       : "bg-gray-300 cursor-not-allowed"
                   }`}
                 >
@@ -754,13 +856,13 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
 
       {/* Route Map Dialog */}
       {routeMapOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-2 sm:p-4">
           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+            <div className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-100">
               <div>
-                <h3 className="text-sm font-bold text-slate-800">Detalhes da Rota</h3>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-800">Detalhes da Rota</h3>
                 {routeInfo && (
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5">
                     {routeInfo.distance} • {routeInfo.duration}
                   </p>
                 )}
@@ -768,20 +870,24 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
               <button
                 type="button"
                 onClick={closeRouteMap}
-                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"
               >
-                <Icon name="x" size={18} />
+                <Icon name="x" size={16} />
               </button>
             </div>
             
-            <div className="flex flex-1 overflow-hidden">
-              <div className="w-1/2 h-96 bg-slate-100 relative">
+            <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
+              <div className="w-full sm:w-1/2 h-64 sm:h-96 bg-slate-100 relative">
                 {isLoaded && directions && (
                   <GoogleMap
                     mapContainerStyle={{ width: "100%", height: "100%" }}
                     center={mapCenter}
                     zoom={12}
-                    options={{ disableDefaultUI: true, zoomControl: true }}
+                    options={{ 
+                      disableDefaultUI: true, 
+                      zoomControl: true,
+                      gestureHandling: 'greedy'
+                    }}
                   >
                     <DirectionsRenderer 
                       directions={directions}
@@ -797,15 +903,17 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                 )}
               </div>
               
-              <div className="w-1/2 bg-slate-50 overflow-y-auto p-3">
-                <h4 className="text-xs font-semibold text-slate-700 mb-2">Instruções da Rota</h4>
+              <div className="w-full sm:w-1/2 bg-slate-50 overflow-y-auto p-3 sm:p-4 max-h-48 sm:max-h-none">
+                <h4 className="text-xs font-semibold text-slate-700 mb-2 sticky top-0 bg-slate-50 py-1">
+                  Instruções da Rota
+                </h4>
                 <div className="space-y-2">
                   {routeInfo && routeInfo.steps.map((step, idx) => (
                     <div key={idx} className="text-xs text-slate-600 pb-2 border-b border-slate-200 last:border-0">
-                      <div dangerouslySetInnerHTML={{ __html: step.instruction }} />
+                      <div className="text-[11px] sm:text-xs" dangerouslySetInnerHTML={{ __html: step.instruction }} />
                       <div className="flex justify-between mt-1">
-                        <span className="text-[10px] text-slate-400">{step.distance}</span>
-                        <span className="text-[10px] text-slate-400">{step.duration}</span>
+                        <span className="text-[9px] sm:text-[10px] text-slate-400">{step.distance}</span>
+                        <span className="text-[9px] sm:text-[10px] text-slate-400">{step.duration}</span>
                       </div>
                     </div>
                   ))}
@@ -813,12 +921,12 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
               </div>
             </div>
             
-            <div className="px-4 py-3 border-t border-slate-100 bg-white">
+            <div className="px-3 sm:px-4 py-2 sm:py-3 border-t border-slate-100 bg-white">
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={closeRouteMap}
-                  className="flex-1 py-2 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 transition-colors"
+                  className="flex-1 py-2 sm:py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-xs sm:text-sm hover:bg-blue-600 active:bg-blue-700 transition-colors"
                 >
                   Fechar
                 </button>

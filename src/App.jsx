@@ -16,17 +16,7 @@ import ProtectedRoute from './ProtectedRoute';
 import { SocketProvider } from './contexts/SocketContext';
 import { AuthProvider } from './contexts/AuthContext';
 
-function App() {
-  return (
-    <AuthProvider>
-      <SocketProvider>
-        <InnerApp />
-      </SocketProvider>
-    </AuthProvider>
-  );
-}
-
-function InnerApp() {
+const AppInner = () => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -66,6 +56,16 @@ function InnerApp() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+  );
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <SocketProvider>
+        <AppInner />
+      </SocketProvider>
+    </AuthProvider>
   );
 }
 

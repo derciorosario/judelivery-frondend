@@ -213,14 +213,14 @@ const SummaryStep = ({
           </div>
           {form.urgencyLevel === "urgent" && (
             <div className="flex justify-between text-xs">
-              <span className="text-slate-600">Taxa urgente (30%):</span>
-              <span className="font-medium text-amber-600">+{Math.round(price - (price / 1.3))} MZN</span>
+              <span className="text-slate-600">Taxa urgente (10%):</span>
+              <span className="font-medium text-amber-600">+{Math.round(price - (price / 1.1))} MZN</span>
             </div>
           )}
           {form.urgencyLevel === "very_urgent" && (
             <div className="flex justify-between text-xs">
-              <span className="text-slate-600">Taxa muito urgente (60%):</span>
-              <span className="font-medium text-red-600">+{Math.round(price - (price / 1.6))} MZN</span>
+              <span className="text-slate-600">Taxa muito urgente (30%):</span>
+              <span className="font-medium text-red-600">+{Math.round(price - (price / 1.3))} MZN</span>
             </div>
           )}
           <div className="flex justify-between text-xs font-semibold mt-1 pt-1 border-t border-orange-200">

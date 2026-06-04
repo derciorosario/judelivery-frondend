@@ -78,7 +78,8 @@ import {
   Twitter,
   ClipboardList,
   MailCheck,
-  PlusCircle
+  PlusCircle,
+  Zap
 } from "lucide-react"
 
 
@@ -99,6 +100,7 @@ const Icon = ({ name, size = 20, className = "" }) => {
     check: Check,
     x: X,
     plus: Plus,
+    zap:Zap,
     PlusCircle:PlusCircle,
     eye: Eye,
     logout: LogOut,

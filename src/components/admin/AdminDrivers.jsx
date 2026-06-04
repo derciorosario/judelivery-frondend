@@ -4,9 +4,10 @@ import Icon from "../common/Icon";
 import Modal from "../common/Modal";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { getDrivers, createDriver, updateDriver, deleteDriver } from "../../api/client";
+import { getDrivers, createDriver, updateDriver, deleteDriver, getDriverStatuses } from "../../api/client";
 import { toast } from "../../lib/toast";
 import ImageViewer from "../common/ImageViewer";
+import { useRef } from "react";
 
 const FileUploadInput = ({ label, setViewerOpen, setSelectedImage, fieldName, file, onFileChange, onRemove, existingUrl, accept = "image/*,.pdf", isProfile = false, isRemoved = false }) => {
   const hasFile = !!file;
@@ -415,6 +416,74 @@ const AdminDrivers = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [locationNames, setLocationNames] = useState({});
+  const [isGeocoderLoaded, setIsGeocoderLoaded] = useState(false);
+  const geocoderRef = useRef(null);
+
+  // Load Google Maps Geocoder
+  useEffect(() => {
+    if (window.google && window.google.maps) {
+      geocoderRef.current = new window.google.maps.Geocoder();
+      setIsGeocoderLoaded(true);
+    } else {
+      // Load Google Maps if not available
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        geocoderRef.current = new window.google.maps.Geocoder();
+        setIsGeocoderLoaded(true);
+      };
+      document.head.appendChild(script);
+    }
+  }, []);
+
+  // Function to get location name from coordinates
+  const getLocationName = async (lat, lng, driverId) => {
+    if (!geocoderRef.current || !isGeocoderLoaded) return;
+    
+    try {
+      const response = await geocoderRef.current.geocode({
+        location: { lat, lng }
+      });
+      
+      if (response.results && response.results.length > 0) {
+        // Get a short address (street, neighborhood, or city)
+        let shortName = '';
+        for (const component of response.results[0].address_components) {
+          const types = component.types;
+          if (types.includes('route')) {
+            shortName = component.long_name;
+            break;
+          } else if (types.includes('sublocality') || types.includes('neighborhood')) {
+            shortName = component.long_name;
+            break;
+          } else if (types.includes('locality') || types.includes('administrative_area_level_3')) {
+            shortName = component.long_name;
+          }
+        }
+        
+        const addressName = shortName || response.results[0].formatted_address.split(',')[0];
+        
+        setLocationNames(prev => ({
+          ...prev,
+          [driverId]: addressName
+        }));
+      }
+    } catch (error) {
+      console.error("Geocoding error:", error);
+    }
+  };
+
+  // Update location names when drivers have positions
+  useEffect(() => {
+    drivers.forEach(driver => {
+      if (driver?.position?.lat && driver?.position?.lng && !locationNames[driver.id]) {
+        getLocationName(driver.position.lat, driver.position.lng, driver.id);
+      }
+    });
+  }, [drivers, isGeocoderLoaded]);
 
   const statusColor = (status) => {
     if (status === "online") return "bg-green-100 text-green-700";
@@ -434,7 +503,15 @@ const AdminDrivers = () => {
       try {
         const response = await api.getDrivers();
         if (!isActive) return;
-        setDrivers(response.data || []);
+        
+        setDrivers((response.data || []).map(driver => 
+          typeof driver.position === 'string' 
+            ? (() => { try { return { ...driver, position: JSON.parse(driver.position) }; } catch { return driver; } })()
+            : driver
+        ));
+
+        if(socket) socket.emit('admin:snapshot')
+
       } catch (error) {
         const message = error?.response?.data?.message || "Erro ao carregar motoristas";
         toast.error(message);
@@ -450,19 +527,70 @@ const AdminDrivers = () => {
 
   useEffect(() => {
     if (!socket) return;
+
+    socket.emit("admin:snapshot");
+
     const onStatus = (data) => {
       setDrivers((prev) => prev.map((d) => (d.userId === data.driverId || d.id === data.driverId ? { ...d, status: data.status } : d)));
     };
     const onLocation = (data) => {
-      setDrivers((prev) => prev.map((d) => (d.userId === data.driverId || d.id === data.driverId ? { ...d, position: data.coords, lastSeen: new Date().toISOString() } : d)));
+      setDrivers((prev) => prev.map((d) => {
+        if (d.userId === data.driverId || d.id === data.driverId) {
+          // Clear location name for this driver to force refetch
+          setLocationNames(prevNames => {
+            const newNames = { ...prevNames };
+            delete newNames[d.id];
+            return newNames;
+          });
+          return { ...d, position: data.coords, lastSeen: new Date().toISOString() };
+        }
+        return d;
+      }));
+    };
+    const onSnapshot = (items) => {
+      const list = Array.isArray(items) ? items : [];
+      setDrivers((prev) => {
+        const byId = Object.create(null);
+        prev.forEach((d) => {
+          const key = String(d.userId || d.id || "").trim();
+          if (key) byId[key] = d;
+        });
+        const next = { ...byId };
+        list.forEach((entry) => {
+          const key = String(entry.userId || entry.id || "").trim();
+          if (!key) return;
+          const current = next[key] || {};
+          next[key] = {
+            ...current,
+            ...entry,
+            userId: current.userId || entry.userId || entry.id,
+            id: current.id || entry.id || entry.userId,
+            position: entry.position || current.position,
+            lastSeen: entry.lastSeen || current.lastSeen,
+            status: entry.status || current.status || "offline",
+          };
+          // Clear location name for updated drivers
+          if (entry.position) {
+            setLocationNames(prevNames => {
+              const newNames = { ...prevNames };
+              delete newNames[next[key].id];
+              return newNames;
+            });
+          }
+        });
+        return Object.values(next);
+      });
     };
     socket.on("driver:status:updated", onStatus);
     socket.on("driver:location:updated", onLocation);
+    socket.on("admin:snapshot", onSnapshot);
     return () => {
       socket.off("driver:status:updated", onStatus);
       socket.off("driver:location:updated", onLocation);
+      socket.off("admin:snapshot", onSnapshot);
     };
   }, [socket]);
+
 
   const handleAddDriver = (newDriver) => setDrivers((prev) => [newDriver, ...prev]);
   const handleEditDriver = (updatedDriver) => setDrivers((prev) => prev.map((d) => (d.id === updatedDriver.id ? updatedDriver : d)));
@@ -559,7 +687,7 @@ const AdminDrivers = () => {
       ) : (
         drivers.map((d) => (
           <div key={d.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 {d.profilePhotoUrl ? (
                   <img src={d.profilePhotoUrl} alt={d.name} className="w-10 h-10 rounded-xl object-cover" />
@@ -575,44 +703,66 @@ const AdminDrivers = () => {
               </div>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColor(d.status)}`}>{statusLabel(d.status)}</span>
             </div>
-            <div className="flex items-center justify-between pt-2 border-t border-slate-50">
-              <div className="flex items-center gap-3">
-                <div className="text-center">
-                  <p className="text-sm font-bold text-slate-800">{d.vehicle || "—"}</p>
-                  <p className="text-[11px] text-slate-400">Veículo</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-bold text-slate-800">{d.emergencyContact || "—"}</p>
-                  <p className="text-[11px] text-slate-400">Emergência</p>
-                </div>
-                {d.lastSeen && <div className="text-center"><p className="text-[11px] text-slate-400">Atualizado</p><p className="text-[11px] text-slate-500">{new Date(d.lastSeen).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}</p></div>}
+
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="bg-slate-50 rounded-xl px-3 py-2">
+                <p className="text-[10px] text-slate-400 uppercase tracking-wide">Veículo</p>
+                <p className="text-xs font-semibold text-slate-700 truncate">{d.vehicle || "—"}</p>
               </div>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => {
-                    setEditDriver(d);
-                    setShowEditModal(true);
-                  }}
-                  className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 transition-colors"
-                  title="Editar"
-                >
-                  <Icon name="edit" size={14} />
-                </button>
-                <button
-                  onClick={() => handleToggleStatus(d)}
-                  className={`p-1.5 rounded-lg text-xs font-semibold transition-colors ${d.status === "online" ? "bg-red-100 text-red-700 hover:bg-red-200" : "bg-green-100 text-green-700 hover:bg-green-200"}`}
-                  title={d.status === "online" ? "Desativar" : "Ativar"}
-                >
-                  {d.status === "online" ? "Desativar" : "Ativar"}
-                </button>
-                <button
-                  onClick={() => setDeleteTarget(d)}
-                  className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-700 transition-colors"
-                  title="Remover"
-                >
-                  <Icon name="trash" size={14} />
-                </button>
+              <div className="bg-slate-50 rounded-xl px-3 py-2">
+                <p className="text-[10px] text-slate-400 uppercase tracking-wide">Emergência</p>
+                <p className="text-xs font-semibold text-slate-700 truncate">{d.emergencyContact || "—"}</p>
               </div>
+            </div>
+
+            {d.position && (
+              <div className="mb-3 px-3 py-2 bg-blue-50 rounded-xl border border-blue-100">
+                <p className="text-[10px] text-blue-400 uppercase tracking-wide mb-0.5">Localização em tempo real</p>
+                {locationNames[d.id] ? (
+                  <div className="flex items-start gap-1.5 mb-1">
+                    <Icon name="mapPin" size={12} className="text-blue-500 mt-0.5 shrink-0" />
+                    <p className="text-xs font-medium text-blue-700 break-words">
+                      {locationNames[d.id]}
+                    </p>
+                  </div>
+                ) : null}
+                <div className="flex items-start gap-1.5">
+                  <Icon name="navigation" size={12} className="text-blue-400 mt-0.5 shrink-0" />
+                  <p className="text-xs font-mono text-blue-600">
+                    {d.position.lat?.toFixed(5)}, {d.position.lng?.toFixed(5)}
+                  </p>
+                </div>
+                {d.lastSeen && (
+                  <p className="text-[10px] text-blue-400 mt-1.5 flex items-center gap-1">
+                    <Icon name="clock" size={10} />
+                    Atualizado: {new Date(d.lastSeen).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-2 border-t border-slate-100">
+              <button
+                onClick={() => {
+                  setEditDriver(d);
+                  setShowEditModal(true);
+                }}
+                className="flex-1 text-xs bg-slate-100 text-slate-600 font-semibold py-2 rounded-lg hover:bg-blue-100 hover:text-blue-700 transition-colors"
+              >
+                Editar
+              </button>
+              <button
+                onClick={() => handleToggleStatus(d)}
+                className={`flex-1 text-xs font-semibold py-2 rounded-lg transition-colors ${d.status === "online" ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-green-50 text-green-600 hover:bg-green-100"}`}
+              >
+                {d.status === "online" ? "Desativar" : "Ativar"}
+              </button>
+              <button
+                onClick={() => setDeleteTarget(d)}
+                className="flex-1 text-xs bg-slate-100 text-slate-600 font-semibold py-2 rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors"
+              >
+                Remover
+              </button>
             </div>
           </div>
         ))

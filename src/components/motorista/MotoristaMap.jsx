@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { useSocket } from "../../contexts/SocketContext";
+import { useRef, useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useJsApiLoader } from "@react-google-maps/api";
 import { GoogleMap, Marker, InfoWindow } from "@react-google-maps/api";
@@ -18,21 +17,18 @@ const mapOptions = {
   fullscreenControl: false,
 };
 
-const MotoristaMap = ({ online, onToggleOnline }) => {
+const MotoristaMap = ({ online, onToggleOnline, location }) => {
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_KEY, libraries });
-  const { socket, connected } = useSocket();
   const { user } = useAuth();
-  const [position, setPosition] = useState(null);
-  const [heading, setHeading] = useState(0);
-  const [accuracy, setAccuracy] = useState(null);
-  const [lastUpdate, setLastUpdate] = useState(null);
-  const [showStatus, setShowStatus] = useState(true);
+  const mapRef = useRef(null);
+  const geocoderRef = useRef(null);
   const [locationName, setLocationName] = useState(null);
   const [isFetchingLocationName, setIsFetchingLocationName] = useState(false);
-  const watchIdRef = useRef(null);
-  const mapRef = useRef(null);
-  const [mapCenter, setMapCenter] = useState(MAPUTO_CENTER);
-  const geocoderRef = useRef(null);
+  const [showInfoWindow, setShowInfoWindow] = useState(true);
+
+  const position = location?.position;
+  const lastUpdate = location?.lastUpdate;
+  const gpsPermission = location?.gpsPermission;
 
   // Initialize geocoder when Google Maps is loaded
   useEffect(() => {
@@ -54,7 +50,7 @@ const MotoristaMap = ({ online, onToggleOnline }) => {
       if (response.results && response.results.length > 0) {
         // Get the most specific address (first result)
         const address = response.results[0].formatted_address;
-        // Alternatively, get a shorter version (street name + area)
+        // Get a shorter version (street name + area)
         const shortAddress = response.results[0].address_components?.reduce((acc, component) => {
           const types = component.types;
           if (types.includes('route') || types.includes('sublocality') || types.includes('neighborhood')) {
@@ -81,116 +77,52 @@ const MotoristaMap = ({ online, onToggleOnline }) => {
           setLocationName(name);
         }
       });
+    } else if (!position) {
+      setLocationName(null);
     }
   }, [position, isLoaded]);
 
-  // Handle centering when location is available or status changes
-  const centerToCurrentLocation = () => {
-    if (position) {
-      setMapCenter(position);
-      // Also pan the map if map instance is available
-      if (mapRef.current) {
-        mapRef.current.panTo(position);
-      }
+  const recenter = () => {
+    if (mapRef.current && position) {
+      mapRef.current.panTo(position);
+      mapRef.current.setZoom(16);
     }
   };
 
-  const centerToMaputo = () => {
-    setMapCenter(MAPUTO_CENTER);
-    if (mapRef.current) {
-      mapRef.current.panTo(MAPUTO_CENTER);
-    }
-  };
-
-  useEffect(() => {
-    if (!online || !navigator.geolocation) return;
-
-    const watchSuccess = (pos) => {
-      const { latitude, longitude, heading, accuracy } = pos.coords;
-      const coords = { lat: latitude, lng: longitude };
-      setPosition(coords);
-      setHeading(heading || 0);
-      setAccuracy(accuracy);
-      setLastUpdate(new Date());
-      
-      // Center to current location when we first get position while online
-      if (online && (!mapCenter || (mapCenter === MAPUTO_CENTER && !position))) {
-        setMapCenter(coords);
-        if (mapRef.current) {
-          mapRef.current.panTo(coords);
-        }
-      }
-
-      if (socket && connected) {
-        socket.emit("driver:location", coords);
-      }
-    };
-
-    const watchError = (err) => {
-      console.error("Geolocation watch error:", err);
-    };
-
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      watchSuccess,
-      watchError,
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 5000,
-      }
-    );
-
-    return () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-      }
-    };
-  }, [online, socket, connected]);
-
-  // Center when online status changes
-  useEffect(() => {
-    if (online && position) {
-      // When switching ON: center to current position
-      setMapCenter(position);
-      if (mapRef.current) {
-        mapRef.current.panTo(position);
-      }
-    } else if (!online) {
-      // When switching OFF: center to Maputo
-      centerToMaputo();
-    }
-  }, [online, position]);
-
-  useEffect(() => {
-    if (!socket || !connected || !user) return;
-
-    socket.emit("driver:status", online ? "online" : "offline");
-
-    const handleStatusAck = (data) => {
-      if (data.driverId === user.id || data.driverId === user.userId) {
-        console.log("Status sync:", data.status);
-      }
-    };
-
-    socket.on("driver:status:updated", handleStatusAck);
-    return () => socket.off("driver:status:updated", handleStatusAck);
-  }, [socket, connected, online, user]);
-
-  const center = mapCenter;
-
-  // Handle map load to store reference
   const onMapLoad = (map) => {
     mapRef.current = map;
+    if (position) {
+      map.setCenter(position);
+      map.setZoom(16);
+    }
   };
 
   return (
     <div className="space-y-3">
+      {gpsPermission === "denied" && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+              <Icon name="alertTriangle" size={18} className="text-red-600" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-slate-800">Localização Desactivada</p>
+              <p className="text-xs text-slate-500 mt-0.5">Active a permissão de localização nas configurações do navegador para partilhar a sua posição.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className={`w-2.5 h-2.5 rounded-full ${connected && online ? "bg-green-500 animate-pulse" : "bg-slate-400"}`} />
+          <div
+            className={`w-2.5 h-2.5 rounded-full ${
+              online && location?.isActive ? "bg-green-500 animate-pulse" : "bg-slate-400"
+            }`}
+          />
           <div>
             <p className="text-xs font-bold text-slate-800">
-              {connected && online ? "A partilhar localização" : "Sem partilha"}
+              {online && location?.isActive ? "A partilhar localização" : "Sem partilha"}
             </p>
             <p className="text-[10px] text-slate-500">
               {lastUpdate
@@ -201,8 +133,14 @@ const MotoristaMap = ({ online, onToggleOnline }) => {
         </div>
         <button
           onClick={() => {
-            if (onToggleOnline) {
-              onToggleOnline(!online);
+            if (online) {
+              if (location?.isActive) {
+                location.stop();
+              }
+              onToggleOnline && onToggleOnline(false);
+            } else {
+              onToggleOnline && onToggleOnline(true);
+              location.start();
             }
           }}
           className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
@@ -232,7 +170,7 @@ const MotoristaMap = ({ online, onToggleOnline }) => {
         ) : (
           <GoogleMap
             mapContainerStyle={mapContainerStyle}
-            center={center}
+            center={position}
             zoom={16}
             options={mapOptions}
             onLoad={onMapLoad}
@@ -249,24 +187,21 @@ const MotoristaMap = ({ online, onToggleOnline }) => {
                 scale: 2.5,
                 anchor: new window.google.maps.Point(12, 24),
               }}
+              onClick={() => setShowInfoWindow(true)}
             />
-            {showStatus && position && (
-              <InfoWindow position={position} onCloseClick={() => setShowStatus(false)}>
-                <div className="text-xs">
+            {showInfoWindow && locationName && (
+              <InfoWindow 
+                position={position} 
+                onCloseClick={() => setShowInfoWindow(false)}
+              >
+                <div className="text-xs max-w-[220px]">
                   <p className="font-bold text-slate-800">{user?.name || "Motorista"}</p>
                   <p className="text-[10px] text-slate-500 mt-0.5">
                     {online ? "🟢 Online" : "🔴 Offline"}
                   </p>
-                  {locationName && (
-                    <p className="text-[10px] text-slate-600 mt-0.5 max-w-[200px]">
-                      📍 {locationName.short || locationName.full}
-                    </p>
-                  )}
-                  {accuracy && (
-                    <p className="text-[10px] text-slate-400">
-                      Precisão: ±{Math.round(accuracy)}m
-                    </p>
-                  )}
+                  <p className="text-[10px] text-slate-600 mt-1 pt-1 border-t border-slate-100">
+                    📍 {locationName.short || locationName.full}
+                  </p>
                 </div>
               </InfoWindow>
             )}
@@ -276,7 +211,7 @@ const MotoristaMap = ({ online, onToggleOnline }) => {
         {position && (
           <button
             type="button"
-            onClick={centerToCurrentLocation}
+            onClick={recenter}
             className="absolute bottom-4 left-4 z-10 w-10 h-10 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:text-orange-600 hover:border-orange-300 transition-colors"
             title="Centralizar na minha localização"
           >
@@ -288,7 +223,7 @@ const MotoristaMap = ({ online, onToggleOnline }) => {
       {position && (
         <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm">
           {isFetchingLocationName && !locationName ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mb-2">
               <div className="animate-spin w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full" />
               <p className="text-[10px] text-slate-500">A obter localização...</p>
             </div>
@@ -306,11 +241,6 @@ const MotoristaMap = ({ online, onToggleOnline }) => {
             <p className="text-xs font-mono text-slate-700">
               {position.lat.toFixed(6)}, {position.lng.toFixed(6)}
             </p>
-            {heading !== null && heading !== undefined && (
-              <p className="text-[10px] text-slate-500 mt-0.5">
-                Direção: {Math.round(heading)}°
-              </p>
-            )}
           </div>
         </div>
       )}

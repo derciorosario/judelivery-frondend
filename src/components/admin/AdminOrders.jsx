@@ -10,6 +10,7 @@ const AdminOrders = ({ onOpenCreateDelivery, refreshKey }) => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("Todos");
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const statuses = ["Todos", "Pendente", "Aprovado", "Atribuído", "Em entrega", "Concluído", "Cancelado"];
 
@@ -57,10 +58,14 @@ const AdminOrders = ({ onOpenCreateDelivery, refreshKey }) => {
   }, [refreshKey]);
 
   const handleDeleteOrder = async (order) => {
-    if (!window.confirm(`Deseja remover o pedido ${toShortId(order.id)}?`)) return;
+    setDeleteTarget(order);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteOrder(order.id);
-      setOrders(prev => prev.filter(o => o.id !== order.id));
+      await deleteOrder(deleteTarget.id);
+      setOrders(prev => prev.filter(o => o.id !== deleteTarget.id));
       toast.success("Pedido removido com sucesso");
     } catch (error) {
       let errorMessage = "Erro ao remover pedido";
@@ -68,6 +73,8 @@ const AdminOrders = ({ onOpenCreateDelivery, refreshKey }) => {
         errorMessage = error.response.data.message;
       }
       toast.error(errorMessage);
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -101,7 +108,23 @@ const AdminOrders = ({ onOpenCreateDelivery, refreshKey }) => {
           <div className="animate-spin w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full mx-auto mb-3"></div>
           <p className="text-sm text-slate-500">A carregar pedidos...</p>
         </div>
-      ) : filteredOrders.length === 0 ? (
+        ) : deleteTarget ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+            <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
+              <div className="text-center mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Icon name="alertTriangle" size={24} className="text-red-600" />
+                </div>
+                <h3 className="text-base font-bold text-slate-800">Remover Pedido</h3>
+                <p className="text-sm text-slate-500 mt-1">Tem certeza que deseja remover <strong>{toShortId(deleteTarget.id)}</strong>? Esta ação não pode ser revertida.</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setDeleteTarget(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">Cancelar</button>
+                <button onClick={confirmDelete} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-bold text-sm shadow-lg shadow-red-300 hover:bg-red-600">Remover</button>
+              </div>
+            </div>
+          </div>
+        ) : filteredOrders.length === 0 ? (
         <div className="text-center py-10">
           <Icon name="package" size={48} className="text-slate-300 mx-auto mb-2" />
           <p className="text-sm text-slate-500">Nenhum pedido encontrado</p>
@@ -149,7 +172,7 @@ const AdminOrders = ({ onOpenCreateDelivery, refreshKey }) => {
                   {order.time || new Date(order.createdAt).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
                 </p>
 
-                <div className="flex gap-2 mt-3">
+                 <div className="flex gap-2 mt-3">
                   <button
                     onClick={() => setSelectedOrder(order)}
                     className="flex-1 text-xs bg-slate-100 text-slate-600 font-semibold py-2 rounded-lg hover:bg-blue-100 hover:text-blue-700"

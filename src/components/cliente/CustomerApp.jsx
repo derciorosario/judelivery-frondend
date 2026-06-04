@@ -58,18 +58,18 @@ const CustomerApp = () => {
   const pendingOrders = customerOrders.filter(o => o.statusCode === "pending_approval" || o.status === "Pendente");
   const completedOrders = customerOrders.filter(o => o.statusCode === "completed" || o.status === "Concluído");
   
-  // Get customer data
-  const customerData = CUSTOMERS.find(c => c.email === user.email) || {
-    id: user.id,
-    name: user.name,
-    phone: user.email,
-    email: user.email,
-    orders: customerOrders.length,
-    rating: 4.8,
-    frequent: true,
-    addresses: ["Av. Eduardo Mondlane 45, Maputo"],
-    defaultAddress: "Av. Eduardo Mondlane 45, Maputo"
-  };
+// Get customer data
+   const customerData = CUSTOMERS.find(c => c.email === user.email) || {
+     id: user.id,
+     name: user.name,
+     phone: user.phone || "",
+     email: user.email,
+     orders: customerOrders.length,
+     rating: 4.8,
+     frequent: true,
+     addresses: ["Av. Eduardo Mondlane 45, Maputo"],
+     defaultAddress: "Av. Eduardo Mondlane 45, Maputo"
+   };
   
   // Get customer notifications
   const customerNotifications = NOTIFICATIONS.filter(n => n.userId === user.id || n.userId === null).slice(0, 5);

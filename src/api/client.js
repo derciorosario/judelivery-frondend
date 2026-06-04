@@ -295,4 +295,8 @@ export const deleteOrder = (id) => client.delete(`/orders/${id}`);
 
 export const getCustomerOrders = () => client.get('/orders/mine');
 
+export const getDriverOrders = () => client.get('/orders/driver');
+
+export const getDriverStatuses = () => client.get('/drivers/statuses');
+
 

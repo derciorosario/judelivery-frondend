@@ -216,7 +216,7 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
           >
             <Icon name="zap" size={20} className={`mx-auto mb-1 ${form.urgencyLevel === "urgent" ? "text-amber-500" : "text-slate-400"}`} />
             <p className={`text-xs font-semibold ${form.urgencyLevel === "urgent" ? "text-amber-700" : "text-slate-600"}`}>Urgente</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">+30%</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">+10%</p>
           </button>
           
           <button
@@ -230,7 +230,7 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
           >
             <Icon name="alertTriangle" size={20} className={`mx-auto mb-1 ${form.urgencyLevel === "very_urgent" ? "text-red-500" : "text-slate-400"}`} />
             <p className={`text-xs font-semibold ${form.urgencyLevel === "very_urgent" ? "text-red-700" : "text-slate-600"}`}>Muito Urgente</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">+60%</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">+30%</p>
           </button>
         </div>
       </div>
@@ -299,8 +299,8 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
               </p>
               <p className={`text-xs ${form.urgencyLevel === "urgent" ? "text-amber-600" : "text-red-600"} mt-0.5`}>
                 {form.urgencyLevel === "urgent" 
-                  ? "Taxa adicional de 30% para prioridade na entrega" 
-                  : "Taxa adicional de 60% para prioridade máxima - entrega em até 30min"}
+                  ? "Taxa adicional de 10% para prioridade na entrega" 
+                  : "Taxa adicional de 30% para prioridade máxima - entrega em até 30min"}
               </p>
             </div>
           </div>
