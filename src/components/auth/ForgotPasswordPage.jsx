@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { API_URL } from '../../api/client';
 
 const ForgotPasswordPage = () => {
   const navigate = useNavigate();
@@ -14,7 +15,7 @@ const ForgotPasswordPage = () => {
     setError('');
     setMessage('');
     try {
-      const response = await fetch('http://localhost:5001/api/auth/forgot-password', {
+      const response = await fetch(API_URL+'/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })

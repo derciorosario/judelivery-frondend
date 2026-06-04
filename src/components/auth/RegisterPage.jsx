@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import Icon from '../common/Icon';
+import { API_URL } from '../../api/client';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -44,7 +45,7 @@ const RegisterPage = () => {
     }
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/auth/register', {
+      const response = await fetch(API_URL+'/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, phone, password })
@@ -87,7 +88,7 @@ const RegisterPage = () => {
     }
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/auth/verify-registration-code', {
+      const response = await fetch(API_URL+'/auth/verify-registration-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, code })
@@ -112,7 +113,7 @@ const RegisterPage = () => {
     setCode('');
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/auth/resend-verification-code', {
+      const response = await fetch(API_URL+'/auth/resend-verification-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId })
@@ -140,7 +141,7 @@ const RegisterPage = () => {
         const userInfo = await userInfoRes.json();
         const googleEmail = userInfo.email || 'google-user@example.com';
         const googleName = userInfo.name || 'Google User';
-        const response = await fetch('http://localhost:5001/api/auth/google', {
+        const response = await fetch(API_URL+'/auth/google', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: googleEmail, name: googleName })

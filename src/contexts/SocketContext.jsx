@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { io } from "socket.io-client";
-import { getStoredToken } from "../api/client";
+import { env, getStoredToken } from "../api/client";
 
-const SOCKET_URL = "http://localhost:5001";
+const SOCKET_URL = env == "dev" ? "http://localhost:5001" : "https://judelivery-api.derflash.com";
 
 const SocketContext = createContext(null);
 

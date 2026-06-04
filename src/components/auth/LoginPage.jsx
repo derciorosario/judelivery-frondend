@@ -3,6 +3,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Icon from '../common/Icon';
 import { useGoogleLogin } from '@react-oauth/google';
+import { API_URL } from '../../api/client';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ const LoginPage = () => {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch('http://localhost:5001/api/auth/login', {
+      const response = await fetch(API_URL+'/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -62,7 +63,7 @@ const LoginPage = () => {
         const userInfo = await userInfoRes.json();
         const googleEmail = userInfo.email || 'google-user@example.com';
         const googleName = userInfo.name || 'Google User';
-        const response = await fetch('http://localhost:5001/api/auth/google', {
+        const response = await fetch(API_URL+'/auth/google', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: googleEmail, name: googleName })

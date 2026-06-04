@@ -1,10 +1,10 @@
 import axios from "axios";
-const env = "dev";
+export const env = "dev";
 let isNative=false
 export const API_URL = 
   env == "dev" ? isNative ? "http://10.24.0.78:5001/api" : "http://localhost:5001/api" :
-  env == "test" ? "https://kaziwani-server.visum.co.mz/api" :
-                  "https://meucasamento-api.runwithbroto.com/api";
+  env == "test" ? "https://judelivery-api.derflash.com/api" :
+                  "https://judelivery-api.derflash.com/api";
 
 const client = axios.create({
   baseURL: API_URL,

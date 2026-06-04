@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import Icon from '../common/Icon';
+import { API_URL } from '../../api/client';
 
 const VerificationPage = () => {
   const navigate = useNavigate();
@@ -38,7 +39,7 @@ const VerificationPage = () => {
     }
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/auth/verify-registration-code', {
+      const response = await fetch(API_URL+'/auth/verify-registration-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, code })
@@ -63,7 +64,7 @@ const VerificationPage = () => {
     setCode('');
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/auth/resend-verification-code', {
+      const response = await fetch(API_URL+'/auth/resend-verification-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId })
