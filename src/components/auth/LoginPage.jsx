@@ -3,7 +3,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Icon from '../common/Icon';
 import { useGoogleLogin } from '@react-oauth/google';
-import { API_URL } from '../../api/client';
+import { API_URL, setStoredToken } from '../../api/client';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -39,6 +39,7 @@ const LoginPage = () => {
       if (response.ok) {
         const data = await response.json();
         if (data.token && data.refreshToken) {
+          setStoredToken(data.token)
           setToken(data.token, data.refreshToken);
         }
         navigate('/');
@@ -70,6 +71,7 @@ const LoginPage = () => {
         });
         const data = await response.json();
         if (data.token && data.refreshToken) {
+          setStoredToken(data.token)
           setToken(data.token, data.refreshToken);
         }
         navigate('/');

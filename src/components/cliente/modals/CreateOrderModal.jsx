@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Icon from "../../common/Icon";
-import { createOrder as apiCreateOrder } from "../../../api/client";
+import { createOrder as apiCreateOrder, updateOrder } from "../../../api/client";
 import { useJsApiLoader } from "@react-google-maps/api";
 import { GoogleMap, Marker, DirectionsRenderer, Autocomplete } from "@react-google-maps/api";
 import LocationStep from "./LocationStep";
@@ -11,7 +11,7 @@ const GOOGLE_MAPS_KEY = "AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak";
 const MAPUTO_CENTER = { lat: -25.9653, lng: 32.5778 };
 const libraries = ["places"];
 
-const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated, repeatOrder, serviceType }) => {
+const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated, onOrderUpdated, repeatOrder, editOrder, serviceType, clientId, onClientSelectClick, selectedClient }) => {
   const { isLoaded, loadError } = useJsApiLoader({ 
     googleMapsApiKey: GOOGLE_MAPS_KEY,
     libraries 
@@ -34,6 +34,13 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
   });
   const [saving, setSaving] = useState(false);
   const [submitStatus, setSubmitStatus] = useState('idle');
+  
+  // Map ref for controlling the map
+  const mapRef = useRef(null);
+  
+  const onMapLoad = (map) => {
+    mapRef.current = map;
+  };
   
   // Autocomplete refs
   const autocompleteRef = useRef(null);
@@ -237,7 +244,44 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
         }));
       }
     }
-  }, [repeatOrder, customerData]);
+    if (editOrder) {
+      if (editOrder.serviceType === "taxi") {
+        setForm(prev => ({
+          ...prev,
+          pickupLocation: editOrder.pickupLocation || "",
+          pickupCoords: editOrder.pickupCoords || null,
+          dropoffLocation: editOrder.dropoffLocation || "",
+          dropoffCoords: editOrder.dropoffCoords || null,
+          passengerCount: editOrder.passengerCount || 1,
+          isScheduledRide: !!editOrder.scheduledRideTime,
+          scheduledRideTime: editOrder.scheduledRideTime || "",
+          rideInstructions: editOrder.instructions || "",
+          hasLuggage: editOrder.hasLuggage || false,
+          returnTrip: editOrder.returnTrip || false,
+          waitingTime: editOrder.waitingTime || 0
+        }));
+      } else {
+        setForm(prev => ({
+          ...prev,
+          origin: editOrder.origin || "",
+          originCoords: editOrder.originCoords || null,
+          dest: editOrder.dest || "",
+          destCoords: editOrder.destCoords || null,
+          productName: editOrder.productName || "",
+          quantity: editOrder.quantity || 1,
+          weight: editOrder.weight || "",
+          observations: editOrder.observations || "",
+          instructions: editOrder.instructions || "",
+          scheduledTime: editOrder.scheduledTime || "",
+          isScheduled: !!editOrder.scheduledTime,
+          urgencyLevel: editOrder.urgencyLevel || "normal",
+          paymentMethod: editOrder.paymentMethod || "Transferência",
+          contactOrigin: editOrder.contactOrigin || customerData?.phone || "",
+          contactDest: editOrder.contactDest || customerData?.phone || ""
+        }));
+      }
+    }
+  }, [repeatOrder, editOrder, customerData]);
 
   const openMapSelector = async (field) => {
     setMapTarget(field);
@@ -484,7 +528,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     setStep(step + 1);
   };
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (step < (serviceType === "taxi" ? 4 : 4)) {
@@ -504,64 +548,69 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
       const duration = serviceType === "taxi" ? calculateDuration() : calculateDeliveryDuration();
       const total = serviceType === "taxi" ? calculateRidePrice() : calculateDeliveryPrice();
       
-      const companyId = user?.companyId || customerData?.companyId || null;
+       const companyId = user?.companyId || customerData?.companyId || null;
+       const resolvedClientId = clientId || user?.id || null;
+       
+       const orderPayload = serviceType === "taxi" ? {
+         companyId,
+         clientId: resolvedClientId,
+         serviceType: "taxi",
+         status: form.isScheduledRide ? "scheduled" : "pending_approval",
+         pickupLocation: form.pickupLocation,
+         dropoffLocation: form.dropoffLocation,
+         pickupCoords: form.pickupCoords,
+         dropoffCoords: form.dropoffCoords,
+         passengerCount: form.passengerCount,
+         hasLuggage: form.hasLuggage,
+         returnTrip: form.returnTrip,
+         waitingTime: form.waitingTime,
+         instructions: form.rideInstructions,
+         scheduledTime: form.isScheduledRide ? form.scheduledRideTime : null,
+         contactOrigin: form.contactOrigin,
+         contactDest: form.contactDest,
+         total,
+         dist: `${distance} km`,
+         time: new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }),
+         paymentMethod: paymentMap[form.paymentMethod] || "bank_transfer",
+         paymentStatus: "pending"
+       } : {
+         companyId,
+         clientId: resolvedClientId,
+         serviceType: "delivery",
+         status: form.isScheduled ? "scheduled" : "pending_approval",
+         origin: form.origin,
+         dest: form.dest,
+         originCoords: form.originCoords,
+         destCoords: form.destCoords,
+         urgencyLevel: form.urgencyLevel,
+         productName: form.productName,
+         quantity: form.quantity,
+         weight: form.weight,
+         instructions: form.instructions,
+         observations: form.observations,
+         scheduledTime: form.isScheduled ? form.scheduledTime : null,
+         contactOrigin: form.contactOrigin,
+         contactDest: form.contactDest,
+         total,
+         dist: `${distance} km`,
+         time: new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }),
+         paymentMethod: paymentMap[form.paymentMethod] || "bank_transfer",
+         paymentStatus: "pending"
+       };
       
-      if (serviceType === "taxi") {
-        await apiCreateOrder({
-          companyId,
-          clientId: user?.id || null,
-          serviceType: "taxi",
-          status: form.isScheduledRide ? "scheduled" : "pending_approval",
-          pickupLocation: form.pickupLocation,
-          dropoffLocation: form.dropoffLocation,
-          pickupCoords: form.pickupCoords,
-          dropoffCoords: form.dropoffCoords,
-          passengerCount: form.passengerCount,
-          hasLuggage: form.hasLuggage,
-          returnTrip: form.returnTrip,
-          waitingTime: form.waitingTime,
-          instructions: form.rideInstructions,
-          scheduledTime: form.isScheduledRide ? form.scheduledRideTime : null,
-          contactOrigin: form.contactOrigin,
-          contactDest: form.contactDest,
-          total,
-          dist: `${distance} km`,
-          time: new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }),
-          paymentMethod: paymentMap[form.paymentMethod] || "bank_transfer",
-          paymentStatus: "pending"
-        });
+      if (editOrder) {
+        const response = await updateOrder(editOrder.id, orderPayload);
+        setSubmitStatus('success');
+        if (onOrderUpdated) onOrderUpdated(response.data);
       } else {
-        await apiCreateOrder({
-          companyId,
-          clientId: user?.id || null,
-          serviceType: "delivery",
-          status: form.isScheduled ? "scheduled" : "pending_approval",
-          origin: form.origin,
-          dest: form.dest,
-          originCoords: form.originCoords,
-          destCoords: form.destCoords,
-          urgencyLevel: form.urgencyLevel,
-          productName: form.productName,
-          quantity: form.quantity,
-          instructions: form.instructions,
-          observations: form.observations,
-          scheduledTime: form.isScheduled ? form.scheduledTime : null,
-          contactOrigin: form.contactOrigin,
-          contactDest: form.contactDest,
-          total,
-          dist: `${distance} km`,
-          time: new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }),
-          paymentMethod: paymentMap[form.paymentMethod] || "bank_transfer",
-          paymentStatus: "pending"
-        });
+        await apiCreateOrder(orderPayload);
+        setSubmitStatus('success');
       }
-      
-      setSubmitStatus('success');
     } catch (error) {
-      console.error("Failed to create order:", error);
+      console.error("Failed to save order:", error);
       setSubmitStatus('idle');
       setSaving(false);
-      alert(error.response?.data?.message || "Falha ao criar pedido. Tente novamente.");
+      alert(error.response?.data?.message || "Falha ao salvar pedido. Tente novamente.");
     }
   };
   
@@ -584,34 +633,52 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     ? (form.pickupCoords && form.dropoffCoords)
     : (form.originCoords && form.destCoords);
   
-  // Map ref for controlling the map
-  const mapRef = useRef(null);
-  
-  const onMapLoad = (map) => {
-    mapRef.current = map;
-  };
-  
   return (
     <div className="fixed inset-0 !mb-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="sticky top-0 bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-bold text-slate-800">
-              {serviceType === "taxi" ? "Solicitar Corrida" : "Novo Pedido de Entrega"}
-            </h2>
-            <div className="flex items-center gap-2 mt-1">
-              {Array(4).fill().map((_, s) => (
-                <div key={s} className={`h-1 w-8 rounded-full ${step >= s + 1 ? "bg-orange-500" : "bg-slate-200"}`} />
-              ))}
+            <div>
+<h2 className="text-base font-bold text-slate-800">
+                 {editOrder 
+                   ? (serviceType === "taxi" ? "Editar Corrida" : "Editar Pedido de Entrega")
+                   : (serviceType === "taxi" ? "Solicitar Corrida" : "Novo Pedido de Entrega")
+                 }
+               </h2>
+              <div className="flex items-center gap-2 mt-1">
+                {Array(4).fill().map((_, s) => (
+                  <div key={s} className={`h-1 w-8 rounded-full ${step >= s + 1 ? "bg-orange-500" : "bg-slate-200"}`} />
+                ))}
+              </div>
+              <p className="text-xs text-slate-400 mt-1">{getStepTitle()}</p>
             </div>
-            <p className="text-xs text-slate-400 mt-1">{getStepTitle()}</p>
-          </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
             <Icon name="x" size={18} />
           </button>
         </div>
         
         <div className="p-4">
+          {selectedClient && (
+            <div className="mb-4 flex items-center justify-between rounded-xl border border-orange-200 bg-orange-50 px-3 py-2">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100">
+                  <Icon name="user" size={16} className="text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-800">{selectedClient.name}</p>
+                  <p className="text-[11px] text-slate-500">{selectedClient.phone}</p>
+                </div>
+              </div>
+              {onClientSelectClick && (
+                <button
+                  type="button"
+                  onClick={onClientSelectClick}
+                  className="text-[11px] font-semibold text-orange-600 hover:text-orange-700"
+                >
+                  Alterar
+                </button>
+              )}
+            </div>
+          )}
           <form onSubmit={handleSubmit}>
             {step === 1 && serviceType === "taxi" && (
               <LocationStep
@@ -720,6 +787,18 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm"
                 >
                   Voltar
+                </button>
+              )}
+              {step === 1 && onClientSelectClick && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClientSelectClick();
+                    //onClose();
+                  }}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50"
+                >
+                  Alterar Cliente
                 </button>
               )}
               <button
@@ -960,8 +1039,15 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h3 className="text-base font-bold text-slate-800 mb-1">Pedido enviado com sucesso!</h3>
-            <p className="text-xs text-slate-500 mb-5">O seu pedido foi recebido e está a ser processado. Em breve receberá confirmação.</p>
+<h3 className="text-base font-bold text-slate-800 mb-1">
+               {editOrder ? "Pedido atualizado com sucesso!" : "Pedido enviado com sucesso!"}
+             </h3>
+             <p className="text-xs text-slate-500 mb-5">
+               {editOrder 
+                 ? "O seu pedido foi atualizado com sucesso."
+                 : "O seu pedido foi recebido e está a ser processado. Em breve receberá confirmação."
+               }
+             </p>
             <button
               onClick={() => {
                 setSubmitStatus('idle');

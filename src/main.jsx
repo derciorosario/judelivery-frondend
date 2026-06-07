@@ -8,16 +8,19 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { DarkModeProvider } from './contexts/DarkModeContext.jsx';
 import { BrowserRouter } from 'react-router-dom';
 import i18n from './i18n';
+import { SocketProvider } from './contexts/SocketContext.jsx';
 
 createRoot(document.getElementById('root')).render(
   <GoogleOAuthProvider clientId="910053732139-h4knnvvi1g2eac9faai6iviquak49c3e.apps.googleusercontent.com">
     <BrowserRouter>
       <AuthProvider>
         <DataProvider>
+          <SocketProvider>
           <DarkModeProvider>
             <ToastProvider />
             <App />
           </DarkModeProvider>
+          </SocketProvider>
         </DataProvider>
       </AuthProvider>
     </BrowserRouter>

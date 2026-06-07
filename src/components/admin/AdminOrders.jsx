@@ -2,14 +2,15 @@ import { useState, useEffect } from "react";
 import Icon from "../common/Icon";
 import { getOrders, deleteOrder } from "../../api/client";
 import { toast } from "../../lib/toast";
-import Modal from "../common/Modal";
 import AdminOrderDetailModal from "./AdminOrderDetailModal";
+import CreateOrderModal from "../cliente/modals/CreateOrderModal";
 
 const AdminOrders = ({ onOpenCreateDelivery, refreshKey }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("Todos");
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [editOrder, setEditOrder] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const statuses = ["Todos", "Pendente", "Aprovado", "Atribuído", "Em entrega", "Concluído", "Cancelado"];
@@ -172,12 +173,18 @@ const AdminOrders = ({ onOpenCreateDelivery, refreshKey }) => {
                   {order.time || new Date(order.createdAt).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
                 </p>
 
-                 <div className="flex gap-2 mt-3">
+                <div className="flex gap-2 mt-3">
                   <button
                     onClick={() => setSelectedOrder(order)}
                     className="flex-1 text-xs bg-slate-100 text-slate-600 font-semibold py-2 rounded-lg hover:bg-blue-100 hover:text-blue-700"
                   >
                     Detalhes / ações
+                  </button>
+                  <button
+                    onClick={() => setEditOrder(order)}
+                    className="flex-1 text-xs bg-slate-100 text-slate-600 font-semibold py-2 rounded-lg hover:bg-green-100 hover:text-green-700"
+                  >
+                    Editar
                   </button>
                   <button
                     onClick={() => handleDeleteOrder(order)}
@@ -198,6 +205,19 @@ const AdminOrders = ({ onOpenCreateDelivery, refreshKey }) => {
           onClose={() => setSelectedOrder(null)}
           order={selectedOrder}
           onUpdate={handleOrderUpdated}
+        />
+      )}
+
+      {editOrder && (
+        <CreateOrderModal
+          isOpen={!!editOrder}
+          onClose={() => setEditOrder(null)}
+          editOrder={editOrder}
+          serviceType={editOrder.serviceType || "delivery"}
+          onOrderUpdated={(updatedOrder) => {
+            handleOrderUpdated(updatedOrder);
+            setEditOrder(null);
+          }}
         />
       )}
     </div>

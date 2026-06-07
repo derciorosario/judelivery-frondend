@@ -15,12 +15,15 @@ import AdminFinance from "./AdminFinance";
 import AdminRequests from "./AdminRequests";
 import AdminManagers from "./AdminManagers";
 import CreateOrderModal from "../cliente/modals/CreateOrderModal";
+import AdminClientSelectModal from "./AdminClientSelectModal";
 import { CUSTOMER_REQUESTS, NOTIFICATIONS, ORDERS } from "../../data/mockData";
 
 const AdminApp = () => {
   const [customerRequests, setCustomerRequests] = useState(CUSTOMER_REQUESTS);
-  const [showAdminCreateOrder, setShowAdminCreateOrder] = useState(false);
   const [orderRefreshKey, setOrderRefreshKey] = useState(0);
+  const [showAdminCreateOrder, setShowAdminCreateOrder] = useState(false);
+  const [showClientSelect, setShowClientSelect] = useState(false);
+  const [selectedClientForOrder, setSelectedClientForOrder] = useState(null);
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -124,6 +127,22 @@ const AdminApp = () => {
     }
   };
 
+  const handleOpenCreateOrder = () => {
+    setShowClientSelect(true);
+  };
+
+  const handleClientSelected = (client) => {
+    setSelectedClientForOrder(client);
+    setShowClientSelect(false);
+    setShowAdminCreateOrder(true);
+  };
+
+  const handleOrderCreated = () => {
+    setShowAdminCreateOrder(false);
+    setSelectedClientForOrder(null);
+    setOrderRefreshKey(k => k + 1);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto">
       <Header user={user} onLogout={signOut} title="Painel Admin" notifs={NOTIFICATIONS.filter(n => !n.read).length} onNotificationClick={() => setTab("notifications")} />
@@ -131,7 +150,7 @@ const AdminApp = () => {
         {activeTab === "home" && <AdminHome customerRequests={customerRequests.filter(r => r.status === "pending")} />}
         {activeTab === "orders" && (
           <AdminOrders
-            onOpenCreateDelivery={() => setShowAdminCreateOrder(true)}
+            onOpenCreateDelivery={handleOpenCreateOrder}
             refreshKey={orderRefreshKey}
           />
         )}
@@ -147,16 +166,29 @@ const AdminApp = () => {
       </div>
       <BottomNav tabs={tabs} active={activeTab} setActive={setTab} />
 
+      <AdminClientSelectModal
+        isOpen={showClientSelect}
+        onClose={() => setShowClientSelect(false)}
+        onSelect={handleClientSelected}
+        selectedClient={selectedClientForOrder}
+      />
+
       {showAdminCreateOrder && (
         <CreateOrderModal
           isOpen={showAdminCreateOrder}
-          onClose={() => setShowAdminCreateOrder(false)}
-          onOrderCreated={() => {
+          onClose={() => {
             setShowAdminCreateOrder(false);
-            setOrderRefreshKey(k => k + 1);
+            setSelectedClientForOrder(null);
           }}
+          onOrderCreated={handleOrderCreated}
           user={user}
           serviceType="delivery"
+          clientId={selectedClientForOrder?.userId || selectedClientForOrder?.id}
+          selectedClient={selectedClientForOrder}
+          onClientSelectClick={() => {
+            setShowAdminCreateOrder(false);
+            setShowClientSelect(true);
+          }}
         />
       )}
     </div>

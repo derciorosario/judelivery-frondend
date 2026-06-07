@@ -13,15 +13,18 @@ import CreateOrderModal from "./modals/CreateOrderModal";
 import OrderDetailModal from "./modals/OrderDetailModal";
 import FeedbackModal from "./modals/FeedbackModal";
 import SupportModal from "./modals/SupportModal";
+import ServiceSelectionModal from "./modals/ServiceSelectionModal";
 
 const CustomerApp = () => {
   const [showCreateOrder, setShowCreateOrder] = useState(false);
+  const [showServiceSelection, setShowServiceSelection] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [refreshOrders, setRefreshOrders] = useState(false);
   const [feedbackOrder, setFeedbackOrder] = useState(null);
   const [showSupport, setShowSupport] = useState(false);
-  const [selectedServiceType, setSelectedServiceType] = useState(null); // Add state for service type
+  const [selectedServiceType, setSelectedServiceType] = useState(null);
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -83,6 +86,20 @@ const CustomerApp = () => {
 
   const handleCreateOrder = (serviceType = null) => {
     setSelectedServiceType(serviceType);
+    setShowCreateOrder(true);
+  };
+
+  const handleOpenCreateOrder = () => {
+    setShowServiceSelection(true);
+  };
+
+  const refreshCustomerOrders = () => {
+    setRefreshOrders(prev => !prev);
+  };
+
+  const handleServiceSelect = (serviceType) => {
+    setSelectedServiceType(serviceType);
+    setShowServiceSelection(false);
     setShowCreateOrder(true);
   };
 
@@ -150,6 +167,9 @@ const CustomerApp = () => {
               setShowCreateOrder(true);
             }}
             onGiveFeedback={handleGiveFeedback}
+            onOpenCreateOrder={handleOpenCreateOrder}
+            refreshOrders={refreshOrders}
+            onRefreshOrders={() => setRefreshOrders(prev => !prev)}
           />
         )}
         {activeTab === "tracking" && (
@@ -183,11 +203,19 @@ const CustomerApp = () => {
           setShowCreateOrder(false);
           setSelectedOrder(null);
           setSelectedServiceType(null);
+          setShowServiceSelection(false);
         }}
         user={user}
         customerData={customerData}
         repeatOrder={selectedOrder}
         serviceType={selectedServiceType}
+        onRefreshOrders={handleOpenCreateOrder}
+      />
+
+      <ServiceSelectionModal
+        isOpen={showServiceSelection}
+        onClose={() => setShowServiceSelection(false)}
+        onSelectService={handleServiceSelect}
       />
 
       <OrderDetailModal

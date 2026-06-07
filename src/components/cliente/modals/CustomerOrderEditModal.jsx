@@ -178,8 +178,10 @@ const CustomerOrderEditModal = ({ isOpen, onClose, order, onUpdated }) => {
     );
   }
 
+  
   const originSet = !!form[originCoordsField];
   const destSet = !!form[destCoordsField];
+
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Editar ${isTaxi ? "Corrida" : "Entrega"}`}>

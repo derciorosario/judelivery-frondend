@@ -11,6 +11,9 @@ import AdminCustomers from "../admin/AdminCustomers";
 import AdminIncidents from "../admin/AdminIncidents";
 import AdminNotifications from "../admin/AdminNotifications";
 import AdminManagers from "../admin/AdminManagers";
+import CreateOrderModal from "../cliente/modals/CreateOrderModal";
+import AdminClientSelectModal from "../admin/AdminClientSelectModal";
+import ServiceSelectionModal from "../cliente/modals/ServiceSelectionModal";
 import GestorHome from "./GestorHome";
 import GestorMap from "./GestorMap";
 import GestorRequests from "./GestorRequests";
@@ -28,6 +31,11 @@ const GestorApp = () => {
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+
+  const [showAdminCreateOrder, setShowAdminCreateOrder] = useState(false);
+  const [showClientSelect, setShowClientSelect] = useState(false);
+  const [selectedClientForOrder, setSelectedClientForOrder] = useState(null);
+  const [orderRefreshKey, setOrderRefreshKey] = useState(0);
 
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },
@@ -60,6 +68,23 @@ const GestorApp = () => {
     }
   };
 
+  const handleClientSelected = (client) => {
+    setSelectedClientForOrder(client);
+    setShowClientSelect(false);
+    setShowAdminCreateOrder(true);
+  };
+
+  const handleOrderCreated = () => {
+    setShowAdminCreateOrder(false);
+    setSelectedClientForOrder(null);
+    setOrderRefreshKey(k => k + 1);
+  };
+
+  const handleAdminCreateOrderClose = () => {
+    setShowAdminCreateOrder(false);
+    setSelectedClientForOrder(null);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto">
       <Header 
@@ -71,7 +96,7 @@ const GestorApp = () => {
       />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
         {activeTab === "home" && <GestorHome />}
-        {activeTab === "orders" && <AdminOrders />}
+        {activeTab === "orders" && <AdminOrders onOpenCreateDelivery={() => setShowClientSelect(true)} refreshKey={orderRefreshKey} />}
         {activeTab === "map" && <GestorMap />}
         {activeTab === "drivers" && <AdminDrivers />}
         {activeTab === "managers" && <AdminManagers />}
@@ -82,6 +107,28 @@ const GestorApp = () => {
         {activeTab === "notifications" && <AdminNotifications />}
       </div>
       <BottomNav tabs={tabs} active={activeTab} setActive={setTab} />
+
+      <AdminClientSelectModal
+        isOpen={showClientSelect}
+        onClose={() => setShowClientSelect(false)}
+        onSelect={handleClientSelected}
+        selectedClient={selectedClientForOrder}
+      />
+
+      {showAdminCreateOrder && (
+        <CreateOrderModal
+          isOpen={showAdminCreateOrder}
+          onClose={handleAdminCreateOrderClose}
+          onOrderCreated={handleOrderCreated}
+          user={user}
+          serviceType="delivery"
+          clientId={selectedClientForOrder?.userId || selectedClientForOrder?.id}
+          onClientSelectClick={() => {
+            setShowAdminCreateOrder(false);
+            setShowClientSelect(true);
+          }}
+        />
+      )}
     </div>
   );
 };

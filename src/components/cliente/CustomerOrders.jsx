@@ -5,7 +5,7 @@ import { toast } from "../../lib/toast";
 import CustomerOrderEditModal from "./modals/CustomerOrderEditModal";
 import TrackOrderModal from "./modals/TrackOrderModal";
 
-const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback }) => {
+const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, onOpenCreateOrder }) => {
   const [filter, setFilter] = useState("Todos");
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +72,22 @@ const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback }) 
       fetchOrders();
     }
   }, [user]);
+
+  const handleRefresh = async () => {
+    setLoading(true);
+    try {
+      const response = await getCustomerOrders();
+      setOrders(response.data);
+    } catch (error) {
+      let errorMessage = "Erro ao atualizar pedidos";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleRepeatOrder = (order) => {
     if (onRepeatOrder) {
@@ -142,6 +158,25 @@ const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback }) 
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-bold text-slate-700">Meus Pedidos</p>
+        <div className="flex items-center gap-2">
+           <button
+            onClick={handleRefresh}
+            className="flex items-center justify-center w-8 h-8 bg-white text-orange-500 rounded-xl border border-orange-200 hover:bg-orange-50"
+          >
+            <Icon name="refreshCw" size={14} />
+          </button>
+          <button
+            onClick={onOpenCreateOrder}
+            className="flex items-center gap-1 bg-orange-500 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm shadow-orange-300"
+          >
+            <Icon name="plus" size={14} /> Novo Pedido
+          </button>
+         
+        </div>
+      </div>
+
       <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
         {filters.map(f => (
           <button key={f} onClick={() => setFilter(f)}

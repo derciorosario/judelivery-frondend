@@ -1,5 +1,5 @@
 import axios from "axios";
-export const env = "pro";
+export const env = "dev";
 let isNative=false
 export const API_URL = 
   env == "dev" ? isNative ? "http://10.24.0.78:5001/api" : "http://localhost:5001/api" :

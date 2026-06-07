@@ -1,18 +1,28 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { io } from "socket.io-client";
-import { env, getStoredToken } from "../api/client";
+import { env } from "../api/client";
+import { useAuth } from "./AuthContext";
 
 const SOCKET_URL = env == "dev" ? "http://localhost:5001" : "https://judelivery-api.derflash.com";
 
 const SocketContext = createContext(null);
 
 export function SocketProvider({ children }) {
+  const { token } = useAuth();
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    const token = getStoredToken();
-    if (!token) return;
+    if (!token) {
+      if (socket) {
+        socket.disconnect();
+        setSocket(null);
+        setConnected(false);
+      }
+      return;
+    }
+
+    if (socket?.connected) return;
 
     const s = io(SOCKET_URL, {
       auth: { token },
@@ -26,10 +36,8 @@ export function SocketProvider({ children }) {
 
     return () => {
       s.disconnect();
-      setSocket(null);
-      setConnected(false);
     };
-  }, []);
+  }, [token]);
 
   const value = useMemo(() => ({ socket, connected }), [socket, connected]);
 
