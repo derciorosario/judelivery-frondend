@@ -3,13 +3,13 @@ import Icon from "../common/Icon";
 import { useSocket } from "../../contexts/SocketContext";
 import client from "../../api/client";
 
-const CustomerNotifications = ({ onClose }) => {
+const DriverNotifications = ({ onClose }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("Todas");
   const { socket } = useSocket();
 
-  const filters = ["Todas", "Pedidos", "Motorista", "Promoções"];
+  const filters = ["Todas", "Pedidos", "Sistema"];
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
@@ -66,15 +66,12 @@ const CustomerNotifications = ({ onClose }) => {
     ? notifications
     : filter === "Pedidos"
       ? notifications.filter(n => n.category === "order" || n.category === "customer_order")
-      : filter === "Motorista"
-        ? notifications.filter(n => n.category === "driver" || n.category === "customer_driver")
-        : notifications.filter(n => n.category === "customer_promo");
+      : notifications.filter(n => n.category === "driver");
 
   const getIconColor = (category) => {
     switch(category) {
       case "order": case "customer_order": return "bg-blue-100 text-blue-600";
       case "driver": case "customer_driver": return "bg-green-100 text-green-600";
-      case "customer_promo": return "bg-purple-100 text-purple-600";
       default: return "bg-slate-100 text-slate-600";
     }
   };
@@ -124,4 +121,4 @@ const CustomerNotifications = ({ onClose }) => {
   );
 };
 
-export default CustomerNotifications;
+export default DriverNotifications;

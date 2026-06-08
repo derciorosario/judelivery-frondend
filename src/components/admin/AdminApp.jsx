@@ -9,14 +9,13 @@ import AdminDrivers from "./AdminDrivers";
 import AdminProducts from "./AdminProducts";
 import AdminCustomers from "./AdminCustomers";
 import AdminIncidents from "./AdminIncidents";
-import AdminNotifications from "./AdminNotifications";
 import AdminReports from "./AdminReports";
 import AdminFinance from "./AdminFinance";
 import AdminRequests from "./AdminRequests";
-import AdminManagers from "./AdminManagers";
 import CreateOrderModal from "../cliente/modals/CreateOrderModal";
 import AdminClientSelectModal from "./AdminClientSelectModal";
-import { CUSTOMER_REQUESTS, NOTIFICATIONS, ORDERS } from "../../data/mockData";
+import { CUSTOMER_REQUESTS, ORDERS } from "../../data/mockData";
+import Notifications from "../common/Notifications";
 
 const AdminApp = () => {
   const [customerRequests, setCustomerRequests] = useState(CUSTOMER_REQUESTS);
@@ -60,13 +59,10 @@ const AdminApp = () => {
     const tab = tabs.find(t => t.id === tabId);
     if (tab && tabId !== "home") {
       navigate(tab.path);
-      console.log('--xx--'+tab.path)
     } else {
-      console.log('--mm--')
       navigate("/");
     }
   };
-
 
   const handleApproveRequest = (requestId) => {
     const request = customerRequests.find(r => r.id === requestId);
@@ -96,35 +92,11 @@ const AdminApp = () => {
       
       ORDERS.push(newOrder);
       setCustomerRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: "approved" } : r));
-      
-      NOTIFICATIONS.push({
-        id: NOTIFICATIONS.length + 1,
-        type: "customer",
-        title: "Pedido Aprovado",
-        message: `Seu pedido ${requestId} foi aprovado e está sendo preparado`,
-        time: "agora",
-        read: false,
-        icon: "checkCircle",
-        userId: request.customerId,
-      });
     }
   };
 
   const handleRejectRequest = (requestId) => {
     setCustomerRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: "rejected" } : r));
-    const request = customerRequests.find(r => r.id === requestId);
-    if (request) {
-      NOTIFICATIONS.push({
-        id: NOTIFICATIONS.length + 1,
-        type: "customer",
-        title: "Pedido Rejeitado",
-        message: `Seu pedido ${requestId} foi rejeitado. Entre em contato com o suporte.`,
-        time: "agora",
-        read: false,
-        icon: "xCircle",
-        userId: request.customerId,
-      });
-    }
   };
 
   const handleOpenCreateOrder = () => {
@@ -145,7 +117,7 @@ const AdminApp = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto">
-      <Header user={user} onLogout={signOut} title="Painel Admin" notifs={NOTIFICATIONS.filter(n => !n.read).length} onNotificationClick={() => setTab("notifications")} />
+      <Header user={user} onLogout={signOut} title="Painel Admin" notifs={0} onNotificationClick={() => setTab("notifications")} />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
         {activeTab === "home" && <AdminHome customerRequests={customerRequests.filter(r => r.status === "pending")} />}
         {activeTab === "orders" && (
@@ -162,7 +134,7 @@ const AdminApp = () => {
         {activeTab === "incidents" && <AdminIncidents />}
         {activeTab === "finance" && <AdminFinance />}
         {activeTab === "reports" && <AdminReports />}
-        {activeTab === "notifications" && <AdminNotifications />}
+        {activeTab === "notifications" && <Notifications />}
       </div>
       <BottomNav tabs={tabs} active={activeTab} setActive={setTab} />
 

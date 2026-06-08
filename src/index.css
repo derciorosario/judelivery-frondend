@@ -16,6 +16,24 @@ body iframe.skiptranslate[id]{
 body{
   top: 0 !important;
 }
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+.active\:scale-98:active {
+  transform: scale(0.98);
+}
+
 .goog-te-gadget-simple{
   display: flex !important;
   padding: 0.2rem !important;

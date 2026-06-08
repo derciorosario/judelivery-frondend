@@ -1,15 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
 import Icon from "../common/Icon";
 import { useSocket } from "../../contexts/SocketContext";
+import { useAuth } from "../../contexts/AuthContext";
 import client from "../../api/client";
 
-const CustomerNotifications = ({ onClose }) => {
+const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("Todas");
   const { socket } = useSocket();
+  const { user } = useAuth();
 
-  const filters = ["Todas", "Pedidos", "Motorista", "Promoções"];
+  const role = user?.role;
+
+  const filters = role === 'admin' || role === 'manager' || role === 'superadmin'
+    ? ["Todas", "Não lidas", "Pedidos", "Motoristas", "Incidentes", "Finanças"]
+    : ["Todas", "Não lidas", "Pedidos", "Motorista", "Promoções"];
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
@@ -48,6 +54,26 @@ const CustomerNotifications = ({ onClose }) => {
     };
   }, [socket]);
 
+  const handleMarkRead = async (id) => {
+    try {
+      await client.patch(`/notifications/${id}/read`);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    } catch (error) {
+      console.error('Failed to mark read:', error);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await client.patch('/notifications/read-all');
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (error) {
+      console.error('Failed to mark all read:', error);
+    }
+  };
+
+  const hasUnread = notifications.some(n => !n.read);
+
   const formatTime = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -64,17 +90,24 @@ const CustomerNotifications = ({ onClose }) => {
 
   const filtered = filter === "Todas"
     ? notifications
-    : filter === "Pedidos"
-      ? notifications.filter(n => n.category === "order" || n.category === "customer_order")
-      : filter === "Motorista"
-        ? notifications.filter(n => n.category === "driver" || n.category === "customer_driver")
-        : notifications.filter(n => n.category === "customer_promo");
+    : filter === "Não lidas"
+      ? notifications.filter(n => !n.read)
+      : filter === "Pedidos"
+        ? notifications.filter(n => n.category === "order" || n.category === "customer_order")
+        : filter === "Motoristas" || filter === "Motorista"
+          ? notifications.filter(n => n.category === "driver" || n.category === "customer_driver")
+          : filter === "Incidentes"
+            ? notifications.filter(n => n.category === "incident")
+            : filter === "Finanças"
+              ? notifications.filter(n => n.category === "finance")
+              : notifications.filter(n => n.category === "customer_promo");
 
   const getIconColor = (category) => {
     switch(category) {
       case "order": case "customer_order": return "bg-blue-100 text-blue-600";
       case "driver": case "customer_driver": return "bg-green-100 text-green-600";
-      case "customer_promo": return "bg-purple-100 text-purple-600";
+      case "incident": return "bg-orange-100 text-orange-600";
+      case "finance": case "customer_promo": return "bg-purple-100 text-purple-600";
       default: return "bg-slate-100 text-slate-600";
     }
   };
@@ -83,7 +116,14 @@ const CustomerNotifications = ({ onClose }) => {
     <>
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm font-bold text-slate-700">Notificações</p>
-        {onClose && <button onClick={onClose} className="text-xs text-orange-500">Fechar</button>}
+        {hasUnread && (
+          <button 
+            onClick={handleMarkAllRead}
+            className="text-xs text-orange-500 font-medium"
+          >
+            Marcar todas como lidas
+          </button>
+        )}
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar mb-4">
         {filters.map(f => (
@@ -101,15 +141,21 @@ const CustomerNotifications = ({ onClose }) => {
       ) : filtered.length > 0 ? (
         filtered.map(n => (
           <div key={n.id} 
-            className={`bg-white rounded-2xl p-4 border border-slate-100 shadow-sm mb-3 ${!n.read ? "border-l-4 border-l-orange-500" : ""}`}>
+            className={`bg-white rounded-2xl p-4 border border-slate-100 shadow-sm mb-3 ${!n.read ? "border-l-4 border-l-orange-500" : ""}`}
+            onClick={() => !n.read && handleMarkRead(n.id)}>
             <div className="flex items-start gap-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${getIconColor(n.category)}`}>
                 <Icon name={n.icon} size={18} />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-slate-800">{n.title}</p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-sm font-semibold text-slate-800">{n.title}</p>
+                  {!n.read && <div className="w-2 h-2 bg-orange-500 rounded-full" />}
+                </div>
                 <p className="text-xs text-slate-500 mt-0.5">{n.message}</p>
-                <p className="text-[10px] text-slate-400 mt-1">{formatTime(n.createdAt)}</p>
+                {n.createdAt && (
+                  <p className="text-[10px] text-slate-400 mt-1">{formatTime(n.createdAt)}</p>
+                )}
               </div>
             </div>
           </div>
@@ -124,4 +170,4 @@ const CustomerNotifications = ({ onClose }) => {
   );
 };
 
-export default CustomerNotifications;
+export default Notifications;

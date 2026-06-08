@@ -2,14 +2,14 @@ import { useState, useEffect } from "react";
 import Icon from "../common/Icon";
 import { getCustomerOrders, deleteOrder } from "../../api/client";
 import { toast } from "../../lib/toast";
-import CustomerOrderEditModal from "./modals/CustomerOrderEditModal";
 import TrackOrderModal from "./modals/TrackOrderModal";
+import CreateOrderModal from "./modals/CreateOrderModal";
 
 const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, onOpenCreateOrder }) => {
   const [filter, setFilter] = useState("Todos");
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editOrder, setEditOrder] = useState(null);
+  const [fullEditOrder, setFullEditOrder] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [trackOrder, setTrackOrder] = useState(null);
 
@@ -161,7 +161,7 @@ const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, on
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-slate-700">Meus Pedidos</p>
         <div className="flex items-center gap-2">
-           <button
+          <button
             onClick={handleRefresh}
             className="flex items-center justify-center w-8 h-8 bg-white text-orange-500 rounded-xl border border-orange-200 hover:bg-orange-50"
           >
@@ -173,7 +173,6 @@ const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, on
           >
             <Icon name="plus" size={14} /> Novo Pedido
           </button>
-         
         </div>
       </div>
 
@@ -240,19 +239,22 @@ const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, on
                     </button>
                   </>
                 )}
-{(displayStatus === "Em entrega" || order.status === "in_transit") && (
-                   <button onClick={() => setTrackOrder(order)} className="flex-1 text-xs bg-blue-100 text-blue-600 font-semibold py-2 rounded-lg">
-                     Acompanhar
-                   </button>
-                 )}
+                {(displayStatus === "Em entrega" || order.status === "in_transit") && (
+                  <button onClick={() => setTrackOrder(order)} className="flex-1 text-xs bg-blue-100 text-blue-600 font-semibold py-2 rounded-lg">
+                    Acompanhar
+                  </button>
+                )}
                 {displayStatus !== "Concluído" && displayStatus !== "Cancelado" && (
                   <button onClick={() => handleDeleteOrder(order)} className="flex-1 text-xs bg-red-50 text-red-600 font-semibold py-2 rounded-lg">
                     Cancelar
                   </button>
                 )}
-                {displayStatus === "Aguardando" && (
-                  <button onClick={() => setEditOrder(order)} className="flex-1 text-xs bg-blue-50 text-blue-600 font-semibold py-2 rounded-lg">
-                    Alterar local
+                {displayStatus !== "Concluído" && displayStatus !== "Em entrega" && (
+                  <button
+                    onClick={() => setFullEditOrder(order)}
+                    className="flex-1 text-xs bg-green-100 text-green-600 font-semibold py-2 rounded-lg hover:bg-green-200"
+                  >
+                    Editar
                   </button>
                 )}
               </div>
@@ -265,47 +267,52 @@ const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, on
           <p className="text-sm text-slate-500">Nenhum pedido encontrado</p>
         </div>
       )}
-      
-      {editOrder && (
-        <CustomerOrderEditModal
-          isOpen={!!editOrder}
-          onClose={() => setEditOrder(null)}
-          order={editOrder}
-          onUpdated={handleOrderUpdated}
+
+      {fullEditOrder && (
+        <CreateOrderModal
+          isOpen={!!fullEditOrder}
+          onClose={() => setFullEditOrder(null)}
+          editOrder={fullEditOrder}
+          serviceType={fullEditOrder.serviceType || "delivery"}
+          customerData={user}
+          onOrderUpdated={(updatedOrder) => {
+            handleOrderUpdated(updatedOrder);
+            setFullEditOrder(null);
+          }}
         />
       )}
 
-{deleteTarget && (
-         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-           <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
-             <div className="text-center mb-4">
-               <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                 <Icon name="alertTriangle" size={24} className="text-red-600" />
-               </div>
-               <h3 className="text-base font-bold text-slate-800">Cancelar Pedido</h3>
-               <p className="text-sm text-slate-500 mt-1">Tem certeza que deseja cancelar <strong>{toShortId(deleteTarget.id)}</strong>? Esta ação não pode ser revertida.</p>
-             </div>
-             <div className="flex gap-2">
-               <button onClick={() => setDeleteTarget(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
-                 Voltar
-               </button>
-               <button onClick={confirmDelete} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-bold text-sm shadow-lg shadow-red-300 hover:bg-red-600">
-                 Confirmar Cancelamento
-               </button>
-             </div>
-           </div>
-         </div>
-       )}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
+            <div className="text-center mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Icon name="alertTriangle" size={24} className="text-red-600" />
+              </div>
+              <h3 className="text-base font-bold text-slate-800">Cancelar Pedido</h3>
+              <p className="text-sm text-slate-500 mt-1">Tem certeza que deseja cancelar <strong>{toShortId(deleteTarget.id)}</strong>? Esta ação não pode ser revertida.</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setDeleteTarget(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
+                Voltar
+              </button>
+              <button onClick={confirmDelete} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-bold text-sm shadow-lg shadow-red-300 hover:bg-red-600">
+                Confirmar Cancelamento
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-       {trackOrder && (
-         <TrackOrderModal
-           isOpen={!!trackOrder}
-           onClose={() => setTrackOrder(null)}
-           order={trackOrder}
-         />
-       )}
-     </div>
-   );
- };
+      {trackOrder && (
+        <TrackOrderModal
+          isOpen={!!trackOrder}
+          onClose={() => setTrackOrder(null)}
+          order={trackOrder}
+        />
+      )}
+    </div>
+  );
+};
 
 export default CustomerOrders;

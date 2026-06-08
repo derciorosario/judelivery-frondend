@@ -4,6 +4,7 @@ import { getOrders, deleteOrder } from "../../api/client";
 import { toast } from "../../lib/toast";
 import AdminOrderDetailModal from "./AdminOrderDetailModal";
 import CreateOrderModal from "../cliente/modals/CreateOrderModal";
+import AdminClientSelectModal from "./AdminClientSelectModal";
 
 const AdminOrders = ({ onOpenCreateDelivery, refreshKey }) => {
   const [orders, setOrders] = useState([]);
@@ -12,6 +13,8 @@ const AdminOrders = ({ onOpenCreateDelivery, refreshKey }) => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [editOrder, setEditOrder] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showClientSelect, setShowClientSelect] = useState(false);
+  const [selectedClientForEdit, setSelectedClientForEdit] = useState(null);
 
   const statuses = ["Todos", "Pendente", "Aprovado", "Atribuído", "Em entrega", "Concluído", "Cancelado"];
 
@@ -81,18 +84,53 @@ const AdminOrders = ({ onOpenCreateDelivery, refreshKey }) => {
 
   const handleOrderUpdated = (updatedOrder) => {
     setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+    setSelectedClientForEdit(null);
+  };
+
+  const handleClientSelectedForEdit = (client) => {
+    setSelectedClientForEdit(client);
+    setShowClientSelect(false);
+  };
+
+  const handleOpenClientSelect = () => {
+    setShowClientSelect(true);
+  };
+
+  const handleRefresh = async () => {
+    setLoading(true);
+    try {
+      const response = await getOrders();
+      setOrders(response.data);
+    } catch (error) {
+      let errorMessage = "Erro ao atualizar pedidos";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-slate-700">Gestão de Pedidos</p>
-        <button
-          onClick={() => onOpenCreateDelivery && onOpenCreateDelivery()}
-          className="flex items-center gap-1 bg-orange-500 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm shadow-orange-300"
-        >
-          <Icon name="plus" size={14} /> Nova Entrega
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRefresh}
+            disabled={loading}
+            className="flex items-center justify-center w-8 h-8 bg-white text-orange-500 rounded-xl border border-orange-200 hover:bg-orange-50 disabled:opacity-50"
+          >
+            <Icon name="refreshCw" size={14} className={loading ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={() => onOpenCreateDelivery && onOpenCreateDelivery()}
+            className="flex items-center gap-1 bg-orange-500 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm shadow-orange-300"
+          >
+            <Icon name="plus" size={14} /> Nova Entrega
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
@@ -181,7 +219,10 @@ const AdminOrders = ({ onOpenCreateDelivery, refreshKey }) => {
                     Detalhes / ações
                   </button>
                   <button
-                    onClick={() => setEditOrder(order)}
+                    onClick={() => {
+                      setEditOrder(order);
+                      setSelectedClientForEdit(null);
+                    }}
                     className="flex-1 text-xs bg-slate-100 text-slate-600 font-semibold py-2 rounded-lg hover:bg-green-100 hover:text-green-700"
                   >
                     Editar
@@ -211,13 +252,33 @@ const AdminOrders = ({ onOpenCreateDelivery, refreshKey }) => {
       {editOrder && (
         <CreateOrderModal
           isOpen={!!editOrder}
-          onClose={() => setEditOrder(null)}
+          onClose={() => {
+            setEditOrder(null);
+            setSelectedClientForEdit(null);
+          }}
           editOrder={editOrder}
           serviceType={editOrder.serviceType || "delivery"}
+          clientId={selectedClientForEdit?.userId || selectedClientForEdit?.id || editOrder.clientId}
+          selectedClient={selectedClientForEdit || (editOrder.client && {
+            id: editOrder.clientId,
+            userId: editOrder.clientId,
+            name: typeof editOrder.client === 'string' ? editOrder.client : editOrder.client?.name,
+            phone: editOrder.client?.phone
+          })}
+          onClientSelectClick={handleOpenClientSelect}
           onOrderUpdated={(updatedOrder) => {
             handleOrderUpdated(updatedOrder);
             setEditOrder(null);
           }}
+        />
+      )}
+
+      {showClientSelect && (
+        <AdminClientSelectModal
+          isOpen={showClientSelect}
+          onClose={() => setShowClientSelect(false)}
+          onSelect={handleClientSelectedForEdit}
+          selectedClient={selectedClientForEdit}
         />
       )}
     </div>

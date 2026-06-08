@@ -1,19 +1,19 @@
 import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
-import { CUSTOMER_ORDERS, ORDERS, NOTIFICATIONS, CUSTOMERS } from "../../data/mockData";
+import { CUSTOMER_ORDERS, ORDERS, CUSTOMERS } from "../../data/mockData";
 import BottomNav from "../common/BottomNav";
 import Header from "../common/Header";
 import CustomerHome from "./CustomerHome";
 import CustomerOrders from "./CustomerOrders";
 import CustomerTracking from "./CustomerTracking";
 import CustomerProfile from "./CustomerProfile";
-import CustomerNotifications from "./CustomerNotifications";
 import CreateOrderModal from "./modals/CreateOrderModal";
 import OrderDetailModal from "./modals/OrderDetailModal";
 import FeedbackModal from "./modals/FeedbackModal";
 import SupportModal from "./modals/SupportModal";
 import ServiceSelectionModal from "./modals/ServiceSelectionModal";
+import Notifications from "../common/Notifications";
 
 const CustomerApp = () => {
   const [showCreateOrder, setShowCreateOrder] = useState(false);
@@ -61,22 +61,18 @@ const CustomerApp = () => {
   const pendingOrders = customerOrders.filter(o => o.statusCode === "pending_approval" || o.status === "Pendente");
   const completedOrders = customerOrders.filter(o => o.statusCode === "completed" || o.status === "Concluído");
   
-// Get customer data
-   const customerData = CUSTOMERS.find(c => c.email === user.email) || {
-     id: user.id,
-     name: user.name,
-     phone: user.phone || "",
-     email: user.email,
-     orders: customerOrders.length,
-     rating: 4.8,
-     frequent: true,
-     addresses: ["Av. Eduardo Mondlane 45, Maputo"],
-     defaultAddress: "Av. Eduardo Mondlane 45, Maputo"
-   };
-  
-  // Get customer notifications
-  const customerNotifications = NOTIFICATIONS.filter(n => n.userId === user.id || n.userId === null).slice(0, 5);
-  const unreadCount = customerNotifications.filter(n => !n.read).length;
+  // Get customer data
+  const customerData = CUSTOMERS.find(c => c.email === user.email) || {
+    id: user.id,
+    name: user.name,
+    phone: user.phone || "",
+    email: user.email,
+    orders: customerOrders.length,
+    rating: 4.8,
+    frequent: true,
+    addresses: ["Av. Eduardo Mondlane 45, Maputo"],
+    defaultAddress: "Av. Eduardo Mondlane 45, Maputo"
+  };
 
   // Stats
   const totalSpent = customerOrders.reduce((sum, o) => sum + (o.totalValue || 0), 0);
@@ -136,7 +132,7 @@ const CustomerApp = () => {
         user={user}
         onLogout={signOut}
         title="DeliveryMZ"
-        notifs={unreadCount}
+        notifs={0}
         onNotificationClick={() => setTab("notifications")}
       />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
@@ -188,10 +184,7 @@ const CustomerApp = () => {
           />
         )}
         {activeTab === "notifications" && (
-          <CustomerNotifications
-            notifications={customerNotifications}
-            onClose={() => setTab("home")}
-          />
+          <Notifications />
         )}
       </div>
       <BottomNav tabs={tabs} active={activeTab} setActive={setTab} />

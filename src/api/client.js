@@ -2,7 +2,7 @@ import axios from "axios";
 export const env = "dev";
 let isNative=false
 export const API_URL = 
-  env == "dev" ? isNative ? "http://10.24.0.78:5001/api" : "http://localhost:5001/api" :
+  env == "dev" ? isNative ? "http://10.24.0.78:5000/api" : "http://localhost:5001/api" :
   env == "test" ? "https://judelivery-api.derflash.com/api" :
                   "https://judelivery-api.derflash.com/api";
 
@@ -299,4 +299,9 @@ export const getDriverOrders = () => client.get('/orders/driver');
 
 export const getDriverStatuses = () => client.get('/drivers/statuses');
 
+// ==================== NOTIFICATIONS API ====================
 
+export const getNotifications = (params) => client.get('/notifications', { params });
+export const markNotificationRead = (id) => client.patch(`/notifications/${id}/read`);
+export const markAllNotificationsRead = () => client.patch('/notifications/read-all');
+export const getUnreadNotificationCount = () => client.get('/notifications/unread-count');

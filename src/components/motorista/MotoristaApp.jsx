@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
-import { NOTIFICATIONS } from "../../data/mockData";
 import { getDriverOrders } from "../../api/client";
 import BottomNav from "../common/BottomNav";
 import Header from "../common/Header";
@@ -11,6 +10,7 @@ import MotoristaOrders from "./MotoristaOrders";
 import MotoristaHistory from "./MotoristaHistory";
 import MotoristaProfile from "./MotoristaProfile";
 import MotoristaMap from "./MotoristaMap";
+import Notifications from "../common/Notifications";
 
 const MotoristaApp = () => {
   const [online, setOnline] = useState(true);
@@ -40,6 +40,7 @@ const MotoristaApp = () => {
     { id: "orders", label: "Pedidos", icon: "package", path: "/orders" },
     { id: "history", label: "Histórico", icon: "clock", path: "/history" },
     { id: "profile", label: "Perfil", icon: "settings", path: "/profile" },
+    { id: "notifications", label: "Notificações", icon: "bell", path: "/notifications" },
   ];
 
   const getTabFromPath = () => {
@@ -69,7 +70,7 @@ const MotoristaApp = () => {
         user={user}
         onLogout={signOut}
         title="Painel Motorista"
-        notifs={NOTIFICATIONS.filter(n => !n.read).length}
+        notifs={0}
         onNotificationClick={() => setTab("notifications")}
       />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
@@ -78,6 +79,7 @@ const MotoristaApp = () => {
         {activeTab === "orders" && <MotoristaOrders />}
         {activeTab === "history" && <MotoristaHistory />}
         {activeTab === "profile" && <MotoristaProfile user={user} />}
+        {activeTab === "notifications" && <Notifications />}
       </div>
       <BottomNav tabs={tabs} active={activeTab} setActive={setTab} />
     </div>

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
-import { NOTIFICATIONS } from "../../data/mockData";
 import BottomNav from "../common/BottomNav";
 import Header from "../common/Header";
 import AdminOrders from "../admin/AdminOrders";
@@ -9,15 +8,14 @@ import AdminDrivers from "../admin/AdminDrivers";
 import AdminProducts from "../admin/AdminProducts";
 import AdminCustomers from "../admin/AdminCustomers";
 import AdminIncidents from "../admin/AdminIncidents";
-import AdminNotifications from "../admin/AdminNotifications";
 import AdminManagers from "../admin/AdminManagers";
 import CreateOrderModal from "../cliente/modals/CreateOrderModal";
 import AdminClientSelectModal from "../admin/AdminClientSelectModal";
-import ServiceSelectionModal from "../cliente/modals/ServiceSelectionModal";
 import GestorHome from "./GestorHome";
 import GestorMap from "./GestorMap";
 import GestorRequests from "./GestorRequests";
 import L from "leaflet";
+import Notifications from "../common/Notifications";
 
 // Fix Leaflet icon issue
 delete L.Icon.Default.prototype._getIconUrl;
@@ -91,7 +89,7 @@ const GestorApp = () => {
         user={user} 
         onLogout={signOut} 
         title="Gestão Operacional" 
-        notifs={NOTIFICATIONS.filter(n => !n.read).length} 
+        notifs={0} 
         onNotificationClick={() => setTab("notifications")} 
       />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
@@ -104,7 +102,7 @@ const GestorApp = () => {
         {activeTab === "customers" && <AdminCustomers />}
         {activeTab === "incidents" && <AdminIncidents />}
         {activeTab === "requests" && <GestorRequests />}
-        {activeTab === "notifications" && <AdminNotifications />}
+        {activeTab === "notifications" && <Notifications />}
       </div>
       <BottomNav tabs={tabs} active={activeTab} setActive={setTab} />
 
