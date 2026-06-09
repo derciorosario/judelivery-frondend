@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import TrackOrderModal from "./TrackOrderModal";
+import CancelOrderDialog from "../../common/CancelOrderDialog";
+import { getOrder, cancelOrder } from "../../../api/client";
+import { toast } from "../../../lib/toast";
 import {
   X,
   Package,
@@ -19,13 +22,12 @@ import {
   Calendar,
   AlertCircle,
   CheckCircle,
-  Clock as ClockIcon,
   XCircle
 } from "lucide-react";
-import { getOrder } from "../../../api/client";
 
-const OrderDetailModal = ({ isOpen, onClose, order, orderId, onGiveFeedback }) => {
+const OrderDetailModal = ({ isOpen, onClose, order, orderId, onGiveFeedback, onOrderUpdate }) => {
   const [showTrackModal, setShowTrackModal] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [loadingOrder, setLoadingOrder] = useState(false);
   const [localOrder, setLocalOrder] = useState(order);
 
@@ -47,6 +49,19 @@ const OrderDetailModal = ({ isOpen, onClose, order, orderId, onGiveFeedback }) =
       setLocalOrder(order);
     }
   }, [order, orderId, isOpen]);
+
+  const handleCancelOrder = async (cancelData) => {
+    try {
+      const response = await cancelOrder(localOrder.id, cancelData);
+      setLocalOrder(response.data);
+      if (onOrderUpdate) onOrderUpdate(response.data);
+      toast.success("Pedido cancelado com sucesso");
+    } catch (error) {
+      const msg = error.response?.data?.message || "Erro ao cancelar pedido";
+      toast.error(msg);
+      throw error;
+    }
+  };
 
   if (!isOpen || (!localOrder && !loadingOrder)) return null;
 
@@ -163,6 +178,8 @@ const OrderDetailModal = ({ isOpen, onClose, order, orderId, onGiveFeedback }) =
   const isDelivery = localOrder.serviceType !== "taxi";
   const isCompleted = localOrder.status === "completed" || localOrder.statusCode === "completed";
   const isActive = localOrder.status === "in_transit" || localOrder.statusCode === "in_progress" || localOrder.status === "in_transit";
+  const isCancelled = localOrder.status === "cancelled";
+  const canCancel = !isCompleted && !isCancelled && (localOrder?.status === "pending_approval" || localOrder?.status === "approved" || localOrder?.status === "scheduled" || localOrder?.status === "assigned" || localOrder?.status === "in_transit");
   const urgencyConfig = isDelivery && localOrder.urgencyLevel ? getUrgencyConfig(localOrder.urgencyLevel) : null;
   const paymentStatusConfig = getPaymentStatusConfig(localOrder.paymentStatus);
 
@@ -426,52 +443,125 @@ const OrderDetailModal = ({ isOpen, onClose, order, orderId, onGiveFeedback }) =
                   </p>
                 </div>
               )}
+
+              {isCancelled && (localOrder.cancelledBy || localOrder.cancellationReason) && (
+                <div className="border-t border-slate-100 pt-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <XCircle size={14} className="text-red-500" />
+                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                      Detalhes do Cancelamento
+                    </h3>
+                  </div>
+                  <div className="bg-red-50 rounded-lg p-3 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-500">Cancelado por</span>
+                      <span className="text-xs font-semibold text-slate-800 capitalize">
+                        {localOrder.cancelledBy === "customer" ? "Cliente" :
+                         localOrder.cancelledBy === "driver" ? "Motorista" : "Admin/Gestor"}
+                      </span>
+                    </div>
+                    {localOrder.cancellationReason && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-slate-500">Motivo</span>
+                        <span className="text-xs font-semibold text-slate-800">
+                          {localOrder.cancellationReason === "changed_my_mind" ? "Mudei de ideia" :
+                           localOrder.cancellationReason === "found_better_price" ? "Encontrei melhor preço" :
+                           localOrder.cancellationReason === "ordered_by_mistake" ? "Pedido errado" :
+                           localOrder.cancellationReason === "delivery_too_slow" ? "Entrega muito lenta" :
+                           localOrder.cancellationReason === "vehicle_issue" ? "Problema no veículo" :
+                           localOrder.cancellationReason === "emergency" ? "Emergência pessoal" :
+                           localOrder.cancellationReason === "route_issue" ? "Problema na rota" :
+                           localOrder.cancellationReason === "customer_unresponsive" ? "Cliente não responde" :
+                           localOrder.cancellationReason === "service_unavailable" ? "Serviço indisponível" :
+                           localOrder.cancellationReason === "duplicate_order" ? "Pedido duplicado" :
+                           localOrder.cancellationReason === "fraud_suspected" ? "Fraude suspeita" :
+                           localOrder.cancellationReason === "other" ? "Outro" : localOrder.cancellationReason}
+                        </span>
+                      </div>
+                    )}
+                    {localOrder.cancellationComment && (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-slate-500">Comentário</span>
+                        <p className="text-xs text-slate-700 bg-white p-2 rounded">{localOrder.cancellationComment}</p>
+                      </div>
+                    )}
+                    {localOrder.cancelledAt && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-slate-500">Data/Hora</span>
+                        <span className="text-xs font-semibold text-slate-800">
+                          {new Date(localOrder.cancelledAt).toLocaleDateString()} às {new Date(localOrder.cancelledAt).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Footer Actions */}
-          <div className="p-4 border-t border-slate-100 bg-white rounded-b-2xl">
-            <div className="flex gap-2">
-              {isCompleted && onGiveFeedback && (
-                <button 
-                   onClick={() => onGiveFeedback(localOrder)} 
-                  className="flex-1 py-2.5 rounded-xl bg-amber-100 text-amber-700 font-semibold text-sm hover:bg-amber-200 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Star size={16} />
-                  Avaliar Pedido
-                </button>
-              )}
-              {isActive && (
-                <button 
-                  onClick={() => setShowTrackModal(true)} 
-                  className="flex-1 py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Navigation size={16} />
-                  Acompanhar
-                </button>
-              )}
-              {!isCompleted && !isActive && (
-                <button 
-                  className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-semibold text-sm hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Headphones size={16} />
-                  Contactar Suporte
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+{/* Footer Actions */}
+           <div className="p-4 border-t border-slate-100 bg-white rounded-b-2xl">
+             <div className="flex gap-2">
+               {isCompleted && onGiveFeedback && (
+                 <button 
+                    onClick={() => onGiveFeedback(localOrder)} 
+                   className="flex-1 py-2.5 rounded-xl bg-amber-100 text-amber-700 font-semibold text-sm hover:bg-amber-200 transition-colors flex items-center justify-center gap-2"
+                 >
+                   <Star size={16} />
+                   Avaliar Pedido
+                 </button>
+               )}
+               {isActive && (
+                 <button 
+                   onClick={() => setShowTrackModal(true)} 
+                   className="flex-1 py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                 >
+                   <Navigation size={16} />
+                   Acompanhar
+                 </button>
+               )}
+               {canCancel && (
+                 <button 
+                   onClick={() => setShowCancelDialog(true)} 
+                   className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-semibold text-sm hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+                 >
+                   <XCircle size={16} />
+                   Cancelar Pedido
+                 </button>
+               )}
+               {!isCompleted && !isActive && !canCancel && (
+                 <button 
+                   onClick={() => setShowTrackModal(true)} 
+                   className="flex-1 py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                 >
+                   <Navigation size={16} />
+                   Acompanhar
+                 </button>
+               )}
+             </div>
+           </div>
+         </div>
+       </div>
 
-      {showTrackModal && (
-        <TrackOrderModal
-          isOpen={showTrackModal}
-          onClose={() => setShowTrackModal(false)}
-          order={localOrder}
-        />
-      )}
-    </>
-  );
+       {showTrackModal && (
+         <TrackOrderModal
+           isOpen={showTrackModal}
+           onClose={() => setShowTrackModal(false)}
+           order={localOrder}
+         />
+       )}
+
+       {showCancelDialog && (
+         <CancelOrderDialog
+           isOpen={showCancelDialog}
+           onClose={() => setShowCancelDialog(false)}
+           onConfirm={handleCancelOrder}
+           role="customer"
+           orderStatus={localOrder?.status}
+         />
+       )}
+     </>
+   );
 };
 
 export default OrderDetailModal;

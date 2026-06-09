@@ -24,17 +24,21 @@ const ICON_MAP = {
 };
 
 const Notifications = () => {
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("Todas");
-  const [hasMarkedSeen, setHasMarkedSeen] = useState(false);
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [menuOpenId, setMenuOpenId] = useState(null);
-  const [showDeleteBar, setShowDeleteBar] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [markingAllRead, setMarkingAllRead] = useState(false);
-  const menuRef = useRef(null);
-  const notificationRefs = useRef({});
+   const [notifications, setNotifications] = useState([]);
+   const [loading, setLoading] = useState(true);
+   const [loadingMore, setLoadingMore] = useState(false);
+   const [filter, setFilter] = useState("Todas");
+   const [hasMarkedSeen, setHasMarkedSeen] = useState(false);
+   const [selectedIds, setSelectedIds] = useState([]);
+   const [menuOpenId, setMenuOpenId] = useState(null);
+   const [showDeleteBar, setShowDeleteBar] = useState(false);
+   const [deleting, setDeleting] = useState(false);
+   const [markingAllRead, setMarkingAllRead] = useState(false);
+   const [page, setPage] = useState(1);
+   const [hasMore, setHasMore] = useState(true);
+   const menuRef = useRef(null);
+   const notificationRefs = useRef({});
+   const sentinelRef = useRef(null);
   const { socket } = useSocket();
   const { user } = useAuth();
 
@@ -44,21 +48,71 @@ const Notifications = () => {
     ? ["Todas", "Não lidas", "Pedidos", "Motoristas", "Incidentes", "Finanças"]
     : ["Todas", "Não lidas", "Pedidos", "Motorista", "Promoções"];
 
-  const fetchNotifications = useCallback(async () => {
-    setLoading(true);
+  const fetchNotifications = useCallback(async (pageNum = 1, append = false) => {
+    if (pageNum === 1) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
     try {
-      const { data } = await client.get('/notifications');
-      setNotifications(data.notifications || []);
+      const filterMap = {
+        "Todas": "all",
+        "Não lidas": "unread",
+        "Pedidos": "order",
+        "Motoristas": "driver",
+        "Motorista": "driver",
+        "Incidentes": "incident",
+        "Finanças": "finance",
+        "Promoções": "customer_promo"
+      };
+      
+      const { data } = await client.get('/notifications', {
+        params: {
+          page: pageNum,
+          limit: 20,
+          filter: filterMap[filter] || "all"
+        }
+      });
+      
+      if (append) {
+        setNotifications(prev => [...prev, ...(data.notifications || [])]);
+      } else {
+        setNotifications(data.notifications || []);
+      }
+      setHasMore(data.currentPage < data.pages);
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, []);
+  }, [filter]);
 
   useEffect(() => {
-    fetchNotifications();
+    setPage(1);
+    setHasMore(true);
+    fetchNotifications(1, false);
+    setHasMarkedSeen(false);
   }, [fetchNotifications]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          const nextPage = page + 1;
+          setPage(nextPage);
+          fetchNotifications(nextPage, true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (sentinelRef.current) {
+      observer.observe(sentinelRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore, page, fetchNotifications]);
 
   useEffect(() => {
     if (!socket) return;
@@ -364,7 +418,8 @@ const Notifications = () => {
           <p className="text-sm text-slate-500">Carregando notificações...</p>
         </div>
       ) : filtered.length > 0 ? (
-        filtered.map(n => {
+        <>
+          {filtered.map(n => {
           const isSelected = selectedIds.includes(n.id);
           const isMenuOpen = menuOpenId === n.id;
           return (
@@ -445,7 +500,14 @@ const Notifications = () => {
               </div>
             </div>
           );
-        })
+        })}
+        {loadingMore && (
+          <div className="text-center py-4">
+            <RefreshCw size={20} className="text-slate-400 mx-auto animate-spin" />
+          </div>
+        )}
+        <div ref={sentinelRef} className="h-1" />
+        </>
       ) : (
         <div className="text-center py-10">
           <Bell size={48} className="text-slate-300 mx-auto mb-2" />

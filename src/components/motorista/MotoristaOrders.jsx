@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Icon from "../common/Icon";
-import { getDriverOrders, updateOrder, getOrder } from "../../api/client";
+import CancelOrderDialog from "../common/CancelOrderDialog";
+import { getDriverOrders, updateOrder, getOrder, cancelOrder } from "../../api/client";
 import { toast } from "../../lib/toast";
 import Modal from "../common/Modal";
 
@@ -229,6 +230,7 @@ const MotoristaOrderDetailModal = ({ isOpen, onClose, order, orderId, onUpdate, 
   const [activeTab, setActiveTab] = useState("details");
   const [loadingOrder, setLoadingOrder] = useState(false);
   const [localOrder, setLocalOrder] = useState(order);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   useEffect(() => {
     if (!order && orderId && isOpen) {
@@ -249,6 +251,43 @@ const MotoristaOrderDetailModal = ({ isOpen, onClose, order, orderId, onUpdate, 
       setLocalOrder(order);
     }
   }, [order, orderId, isOpen, onUpdate]);
+
+  const handleCancelOrder = async (cancelData) => {
+    if (!localOrder) return;
+    try {
+      const response = await cancelOrder(localOrder.id, cancelData);
+      setLocalOrder(response.data);
+      if (onUpdate) onUpdate(response.data);
+      toast.success("Pedido cancelado com sucesso");
+      onClose();
+    } catch (error) {
+      const msg = error.response?.data?.message || "Erro ao cancelar pedido";
+      toast.error(msg);
+      throw error;
+    }
+  };
+
+  const canCancel = localOrder?.status !== "completed" && localOrder?.status !== "cancelled";
+
+  const getCancelReasonLabel = (reason) => {
+    const labels = {
+      changed_my_mind: "Mudei de ideia",
+      found_better_price: "Encontrei melhor preço",
+      ordered_by_mistake: "Pedido errado",
+      delivery_too_slow: "Entrega muito lenta",
+      vehicle_issue: "Problema no veículo",
+      emergency: "Emergência pessoal",
+      route_issue: "Problema na rota",
+      customer_unresponsive: "Cliente não responde",
+      customer_request: "Pedido do cliente",
+      driver_request: "Pedido do motorista",
+      fraud_suspected: "Fraude suspeita",
+      service_unavailable: "Serviço indisponível",
+      duplicate_order: "Pedido duplicado",
+      other: "Outro"
+    };
+    return labels[reason] || reason;
+  };
 
   if (loadingOrder) {
     return (
@@ -510,6 +549,46 @@ const MotoristaOrderDetailModal = ({ isOpen, onClose, order, orderId, onUpdate, 
                 <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">{localOrder.observations}</p>
               </div>
             )}
+
+            {localOrder.status === "cancelled" && (localOrder.cancelledBy || localOrder.cancellationReason) && (
+              <div className="border-t border-slate-100 pt-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Icon name="xCircle" size={14} className="text-red-500" />
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Detalhes do Cancelamento</h3>
+                </div>
+                <div className="bg-red-50 rounded-lg p-3 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-500">Cancelado por</span>
+                    <span className="text-xs font-semibold text-slate-800 capitalize">
+                      {localOrder.cancelledBy === "customer" ? "Cliente" :
+                       localOrder.cancelledBy === "driver" ? "Motorista" : "Admin/Gestor"}
+                    </span>
+                  </div>
+                  {localOrder.cancellationReason && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-500">Motivo</span>
+                      <span className="text-xs font-semibold text-slate-800">
+                        {getCancelReasonLabel(localOrder.cancellationReason)}
+                      </span>
+                    </div>
+                  )}
+                  {localOrder.cancellationComment && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-slate-500">Comentário</span>
+                      <p className="text-xs text-slate-700 bg-white p-2 rounded">{localOrder.cancellationComment}</p>
+                    </div>
+                  )}
+                  {localOrder.cancelledAt && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-500">Data/Hora</span>
+                      <span className="text-xs font-semibold text-slate-800">
+                        {new Date(localOrder.cancelledAt).toLocaleDateString()} às {new Date(localOrder.cancelledAt).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -533,6 +612,17 @@ const MotoristaOrderDetailModal = ({ isOpen, onClose, order, orderId, onUpdate, 
               </select>
             </div>
 
+            {canCancel && (
+              <button
+                onClick={() => setShowCancelDialog(true)}
+                disabled={updating}
+                className="w-full py-2.5 rounded-xl bg-red-500 text-white font-semibold text-sm hover:bg-red-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <Icon name="xCircle" size={16} />
+                Cancelar Pedido
+              </button>
+            )}
+
             <button
               onClick={() => onClose()}
               className="w-full py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors"
@@ -542,6 +632,16 @@ const MotoristaOrderDetailModal = ({ isOpen, onClose, order, orderId, onUpdate, 
           </div>
         )}
       </div>
+
+      {showCancelDialog && localOrder && (
+        <CancelOrderDialog
+          isOpen={showCancelDialog}
+          onClose={() => setShowCancelDialog(false)}
+          onConfirm={handleCancelOrder}
+          role="driver"
+          orderStatus={localOrder?.status}
+        />
+      )}
     </Modal>
   );
 };

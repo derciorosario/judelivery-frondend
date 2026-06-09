@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Modal from "../common/Modal";
-import { updateOrder, getDrivers, getOrder } from "../../api/client";
+import CancelOrderDialog from "../common/CancelOrderDialog";
+import { updateOrder, getDrivers, getOrder, cancelOrder } from "../../api/client";
 import { toast } from "../../lib/toast";
 import {
   X,
@@ -42,6 +43,63 @@ const AdminOrderDetailModal = ({ isOpen, onClose, order, orderId, onUpdate }) =>
   const [loadingDrivers, setLoadingDrivers] = useState(false);
   const [showDriverInfo, setShowDriverInfo] = useState(false);
   const [loadingOrder, setLoadingOrder] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+
+  useEffect(() => {
+    if (!order && orderId && isOpen) {
+      const fetchOrder = async () => {
+        setLoadingOrder(true);
+        try {
+          const response = await getOrder(orderId);
+          if (onUpdate) onUpdate(response.data);
+        } catch (error) {
+          toast.error("Erro ao carregar pedido");
+          console.error("Error fetching order:", error);
+        } finally {
+          setLoadingOrder(false);
+        }
+      };
+      fetchOrder();
+    }
+  }, [order, orderId, isOpen, onUpdate]);
+
+  const handleCancelOrder = async (cancelData) => {
+    if (!order) return;
+    setIsSubmitting(true);
+    try {
+      const response = await cancelOrder(order.id, cancelData);
+      if (onUpdate) onUpdate(response.data);
+      toast.success("Pedido cancelado com sucesso");
+      onClose();
+    } catch (error) {
+      const msg = error.response?.data?.message || "Erro ao cancelar pedido";
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const canCancel = order?.status !== "completed" && order?.status !== "cancelled";
+
+  const getCancelReasonLabel = (reason) => {
+    const labels = {
+      changed_my_mind: "Mudei de ideia",
+      found_better_price: "Encontrei melhor preço",
+      ordered_by_mistake: "Pedido errado",
+      delivery_too_slow: "Entrega muito lenta",
+      vehicle_issue: "Problema no veículo",
+      emergency: "Emergência pessoal",
+      route_issue: "Problema na rota",
+      customer_unresponsive: "Cliente não responde",
+      customer_request: "Pedido do cliente",
+      driver_request: "Pedido do motorista",
+      fraud_suspected: "Fraude suspeita",
+      service_unavailable: "Serviço indisponível",
+      duplicate_order: "Pedido duplicado",
+      other: "Outro"
+    };
+    return labels[reason] || reason;
+  };
 
   useEffect(() => {
     if (!order && orderId && isOpen) {
@@ -408,21 +466,63 @@ const AdminOrderDetailModal = ({ isOpen, onClose, order, orderId, onUpdate }) =>
               </div>
             )}
 
-            {order.observations && (
-              <div className="border-t border-slate-100 pt-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <MessageSquare size={14} className="text-slate-400" />
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                    Observações
-                  </h3>
-                </div>
-                <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">
-                  {order.observations}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
+{order.observations && (
+               <div className="border-t border-slate-100 pt-3">
+                 <div className="flex items-center gap-2 mb-2">
+                   <MessageSquare size={14} className="text-slate-400" />
+                   <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                     Observações
+                   </h3>
+                 </div>
+                 <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">
+                   {order.observations}
+                 </p>
+               </div>
+             )}
+
+             {order.status === "cancelled" && (order.cancelledBy || order.cancellationReason) && (
+               <div className="border-t border-slate-100 pt-3">
+                 <div className="flex items-center gap-2 mb-2">
+                   <XCircle size={14} className="text-red-500" />
+                   <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                     Detalhes do Cancelamento
+                   </h3>
+                 </div>
+                 <div className="bg-red-50 rounded-lg p-3 space-y-2">
+                   <div className="flex justify-between items-center">
+                     <span className="text-xs text-slate-500">Cancelado por</span>
+                     <span className="text-xs font-semibold text-slate-800 capitalize">
+                       {order.cancelledBy === "customer" ? "Cliente" :
+                        order.cancelledBy === "driver" ? "Motorista" : "Admin/Gestor"}
+                     </span>
+                   </div>
+                   {order.cancellationReason && (
+                     <div className="flex justify-between items-center">
+                       <span className="text-xs text-slate-500">Motivo</span>
+                       <span className="text-xs font-semibold text-slate-800">
+                         {getCancelReasonLabel(order.cancellationReason)}
+                       </span>
+                     </div>
+                   )}
+                   {order.cancellationComment && (
+                     <div className="flex flex-col gap-1">
+                       <span className="text-xs text-slate-500">Comentário</span>
+                       <p className="text-xs text-slate-700 bg-white p-2 rounded">{order.cancellationComment}</p>
+                     </div>
+                   )}
+                   {order.cancelledAt && (
+                     <div className="flex justify-between items-center">
+                       <span className="text-xs text-slate-500">Data/Hora</span>
+                       <span className="text-xs font-semibold text-slate-800">
+                         {new Date(order.cancelledAt).toLocaleDateString()} às {new Date(order.cancelledAt).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
+                       </span>
+                     </div>
+                   )}
+                 </div>
+               </div>
+             )}
+           </div>
+         )}
 
         {activeTab === "actions" && (
           <div className="space-y-4">
@@ -558,33 +658,44 @@ const AdminOrderDetailModal = ({ isOpen, onClose, order, orderId, onUpdate }) =>
                   Aprovar
                 </button>
               )}
-              {(displayStatus.text === "Aprovado" || displayStatus.text === "Aguardando") && (
-                <button
-                  onClick={() => handleStatusChange("cancelled")}
-                  disabled={isSubmitting}
-                  className="py-2.5 rounded-xl bg-red-500 text-white font-semibold text-sm hover:bg-red-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                >
-                  <XCircle size={14} />
-                  Rejeitar
-                </button>
-              )}
+{(displayStatus.text === "Aprovado" || displayStatus.text === "Aguardando") && (
+                 <button
+                   onClick={() => setShowCancelDialog(true)}
+                   disabled={isSubmitting}
+                   className="py-2.5 rounded-xl bg-red-500 text-white font-semibold text-sm hover:bg-red-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                 >
+                   <XCircle size={14} />
+                   Cancelar
+                 </button>
+               )}
+               <button
+                 onClick={() => handleStatusChange("in_transit")}
+                 disabled={isSubmitting}
+                 className="py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+               >
+                 <Truck size={14} />
+                 Em entrega
+               </button>
+               <button
+                 onClick={() => handleStatusChange("completed")}
+                 disabled={isSubmitting}
+                 className="py-2.5 rounded-xl bg-green-500 text-white font-semibold text-sm hover:bg-green-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+               >
+                 <CheckCircle size={14} />
+                 Concluir
+               </button>
+             </div>
+
+            {canCancel && (
               <button
-                onClick={() => handleStatusChange("in_transit")}
+                onClick={() => setShowCancelDialog(true)}
                 disabled={isSubmitting}
-                className="py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-xl bg-red-500 text-white font-semibold text-sm hover:bg-red-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
               >
-                <Truck size={14} />
-                Em entrega
+                <XCircle size={16} />
+                Cancelar Pedido
               </button>
-              <button
-                onClick={() => handleStatusChange("completed")}
-                disabled={isSubmitting}
-                className="py-2.5 rounded-xl bg-green-500 text-white font-semibold text-sm hover:bg-green-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-              >
-                <CheckCircle size={14} />
-                Concluir
-              </button>
-            </div>
+            )}
 
             <button
               onClick={() => onClose()}
@@ -595,6 +706,16 @@ const AdminOrderDetailModal = ({ isOpen, onClose, order, orderId, onUpdate }) =>
           </div>
         )}
       </div>
+
+      {showCancelDialog && order && (
+        <CancelOrderDialog
+          isOpen={showCancelDialog}
+          onClose={() => setShowCancelDialog(false)}
+          onConfirm={handleCancelOrder}
+          role="admin"
+          orderStatus={order?.status}
+        />
+      )}
     </Modal>
   );
 };

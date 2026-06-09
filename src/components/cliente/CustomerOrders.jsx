@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import Icon from "../common/Icon";
-import { getCustomerOrders, deleteOrder } from "../../api/client";
+import { getCustomerOrders, cancelOrder } from "../../api/client";
 import { toast } from "../../lib/toast";
 import TrackOrderModal from "./modals/TrackOrderModal";
 import CreateOrderModal from "./modals/CreateOrderModal";
+import CancelOrderDialog from "../common/CancelOrderDialog";
 
 const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, onOpenCreateOrder, refreshOrders }) => {
   const [filter, setFilter] = useState("Todos");
@@ -133,11 +134,11 @@ const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, on
     setDeleteTarget(order);
   };
 
-  const confirmDelete = async () => {
+  const confirmCancelOrder = async (cancelData) => {
     if (!deleteTarget) return;
     try {
-      await deleteOrder(deleteTarget.id);
-      setOrders(prev => prev.filter(o => o.id !== deleteTarget.id));
+      const response = await cancelOrder(deleteTarget.id, cancelData);
+      setOrders(prev => prev.map(o => o.id === response.data.id ? response.data : o));
       toast.success("Pedido cancelado com sucesso");
     } catch (error) {
       let errorMessage = "Erro ao cancelar pedido";
@@ -145,6 +146,7 @@ const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, on
         errorMessage = error.response.data.message;
       }
       toast.error(errorMessage);
+      throw error;
     } finally {
       setDeleteTarget(null);
     }
@@ -293,26 +295,14 @@ const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, on
         />
       )}
 
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
-            <div className="text-center mb-4">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Icon name="alertTriangle" size={24} className="text-red-600" />
-              </div>
-              <h3 className="text-base font-bold text-slate-800">Cancelar Pedido</h3>
-              <p className="text-sm text-slate-500 mt-1">Tem certeza que deseja cancelar <strong>{toShortId(deleteTarget.id)}</strong>? Esta ação não pode ser revertida.</p>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setDeleteTarget(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
-                Voltar
-              </button>
-              <button onClick={confirmDelete} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-bold text-sm shadow-lg shadow-red-300 hover:bg-red-600">
-                Confirmar Cancelamento
-              </button>
-            </div>
-          </div>
-        </div>
+{deleteTarget && (
+        <CancelOrderDialog
+          isOpen={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={confirmCancelOrder}
+          role="customer"
+          orderStatus={deleteTarget?.status}
+        />
       )}
 
       {trackOrder && (

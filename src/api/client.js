@@ -291,6 +291,8 @@ export const createOrder = (data) => client.post('/orders', data);
 
 export const updateOrder = (id, data) => client.put(`/orders/${id}`, data);
 
+export const cancelOrder = (id, data) => client.post(`/orders/${id}/cancel`, data);
+
 export const deleteOrder = (id) => client.delete(`/orders/${id}`);
 
 export const getCustomerOrders = () => client.get('/orders/mine');
