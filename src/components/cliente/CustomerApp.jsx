@@ -26,9 +26,16 @@ const CustomerApp = () => {
   const [feedbackOrder, setFeedbackOrder] = useState(null);
   const [showSupport, setShowSupport] = useState(false);
   const [selectedServiceType, setSelectedServiceType] = useState(null);
+  const [refreshData,setRefreshData]=useState(false)
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(()=>{
+
+    if(refreshData) setRefreshData(false)
+
+  },[refreshData])
 
   useEffect(() => {
     const handleOpenOrder = (e) => {
@@ -169,7 +176,7 @@ const CustomerApp = () => {
             }}
             onGiveFeedback={handleGiveFeedback}
             onOpenCreateOrder={handleOpenCreateOrder}
-            refreshOrders={shouldRefreshOrders}
+            refreshOrders={shouldRefreshOrders || refreshData}
             onRefreshOrders={() => setShouldRefreshOrders(prev => !prev)}
           />
         )}
@@ -196,11 +203,15 @@ const CustomerApp = () => {
 
       <CreateOrderModal
         isOpen={showCreateOrder}
-        onClose={() => {
+        onClose={(refresh) => {
           setShowCreateOrder(false);
           setSelectedOrder(null);
           setSelectedServiceType(null);
           setShowServiceSelection(false);
+
+          if(refresh==true){
+             setRefreshData(true)
+          }
         }}
         user={user}
         customerData={customerData}

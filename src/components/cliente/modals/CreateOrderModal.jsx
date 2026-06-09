@@ -1052,7 +1052,7 @@ if (step < (serviceType === "taxi" ? 4 : 4)) {
             <button
               onClick={() => {
                 setSubmitStatus('idle');
-                onClose();
+                onClose(true);
                 setStep(1);
                 setMapOpen(false);
                 setRouteMapOpen(false);
@@ -1060,6 +1060,7 @@ if (step < (serviceType === "taxi" ? 4 : 4)) {
                 setMapMarker(null);
                 setDirections(null);
                 setRouteInfo(null);
+                setSaving(false)
                 setForm({
                   origin: "",
                   originCoords: null,

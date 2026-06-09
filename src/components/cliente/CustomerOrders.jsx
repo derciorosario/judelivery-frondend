@@ -5,7 +5,7 @@ import { toast } from "../../lib/toast";
 import TrackOrderModal from "./modals/TrackOrderModal";
 import CreateOrderModal from "./modals/CreateOrderModal";
 
-const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, onOpenCreateOrder }) => {
+const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, onOpenCreateOrder, refreshOrders }) => {
   const [filter, setFilter] = useState("Todos");
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -73,6 +73,8 @@ const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, on
     }
   }, [user]);
 
+
+
   const handleRefresh = async () => {
     setLoading(true);
     try {
@@ -88,6 +90,15 @@ const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, on
       setLoading(false);
     }
   };
+
+
+  useEffect(()=>{
+
+    if(refreshOrders){
+       handleRefresh()
+    }
+
+  },[refreshOrders])
 
   const handleRepeatOrder = (order) => {
     if (onRepeatOrder) {
