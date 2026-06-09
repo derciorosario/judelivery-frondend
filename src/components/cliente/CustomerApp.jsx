@@ -6,7 +6,6 @@ import BottomNav from "../common/BottomNav";
 import Header from "../common/Header";
 import CustomerHome from "./CustomerHome";
 import CustomerOrders from "./CustomerOrders";
-import CustomerTracking from "./CustomerTracking";
 import CustomerProfile from "./CustomerProfile";
 import CreateOrderModal from "./modals/CreateOrderModal";
 import OrderDetailModal from "./modals/OrderDetailModal";
@@ -179,10 +178,19 @@ const CustomerApp = () => {
           />
         )}
         {activeTab === "tracking" && (
-          <CustomerTracking
-            activeOrder={activeOrder}
-            orders={customerOrders}
-            onSelectOrder={handleViewOrderDetails}
+          <CustomerOrders
+            user={user}
+            onViewDetails={handleViewOrderDetails}
+            onRepeatOrder={(order) => {
+              setSelectedOrder(order);
+              setSelectedServiceType(order.serviceType || "delivery");
+              setShowCreateOrder(true);
+            }}
+            onGiveFeedback={handleGiveFeedback}
+            onOpenCreateOrder={handleOpenCreateOrder}
+            refreshOrders={shouldRefreshOrders || refreshData}
+            onRefreshOrders={() => setShouldRefreshOrders(prev => !prev)}
+            statusFilter="in_transit"
           />
         )}
         {activeTab === "profile" && (

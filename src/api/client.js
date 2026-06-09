@@ -295,7 +295,7 @@ export const cancelOrder = (id, data) => client.post(`/orders/${id}/cancel`, dat
 
 export const deleteOrder = (id) => client.delete(`/orders/${id}`);
 
-export const getCustomerOrders = () => client.get('/orders/mine');
+export const getCustomerOrders = (params) => client.get('/orders/mine', { params });
 
 export const getDriverOrders = () => client.get('/orders/driver');
 
