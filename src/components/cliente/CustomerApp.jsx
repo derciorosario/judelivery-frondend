@@ -32,9 +32,7 @@ const CustomerApp = () => {
   const navigate = useNavigate();
 
   useEffect(()=>{
-
     if(refreshData) setRefreshData(false)
-
   },[refreshData])
 
   useEffect(() => {

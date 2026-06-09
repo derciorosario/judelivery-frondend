@@ -188,6 +188,7 @@ const AdminApp = () => {
           onClose={() => {
             setShowAdminCreateOrder(false);
             setSelectedClientForOrder(null);
+            setOrderRefreshKey(k => k + 1);
           }}
           onOrderCreated={handleOrderCreated}
           user={user}

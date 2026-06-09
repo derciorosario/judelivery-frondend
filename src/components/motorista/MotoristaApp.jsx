@@ -23,6 +23,9 @@ const MotoristaApp = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
 
+  const [orderRefreshKey, setOrderRefreshKey] = useState(0);
+
+
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },
     { id: "map", label: "Mapa", icon: "map", path: "/map" },
@@ -115,7 +118,7 @@ const MotoristaApp = () => {
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
         {activeTab === "home" && <MotoristaHome online={online} setOnline={setOnline} location={location} />}
         {activeTab === "map" && <MotoristaMap online={online} onToggleOnline={setOnline} location={location} />}
-        {activeTab === "orders" && <MotoristaOrders />}
+        {activeTab === "orders" && <MotoristaOrders refreshKey={orderRefreshKey} />}
         {activeTab === "history" && <MotoristaHistory />}
         {activeTab === "profile" && <MotoristaProfile user={user} />}
         {activeTab === "notifications" && <Notifications />}
@@ -127,6 +130,7 @@ const MotoristaApp = () => {
         onClose={() => {
           setShowOrderDetails(false);
           setSelectedOrder(null);
+          setOrderRefreshKey(k => k + 1);
         }}
         order={selectedOrder}
         onUpdate={handleOrderUpdate}

@@ -39,6 +39,8 @@ const GestorApp = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
 
+
+
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },
     { id: "orders", label: "Pedidos", icon: "package", path: "/orders" },
@@ -116,6 +118,7 @@ const GestorApp = () => {
   const handleAdminCreateOrderClose = () => {
     setShowAdminCreateOrder(false);
     setSelectedClientForOrder(null);
+     setOrderRefreshKey(k => k + 1);
   };
 
   const handleOrderUpdate = (updatedOrder) => {
@@ -164,6 +167,7 @@ const GestorApp = () => {
             setShowAdminCreateOrder(false);
             setShowClientSelect(true);
           }}
+          
         />
       )}
 

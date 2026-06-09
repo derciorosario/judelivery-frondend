@@ -24,7 +24,7 @@ const STATUS_BADGE = {
   "Pendente": "bg-amber-100 text-amber-700"
 };
 
-const MotoristaOrders = ({ initialOrderId }) => {
+const MotoristaOrders = ({ initialOrderId,refreshKey }) => {
   const [myOrders, setMyOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -58,9 +58,6 @@ const MotoristaOrders = ({ initialOrderId }) => {
     }
   };
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
 
   const toShortId = (id) => {
     if (!id) return "---";
@@ -82,6 +79,10 @@ const MotoristaOrders = ({ initialOrderId }) => {
       setRefreshing(false);
     }
   };
+
+    useEffect(() => {
+      fetchOrders()
+    }, [refreshKey]);
 
   const openDetails = async (order) => {
     try {
