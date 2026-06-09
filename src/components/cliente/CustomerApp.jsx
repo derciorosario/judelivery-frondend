@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CUSTOMER_ORDERS, ORDERS, CUSTOMERS } from "../../data/mockData";
@@ -19,15 +19,28 @@ const CustomerApp = () => {
   const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [showServiceSelection, setShowServiceSelection] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
-  const [refreshOrders, setRefreshOrders] = useState(false);
+  const [shouldRefreshOrders, setShouldRefreshOrders] = useState(false);
   const [feedbackOrder, setFeedbackOrder] = useState(null);
   const [showSupport, setShowSupport] = useState(false);
   const [selectedServiceType, setSelectedServiceType] = useState(null);
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleOpenOrder = (e) => {
+      const orderId = e.detail?.orderId;
+      if (orderId) {
+        setSelectedOrderId(orderId);
+        setShowOrderDetails(true);
+      }
+    };
+    window.addEventListener("notification:openOrder", handleOpenOrder);
+    return () => window.removeEventListener("notification:openOrder", handleOpenOrder);
+  }, []);
 
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },
@@ -55,13 +68,11 @@ const CustomerApp = () => {
     }
   };
 
-  // Get customer specific orders
   const customerOrders = CUSTOMER_ORDERS.filter(o => o.clientId === user.id);
   const activeOrder = customerOrders.find(o => o.statusCode === "in_progress" || o.status === "Em entrega");
   const pendingOrders = customerOrders.filter(o => o.statusCode === "pending_approval" || o.status === "Pendente");
   const completedOrders = customerOrders.filter(o => o.statusCode === "completed" || o.status === "Concluído");
   
-  // Get customer data
   const customerData = CUSTOMERS.find(c => c.email === user.email) || {
     id: user.id,
     name: user.name,
@@ -74,7 +85,6 @@ const CustomerApp = () => {
     defaultAddress: "Av. Eduardo Mondlane 45, Maputo"
   };
 
-  // Stats
   const totalSpent = customerOrders.reduce((sum, o) => sum + (o.totalValue || 0), 0);
   const deliveryCount = customerOrders.length;
   const completedCount = customerOrders.filter(o => o.statusCode === "completed" || o.status === "Concluído").length;
@@ -87,10 +97,6 @@ const CustomerApp = () => {
 
   const handleOpenCreateOrder = () => {
     setShowServiceSelection(true);
-  };
-
-  const refreshCustomerOrders = () => {
-    setRefreshOrders(prev => !prev);
   };
 
   const handleServiceSelect = (serviceType) => {
@@ -132,7 +138,6 @@ const CustomerApp = () => {
         user={user}
         onLogout={signOut}
         title="DeliveryMZ"
-        notifs={0}
         onNotificationClick={() => setTab("notifications")}
       />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
@@ -164,8 +169,8 @@ const CustomerApp = () => {
             }}
             onGiveFeedback={handleGiveFeedback}
             onOpenCreateOrder={handleOpenCreateOrder}
-            refreshOrders={refreshOrders}
-            onRefreshOrders={() => setRefreshOrders(prev => !prev)}
+            refreshOrders={shouldRefreshOrders}
+            onRefreshOrders={() => setShouldRefreshOrders(prev => !prev)}
           />
         )}
         {activeTab === "tracking" && (
@@ -189,7 +194,6 @@ const CustomerApp = () => {
       </div>
       <BottomNav tabs={tabs} active={activeTab} setActive={setTab} />
 
-      {/* Modals */}
       <CreateOrderModal
         isOpen={showCreateOrder}
         onClose={() => {
@@ -216,8 +220,10 @@ const CustomerApp = () => {
         onClose={() => {
           setShowOrderDetails(false);
           setSelectedOrder(null);
+          setSelectedOrderId(null);
         }}
         order={selectedOrder}
+        orderId={selectedOrderId}
         onGiveFeedback={handleGiveFeedback}
       />
 
@@ -233,7 +239,9 @@ const CustomerApp = () => {
 
       <SupportModal
         isOpen={showSupport}
-        onClose={() => setShowSupport(false)}
+        onClose={() => {
+          setShowSupport(false);
+        }}
       />
     </div>
   );

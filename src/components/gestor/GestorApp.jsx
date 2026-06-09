@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import BottomNav from "../common/BottomNav";
@@ -11,13 +11,14 @@ import AdminIncidents from "../admin/AdminIncidents";
 import AdminManagers from "../admin/AdminManagers";
 import CreateOrderModal from "../cliente/modals/CreateOrderModal";
 import AdminClientSelectModal from "../admin/AdminClientSelectModal";
+import { AdminOrderDetailModal } from "../admin/AdminOrderDetailModal";
 import GestorHome from "./GestorHome";
 import GestorMap from "./GestorMap";
 import GestorRequests from "./GestorRequests";
 import L from "leaflet";
+import { getOrder } from "../../api/client";
 import Notifications from "../common/Notifications";
 
-// Fix Leaflet icon issue
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
@@ -34,6 +35,9 @@ const GestorApp = () => {
   const [showClientSelect, setShowClientSelect] = useState(false);
   const [selectedClientForOrder, setSelectedClientForOrder] = useState(null);
   const [orderRefreshKey, setOrderRefreshKey] = useState(0);
+  const [selectedDriverForNotification, setSelectedDriverForNotification] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showOrderDetails, setShowOrderDetails] = useState(false);
 
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },
@@ -57,14 +61,45 @@ const GestorApp = () => {
 
   const activeTab = getTabFromPath();
 
-  const setTab = (tabId) => {
+  const setTab = useCallback((tabId) => {
     const tab = tabs.find(t => t.id === tabId);
     if (tab && tabId !== "home") {
       navigate(tab.path);
     } else {
       navigate("/");
-    }
-  };
+    }  
+
+    
+  }, [navigate, tabs]);
+
+  useEffect(() => {
+    const handleOpenOrder = async (e) => {
+      const orderId = e.detail?.orderId;
+      if (orderId) {
+        try {
+          const response = await getOrder(orderId);
+          setSelectedOrder(response.data);
+          setShowOrderDetails(true);
+        } catch (err) {
+          console.error("Failed to fetch order for notification:", err);
+        }
+      }
+    };
+    window.addEventListener("notification:openOrder", handleOpenOrder);
+    return () => window.removeEventListener("notification:openOrder", handleOpenOrder);
+  }, []);
+
+  useEffect(() => {
+    const handleOpenMap = (e) => {
+      const driverId = e.detail?.driverId;
+      if (driverId) {
+        setSelectedDriverForNotification(driverId);
+        setTab("map");
+      }
+    };
+    window.addEventListener("notification:openMap", handleOpenMap);
+    return () => window.removeEventListener("notification:openMap", handleOpenMap);
+  }, [setTab]);
 
   const handleClientSelected = (client) => {
     setSelectedClientForOrder(client);
@@ -83,19 +118,23 @@ const GestorApp = () => {
     setSelectedClientForOrder(null);
   };
 
+  const handleOrderUpdate = (updatedOrder) => {
+    setSelectedOrder(updatedOrder);
+    setOrderRefreshKey(k => k + 1);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto">
       <Header 
         user={user} 
         onLogout={signOut} 
         title="Gestão Operacional" 
-        notifs={0} 
         onNotificationClick={() => setTab("notifications")} 
       />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
         {activeTab === "home" && <GestorHome />}
         {activeTab === "orders" && <AdminOrders onOpenCreateDelivery={() => setShowClientSelect(true)} refreshKey={orderRefreshKey} />}
-        {activeTab === "map" && <GestorMap />}
+        {activeTab === "map" && <GestorMap initialDriverId={selectedDriverForNotification} />}
         {activeTab === "drivers" && <AdminDrivers />}
         {activeTab === "managers" && <AdminManagers />}
         {activeTab === "products" && <AdminProducts />}
@@ -127,6 +166,16 @@ const GestorApp = () => {
           }}
         />
       )}
+
+      <AdminOrderDetailModal
+        isOpen={showOrderDetails}
+        onClose={() => {
+          setShowOrderDetails(false);
+          setSelectedOrder(null);
+        }}
+        order={selectedOrder}
+        onUpdate={handleOrderUpdate}
+      />
     </div>
   );
 };

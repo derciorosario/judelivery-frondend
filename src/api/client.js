@@ -305,3 +305,5 @@ export const getNotifications = (params) => client.get('/notifications', { param
 export const markNotificationRead = (id) => client.patch(`/notifications/${id}/read`);
 export const markAllNotificationsRead = () => client.patch('/notifications/read-all');
 export const getUnreadNotificationCount = () => client.get('/notifications/unread-count');
+export const deleteNotification = (id) => client.delete(`/notifications/${id}`);
+export const deleteNotifications = (ids) => client.post('/notifications/delete-many', { ids });

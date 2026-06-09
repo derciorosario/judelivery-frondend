@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import BottomNav from "../common/BottomNav";
@@ -14,7 +14,9 @@ import AdminFinance from "./AdminFinance";
 import AdminRequests from "./AdminRequests";
 import CreateOrderModal from "../cliente/modals/CreateOrderModal";
 import AdminClientSelectModal from "./AdminClientSelectModal";
+import { AdminOrderDetailModal } from "./AdminOrderDetailModal";
 import { CUSTOMER_REQUESTS, ORDERS } from "../../data/mockData";
+import { getOrder } from "../../api/client";
 import Notifications from "../common/Notifications";
 
 const AdminApp = () => {
@@ -23,15 +25,11 @@ const AdminApp = () => {
   const [showAdminCreateOrder, setShowAdminCreateOrder] = useState(false);
   const [showClientSelect, setShowClientSelect] = useState(false);
   const [selectedClientForOrder, setSelectedClientForOrder] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showOrderDetails, setShowOrderDetails] = useState(false);
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!user || (user.role !== 'superadmin' && user.role !== 'admin')) {
-      navigate("/login");
-    }
-  }, [user, navigate]);
 
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },
@@ -55,14 +53,48 @@ const AdminApp = () => {
 
   const activeTab = getTabFromPath();
 
-  const setTab = (tabId) => {
+  const setTab = useCallback((tabId) => {
     const tab = tabs.find(t => t.id === tabId);
     if (tab && tabId !== "home") {
       navigate(tab.path);
     } else {
       navigate("/");
     }
-  };
+  }, [navigate, tabs]);
+
+  useEffect(() => {
+    const handleOpenOrder = async (e) => {
+      const orderId = e.detail?.orderId;
+      if (orderId) {
+        try {
+          const response = await getOrder(orderId);
+          setSelectedOrder(response.data);
+          setShowOrderDetails(true);
+        } catch (err) {
+          console.error("Failed to fetch order for notification:", err);
+        }
+      }
+    };
+    window.addEventListener("notification:openOrder", handleOpenOrder);
+    return () => window.removeEventListener("notification:openOrder", handleOpenOrder);
+  }, []);
+
+  useEffect(() => {
+    const handleOpenMap = (e) => {
+      const driverId = e.detail?.driverId;
+      if (driverId) {
+        setTab("drivers");
+      }
+    };
+    window.addEventListener("notification:openMap", handleOpenMap);
+    return () => window.removeEventListener("notification:openMap", handleOpenMap);
+  }, [setTab]);
+
+  useEffect(() => {
+    if (!user || (user.role !== 'superadmin' && user.role !== 'admin')) {
+      navigate("/login");
+    }
+  }, [user, navigate]);
 
   const handleApproveRequest = (requestId) => {
     const request = customerRequests.find(r => r.id === requestId);
@@ -115,9 +147,14 @@ const AdminApp = () => {
     setOrderRefreshKey(k => k + 1);
   };
 
+  const handleOrderUpdate = (updatedOrder) => {
+    setSelectedOrder(updatedOrder);
+    setOrderRefreshKey(k => k + 1);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto">
-      <Header user={user} onLogout={signOut} title="Painel Admin" notifs={0} onNotificationClick={() => setTab("notifications")} />
+      <Header user={user} onLogout={signOut} title="Painel Admin" onNotificationClick={() => setTab("notifications")} />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
         {activeTab === "home" && <AdminHome customerRequests={customerRequests.filter(r => r.status === "pending")} />}
         {activeTab === "orders" && (
@@ -163,6 +200,16 @@ const AdminApp = () => {
           }}
         />
       )}
+
+      <AdminOrderDetailModal
+        isOpen={showOrderDetails}
+        onClose={() => {
+          setShowOrderDetails(false);
+          setSelectedOrder(null);
+        }}
+        order={selectedOrder}
+        onUpdate={handleOrderUpdate}
+      />
     </div>
   );
 };

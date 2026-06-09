@@ -6,7 +6,7 @@ import AdminOrderDetailModal from "./AdminOrderDetailModal";
 import CreateOrderModal from "../cliente/modals/CreateOrderModal";
 import AdminClientSelectModal from "./AdminClientSelectModal";
 
-const AdminOrders = ({ onOpenCreateDelivery, refreshKey }) => {
+const AdminOrders = ({ onOpenCreateDelivery, refreshKey, initialOrderId }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("Todos");
@@ -15,6 +15,15 @@ const AdminOrders = ({ onOpenCreateDelivery, refreshKey }) => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showClientSelect, setShowClientSelect] = useState(false);
   const [selectedClientForEdit, setSelectedClientForEdit] = useState(null);
+
+  useEffect(() => {
+    if (initialOrderId && !loading && orders.length > 0) {
+      const order = orders.find(o => o.id === initialOrderId);
+      if (order) {
+        setSelectedOrder(order);
+      }
+    }
+  }, [initialOrderId, orders, loading]);
 
   const statuses = ["Todos", "Pendente", "Aprovado", "Atribuído", "Em entrega", "Concluído", "Cancelado"];
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "../common/Modal";
-import { updateOrder, getDrivers } from "../../api/client";
+import { updateOrder, getDrivers, getOrder } from "../../api/client";
 import { toast } from "../../lib/toast";
 import {
   X,
@@ -30,7 +30,7 @@ import {
   EyeOff
 } from "lucide-react";
 
-const AdminOrderDetailModal = ({ isOpen, onClose, order, onUpdate }) => {
+const AdminOrderDetailModal = ({ isOpen, onClose, order, orderId, onUpdate }) => {
   const [form, setForm] = useState({
     status: order?.status || "pending_approval",
     total: "",
@@ -41,6 +41,25 @@ const AdminOrderDetailModal = ({ isOpen, onClose, order, onUpdate }) => {
   const [drivers, setDrivers] = useState([]);
   const [loadingDrivers, setLoadingDrivers] = useState(false);
   const [showDriverInfo, setShowDriverInfo] = useState(false);
+  const [loadingOrder, setLoadingOrder] = useState(false);
+
+  useEffect(() => {
+    if (!order && orderId && isOpen) {
+      const fetchOrder = async () => {
+        setLoadingOrder(true);
+        try {
+          const response = await getOrder(orderId);
+          if (onUpdate) onUpdate(response.data);
+        } catch (error) {
+          toast.error("Erro ao carregar pedido");
+          console.error("Error fetching order:", error);
+        } finally {
+          setLoadingOrder(false);
+        }
+      };
+      fetchOrder();
+    }
+  }, [order, orderId, isOpen, onUpdate]);
 
   useEffect(() => {
     if (order) {
@@ -150,6 +169,16 @@ const AdminOrderDetailModal = ({ isOpen, onClose, order, onUpdate }) => {
   const displayStatus = getStatusConfig(order?.status || order?.statusCode);
   const StatusIcon = displayStatus.icon;
   const isDelivery = order?.serviceType !== "taxi";
+
+  if (loadingOrder) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Pedido">
+        <div className="flex items-center justify-center py-10">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
+        </div>
+      </Modal>
+    );
+  }
 
   if (!order) return null;
 
@@ -570,4 +599,5 @@ const AdminOrderDetailModal = ({ isOpen, onClose, order, onUpdate }) => {
   );
 };
 
+export { AdminOrderDetailModal };
 export default AdminOrderDetailModal;

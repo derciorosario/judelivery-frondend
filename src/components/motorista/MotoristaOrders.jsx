@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Icon from "../common/Icon";
 import { getDriverOrders, updateOrder, getOrder } from "../../api/client";
 import { toast } from "../../lib/toast";
@@ -24,12 +24,27 @@ const STATUS_BADGE = {
   "Pendente": "bg-amber-100 text-amber-700"
 };
 
-const MotoristaOrders = () => {
+const MotoristaOrders = ({ initialOrderId }) => {
   const [myOrders, setMyOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [updating, setUpdating] = useState(false);
+  const initialProcessed = useRef(false);
+
+  useEffect(() => {
+    if (initialOrderId && myOrders.length > 0 && !initialProcessed.current) {
+      const order = myOrders.find(o => o.id === initialOrderId);
+      if (order) {
+        openDetails(order);
+        initialProcessed.current = true;
+      }
+    }
+  }, [initialOrderId, myOrders]);
+
+  useEffect(() => {
+    initialProcessed.current = false;
+  }, [initialOrderId]);
 
   const fetchOrders = async () => {
     try {
@@ -73,6 +88,7 @@ const MotoristaOrders = () => {
       const res = await getOrder(order.id);
       setSelectedOrder(res.data || order);
     } catch (err) {
+      console.error(err);
       setSelectedOrder(order);
     }
   };
@@ -208,68 +224,65 @@ const MotoristaOrders = () => {
   );
 };
 
-const MotoristaOrderDetailModal = ({ isOpen, onClose, order, onUpdate, onStatusChange, updating }) => {
+const MotoristaOrderDetailModal = ({ isOpen, onClose, order, orderId, onUpdate, onStatusChange, updating }) => {
   const [activeTab, setActiveTab] = useState("details");
+  const [loadingOrder, setLoadingOrder] = useState(false);
+  const [localOrder, setLocalOrder] = useState(order);
 
-  const backendToFrontend = (status) => {
-    if (status === "in_transit") return "Em entrega";
-    if (status === "assigned") return "Atribuído";
-    if (status === "pending_approval") return "Aguardando";
-    if (status === "approved") return "Aprovado";
-    if (status === "completed") return "Concluído";
-    if (status === "cancelled") return "Cancelado";
-    return status || "Processando";
+  useEffect(() => {
+    if (!order && orderId && isOpen) {
+      const fetchOrder = async () => {
+        setLoadingOrder(true);
+        try {
+          const response = await getOrder(orderId);
+          setLocalOrder(response.data);
+          if (onUpdate) onUpdate(response.data);
+        } catch (error) {
+          console.error("Error fetching order:", error);
+        } finally {
+          setLoadingOrder(false);
+        }
+      };
+      fetchOrder();
+    } else if (order) {
+      setLocalOrder(order);
+    }
+  }, [order, orderId, isOpen, onUpdate]);
+
+  if (loadingOrder) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Pedido">
+        <div className="flex items-center justify-center py-10">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
+        </div>
+      </Modal>
+    );
+  }
+
+  if (!localOrder) return null;
+
+  const isDelivery = localOrder.serviceType !== "taxi";
+  const dist = localOrder.dist || localOrder.distance || "—";
+  const dest = localOrder.dest || localOrder.dropoffLocation || "";
+  const origin = isDelivery ? localOrder.origin : localOrder.pickupLocation;
+
+  const s = localOrder.status || "";
+  const statusBadgeMap = {
+    in_transit: { cls: "bg-blue-100 text-blue-700", text: "Em entrega" },
+    pending_approval: { cls: "bg-amber-100 text-amber-700", text: "Pendente" },
+    approved: { cls: "bg-teal-100 text-teal-700", text: "Aprovado" },
+    assigned: { cls: "bg-indigo-100 text-indigo-700", text: "Atribuído" },
+    completed: { cls: "bg-green-100 text-green-700", text: "Concluído" },
+    cancelled: { cls: "bg-red-100 text-red-700", text: "Cancelado" },
+    scheduled: { cls: "bg-purple-100 text-purple-700", text: "Agendado" }
   };
-
-  const renderStatus = (s) => {
-    const map = {
-      in_transit: { text: "Em entrega", cls: "bg-blue-100 text-blue-700" },
-      pending_approval: { text: "Aguardando", cls: "bg-amber-100 text-amber-700" },
-      approved: { text: "Aprovado", cls: "bg-teal-100 text-teal-700" },
-      assigned: { text: "Atribuído", cls: "bg-indigo-100 text-indigo-700" },
-      completed: { text: "Concluído", cls: "bg-green-100 text-green-700" },
-      cancelled: { text: "Cancelado", cls: "bg-red-100 text-red-700" }
-    };
-    return map[s] || { text: s || "Processando", cls: "bg-slate-100 text-slate-700" };
-  };
-
-  const showStatusConfig = (status) => {
-    const s = status || order.status || "";
-    if (s === "in_transit") {
-      return { text: "Em entrega", cls: "bg-blue-100 text-blue-700" };
-    }
-    if (s === "pending_approval") {
-      return { text: "Aguardando", cls: "bg-amber-100 text-amber-700" };
-    }
-    if (s === "completed") {
-      return { text: "Concluído", cls: "bg-green-100 text-green-700" };
-    }
-    if (s === "cancelled") {
-      return { text: "Cancelado", cls: "bg-red-100 text-red-700" };
-    }
-    if (s === "approved") {
-      return { text: "Aprovado", cls: "bg-teal-100 text-teal-700" };
-    }
-    if (s === "assigned") {
-      return { text: "Atribuído", cls: "bg-indigo-100 text-indigo-700" };
-    }
-    return { text: status, cls: "bg-slate-100 text-slate-700" };
-  };
-
-  if (!order) return null;
-
-  const displayLabel = backendToFrontend(order.status);
-  const statusConf = showStatusConfig(order.status);
-  const isDelivery = order.serviceType !== "taxi";
-  const dist = order.dist || order.distance || "—";
-  const dest = order.dest || order.dropoffLocation || "";
-  const origin = isDelivery ? order.origin : order.pickupLocation;
+  const statusConf = statusBadgeMap[s] || { cls: "bg-slate-100 text-slate-700", text: s || "Processando" };
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Pedido #${order.id ? order.id.slice(-8).toUpperCase() : "PEDIDO"}`}
+      title={`Pedido #${localOrder.id ? localOrder.id.slice(-8).toUpperCase() : "PEDIDO"}`}
     >
       <div className="space-y-4">
         <div className="flex gap-2 border-b border-slate-100 pb-2">
@@ -309,13 +322,13 @@ const MotoristaOrderDetailModal = ({ isOpen, onClose, order, onUpdate, onStatusC
 
             <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-4 text-white">
               <p className="text-xs text-orange-100 mb-1">Valor total</p>
-              <p className="text-2xl font-bold">{order.total} MZN</p>
+              <p className="text-2xl font-bold">{localOrder.total} MZN</p>
               <div className="flex justify-between items-center mt-2">
                 <div className="flex items-center gap-2">
                   <Icon name="clock" size={12} className="text-orange-200" />
                   <p className="text-xs text-orange-100">
-                    {order.orderDate || new Date(order.createdAt).toLocaleDateString()} às{" "}
-                    {order.time || new Date(order.createdAt).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
+                    {localOrder.orderDate || new Date(localOrder.createdAt).toLocaleDateString()} às{" "}
+                    {localOrder.time || new Date(localOrder.createdAt).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
                   </p>
                 </div>
                 {dist && (
@@ -335,10 +348,10 @@ const MotoristaOrderDetailModal = ({ isOpen, onClose, order, onUpdate, onStatusC
                 <div className="flex-1">
                   <p className="text-xs text-slate-400">Partida</p>
                   <p className="text-sm text-slate-800 font-medium">{origin}</p>
-                  {order.contactOrigin && (
+                  {localOrder.contactOrigin && (
                     <div className="flex items-center gap-1 mt-1">
                       <Icon name="phone" size={10} className="text-slate-400" />
-                      <p className="text-xs text-slate-500">{order.contactOrigin}</p>
+                      <p className="text-xs text-slate-500">{localOrder.contactOrigin}</p>
                     </div>
                   )}
                 </div>
@@ -351,10 +364,10 @@ const MotoristaOrderDetailModal = ({ isOpen, onClose, order, onUpdate, onStatusC
                 <div className="flex-1">
                   <p className="text-xs text-slate-400">Chegada</p>
                   <p className="text-sm text-slate-800 font-medium">{dest}</p>
-                  {order.contactDest && (
+                  {localOrder.contactDest && (
                     <div className="flex items-center gap-1 mt-1">
                       <Icon name="phone" size={10} className="text-slate-400" />
-                      <p className="text-xs text-slate-500">{order.contactDest}</p>
+                      <p className="text-xs text-slate-500">{localOrder.contactDest}</p>
                     </div>
                   )}
                 </div>
@@ -364,43 +377,43 @@ const MotoristaOrderDetailModal = ({ isOpen, onClose, order, onUpdate, onStatusC
             <div className="border-t border-slate-100 pt-3">
               <h3 className="text-xs font-semibold text-slate-400 mb-3">Detalhes do Pedido</h3>
               <div className="space-y-3">
-                {order.productName && (
+                {localOrder.productName && (
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-slate-600">Produto</span>
                     <span className="text-sm font-semibold text-slate-800">
-                      {order.productName} {order.quantity > 1 && `x${order.quantity}`}
+                      {localOrder.productName} {localOrder.quantity > 1 && `x${localOrder.quantity}`}
                     </span>
                   </div>
                 )}
 
-                {!isDelivery && order.passengerCount && (
+                {!isDelivery && localOrder.passengerCount && (
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <Icon name="users" size={14} className="text-slate-400" />
                       <span className="text-sm text-slate-600">Passageiros</span>
                     </div>
                     <span className="text-sm font-semibold text-slate-800">
-                      {order.passengerCount} pessoa(s)
-                      {order.hasLuggage && <span className="ml-2 text-xs text-slate-500">(com bagagem)</span>}
+                      {localOrder.passengerCount} pessoa(s)
+                      {localOrder.hasLuggage && <span className="ml-2 text-xs text-slate-500">(com bagagem)</span>}
                     </span>
                   </div>
                 )}
 
-                {order.urgencyLevel && (
+                {localOrder.urgencyLevel && (
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-slate-600">Urgência</span>
                     <span
                       className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        order.urgencyLevel === "urgent"
+                        localOrder.urgencyLevel === "urgent"
                           ? "bg-amber-100 text-amber-700"
-                          : order.urgencyLevel === "very_urgent"
+                          : localOrder.urgencyLevel === "very_urgent"
                             ? "bg-red-100 text-red-700"
                             : "bg-green-100 text-green-700"
                       }`}
                     >
-                      {order.urgencyLevel === "urgent"
+                      {localOrder.urgencyLevel === "urgent"
                         ? "Urgente"
-                        : order.urgencyLevel === "very_urgent"
+                        : localOrder.urgencyLevel === "very_urgent"
                           ? "Muito Urgente"
                           : "Normal"}
                     </span>
@@ -413,26 +426,26 @@ const MotoristaOrderDetailModal = ({ isOpen, onClose, order, onUpdate, onStatusC
                     <span className="text-sm text-slate-600">Pagamento</span>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-slate-700">{order.paymentMethod || "—"}</p>
+                    <p className="text-sm text-slate-700">{localOrder.paymentMethod || "—"}</p>
                     <p
                       className={`text-xs font-semibold ${
-                        order.paymentStatus === "paid"
+                        localOrder.paymentStatus === "paid"
                           ? "text-green-600"
-                          : order.paymentStatus === "pending"
+                          : localOrder.paymentStatus === "pending"
                             ? "text-amber-600"
                             : "text-slate-500"
                       }`}
                     >
-                      {order.paymentStatus === "paid"
+                      {localOrder.paymentStatus === "paid"
                         ? "Pago"
-                        : order.paymentStatus === "pending"
+                        : localOrder.paymentStatus === "pending"
                           ? "Pendente"
-                          : order.paymentStatus || "Pendente"}
+                          : localOrder.paymentStatus || "Pendente"}
                     </p>
                   </div>
                 </div>
 
-                {order.client && (
+                {localOrder.client && (
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-2">
                       <Icon name="user" size={14} className="text-slate-400" />
@@ -440,60 +453,60 @@ const MotoristaOrderDetailModal = ({ isOpen, onClose, order, onUpdate, onStatusC
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-slate-800">
-                        {typeof order.client === "string" ? order.client : order.client?.name}
+                        {typeof localOrder.client === "string" ? localOrder.client : localOrder.client?.name}
                       </p>
-                      {order.client?.phone && (
-                        <p className="text-xs text-slate-500">{order.client.phone}</p>
+                      {localOrder.client?.phone && (
+                        <p className="text-xs text-slate-500">{localOrder.client.phone}</p>
                       )}
                     </div>
                   </div>
                 )}
 
-                {order.driver && (
+                {localOrder.driver && (
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <Icon name="truck" size={14} className="text-slate-400" />
                       <span className="text-sm text-slate-600">Motorista</span>
                     </div>
                     <span className="text-sm font-semibold text-slate-800">
-                      {typeof order.driver === "string" ? order.driver : order.driver?.name}
+                      {typeof localOrder.driver === "string" ? localOrder.driver : localOrder.driver?.name}
                     </span>
                   </div>
                 )}
 
-                {order.company && (
+                {localOrder.company && (
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <Icon name="store" size={14} className="text-slate-400" />
                       <span className="text-sm text-slate-600">Empresa</span>
                     </div>
                     <span className="text-sm text-slate-700">
-                      {typeof order.company === "string" ? order.company : order.company?.name}
+                      {typeof localOrder.company === "string" ? localOrder.company : localOrder.company?.name}
                     </span>
                   </div>
                 )}
               </div>
             </div>
 
-            {order.instructions && (
+            {localOrder.instructions && (
               <div className="border-t border-slate-100 pt-3">
                 <div className="flex items-center gap-2 mb-2">
                   <Icon name="messageSquare" size={14} className="text-slate-400" />
                   <h3 className="text-xs font-semibold text-slate-400 tracking-wide">Instruções Especiais</h3>
                 </div>
                 <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg italic">
-                  "{order.instructions}"
+                  "{localOrder.instructions}"
                 </p>
               </div>
             )}
 
-            {order.observations && (
+            {localOrder.observations && (
               <div className="border-t border-slate-100 pt-3">
                 <div className="flex items-center gap-2 mb-2">
                   <Icon name="messageSquare" size={14} className="text-slate-400" />
                   <h3 className="text-xs font-semibold text-slate-400 tracking-wide">Observações</h3>
                 </div>
-                <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">{order.observations}</p>
+                <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">{localOrder.observations}</p>
               </div>
             )}
           </div>
@@ -504,7 +517,7 @@ const MotoristaOrderDetailModal = ({ isOpen, onClose, order, onUpdate, onStatusC
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1">Alterar Status</label>
               <select
-                value={order.status}
+                value={localOrder.status}
                 onChange={(e) => onStatusChange(e.target.value)}
                 disabled={updating}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 disabled:opacity-50"
@@ -531,5 +544,7 @@ const MotoristaOrderDetailModal = ({ isOpen, onClose, order, onUpdate, onStatusC
     </Modal>
   );
 };
+
+export { MotoristaOrderDetailModal };
 
 export default MotoristaOrders;

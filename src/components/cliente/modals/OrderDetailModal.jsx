@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import TrackOrderModal from "./TrackOrderModal";
 import {
   X,
@@ -22,11 +22,44 @@ import {
   Clock as ClockIcon,
   XCircle
 } from "lucide-react";
+import { getOrder } from "../../../api/client";
 
-const OrderDetailModal = ({ isOpen, onClose, order, onGiveFeedback }) => {
+const OrderDetailModal = ({ isOpen, onClose, order, orderId, onGiveFeedback }) => {
   const [showTrackModal, setShowTrackModal] = useState(false);
+  const [loadingOrder, setLoadingOrder] = useState(false);
+  const [localOrder, setLocalOrder] = useState(order);
 
-  if (!isOpen || !order) return null;
+  useEffect(() => {
+    if (!order && orderId && isOpen) {
+      const fetchOrder = async () => {
+        setLoadingOrder(true);
+        try {
+          const response = await getOrder(orderId);
+          setLocalOrder(response.data);
+        } catch (error) {
+          console.error("Error fetching order:", error);
+        } finally {
+          setLoadingOrder(false);
+        }
+      };
+      fetchOrder();
+    } else if (order) {
+      setLocalOrder(order);
+    }
+  }, [order, orderId, isOpen]);
+
+  if (!isOpen || (!localOrder && !loadingOrder)) return null;
+
+  if (loadingOrder) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+        <div className="bg-white rounded-2xl w-full max-w-md p-8 flex flex-col items-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mb-3" />
+          <p className="text-sm text-slate-500">A carregar pedido...</p>
+        </div>
+      </div>
+    );
+  }
 
   const getStatusConfig = (status) => {
     const s = status?.toLowerCase() || "";
@@ -125,13 +158,13 @@ const OrderDetailModal = ({ isOpen, onClose, order, onGiveFeedback }) => {
     return { text: status || "—", icon: CreditCard, bgClass: "bg-slate-100 text-slate-700" };
   };
 
-  const statusConfig = getStatusConfig(order.status || order.statusCode);
+  const statusConfig = getStatusConfig(localOrder.status || localOrder.statusCode);
   const StatusIcon = statusConfig.icon;
-  const isDelivery = order.serviceType !== "taxi";
-  const isCompleted = order.status === "completed" || order.statusCode === "completed";
-  const isActive = order.status === "in_transit" || order.statusCode === "in_progress" || order.status === "in_transit";
-  const urgencyConfig = isDelivery && order.urgencyLevel ? getUrgencyConfig(order.urgencyLevel) : null;
-  const paymentStatusConfig = getPaymentStatusConfig(order.paymentStatus);
+  const isDelivery = localOrder.serviceType !== "taxi";
+  const isCompleted = localOrder.status === "completed" || localOrder.statusCode === "completed";
+  const isActive = localOrder.status === "in_transit" || localOrder.statusCode === "in_progress" || localOrder.status === "in_transit";
+  const urgencyConfig = isDelivery && localOrder.urgencyLevel ? getUrgencyConfig(localOrder.urgencyLevel) : null;
+  const paymentStatusConfig = getPaymentStatusConfig(localOrder.paymentStatus);
 
   return (
     <>
@@ -141,7 +174,7 @@ const OrderDetailModal = ({ isOpen, onClose, order, onGiveFeedback }) => {
           <div className="sticky top-0 bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between rounded-t-2xl z-10">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-base font-bold text-slate-800">
-                Pedido #{order.id ? order.id.slice(-8).toUpperCase() : "PEDIDO"}
+                Pedido #{localOrder.id ? localOrder.id.slice(-8).toUpperCase() : "PEDIDO"}
               </h2>
               <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${statusConfig.badgeClass}`}>
                 <StatusIcon size={10} />
@@ -178,11 +211,11 @@ const OrderDetailModal = ({ isOpen, onClose, order, onGiveFeedback }) => {
                       <p className="text-sm font-bold text-slate-800">{statusConfig.text}</p>
                     </div>
                   </div>
-                  {order.scheduledTime && (
+                  {localOrder.scheduledTime && (
                     <div className="text-right">
                       <p className="text-xs text-slate-500">Agendado para</p>
                       <p className="text-xs font-semibold text-slate-700">
-                        {new Date(order.scheduledTime).toLocaleDateString()}
+                        {new Date(localOrder.scheduledTime).toLocaleDateString()}
                       </p>
                     </div>
                   )}
@@ -192,18 +225,18 @@ const OrderDetailModal = ({ isOpen, onClose, order, onGiveFeedback }) => {
               {/* Price Card */}
               <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-4 text-white">
                 <p className="text-xs text-orange-100 mb-1">Valor total</p>
-                <p className="text-2xl font-bold">{order.total} MZN</p>
+                <p className="text-2xl font-bold">{localOrder.total} MZN</p>
                 <div className="flex justify-between items-center mt-2">
                   <div className="flex items-center gap-2">
                     <Clock size={12} className="text-orange-200" />
                     <p className="text-xs text-orange-100">
-                      {order.orderDate || new Date(order.createdAt).toLocaleDateString()} às {order.time || new Date(order.createdAt).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
+                      {localOrder.orderDate || new Date(localOrder.createdAt).toLocaleDateString()} às {localOrder.time || new Date(localOrder.createdAt).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
-                  {order.dist && (
+                  {localOrder.dist && (
                     <div className="flex items-center gap-2">
                       <Navigation size={12} className="text-orange-200" />
-                      <p className="text-xs text-orange-100">{order.dist}</p>
+                      <p className="text-xs text-orange-100">{localOrder.dist}</p>
                     </div>
                   )}
                 </div>
@@ -218,12 +251,12 @@ const OrderDetailModal = ({ isOpen, onClose, order, onGiveFeedback }) => {
                   <div className="flex-1">
                     <p className="text-xs text-slate-400">Partida</p>
                     <p className="text-sm text-slate-800 font-medium">
-                      {isDelivery ? order.origin : order.pickupLocation}
+                      {isDelivery ? localOrder.origin : localOrder.pickupLocation}
                     </p>
-                    {order.contactOrigin && (
+                    {localOrder.contactOrigin && (
                       <div className="flex items-center gap-1 mt-1">
                         <Phone size={10} className="text-slate-400" />
-                        <p className="text-xs text-slate-500">{order.contactOrigin}</p>
+                        <p className="text-xs text-slate-500">{localOrder.contactOrigin}</p>
                       </div>
                     )}
                   </div>
@@ -236,12 +269,12 @@ const OrderDetailModal = ({ isOpen, onClose, order, onGiveFeedback }) => {
                   <div className="flex-1">
                     <p className="text-xs text-slate-400">Chegada</p>
                     <p className="text-sm text-slate-800 font-medium">
-                      {isDelivery ? order.dest : order.dropoffLocation}
+                      {isDelivery ? localOrder.dest : localOrder.dropoffLocation}
                     </p>
-                    {order.contactDest && (
+                    {localOrder.contactDest && (
                       <div className="flex items-center gap-1 mt-1">
                         <Phone size={10} className="text-slate-400" />
-                        <p className="text-xs text-slate-500">{order.contactDest}</p>
+                        <p className="text-xs text-slate-500">{localOrder.contactDest}</p>
                       </div>
                     )}
                   </div>
@@ -255,22 +288,22 @@ const OrderDetailModal = ({ isOpen, onClose, order, onGiveFeedback }) => {
                 </h3>
                 <div className="space-y-3">
                   {/* Product Info for Delivery */}
-                  {isDelivery && order.productName && (
+                  {isDelivery && localOrder.productName && (
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-slate-600">Produto</span>
                       <span className="text-sm font-semibold text-slate-800">
-                        {order.productName} {order.quantity > 1 && `x${order.quantity}`}
+                        {localOrder.productName} {localOrder.quantity > 1 && `x${localOrder.quantity}`}
                       </span>
                     </div>
                   )}
 
                   {/* Passenger Info for Taxi */}
-                  {!isDelivery && order.passengerCount && (
+                  {!isDelivery && localOrder.passengerCount && (
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-slate-600">Passageiros</span>
                       <span className="text-sm font-semibold text-slate-800">
-                        {order.passengerCount} pessoa(s)
-                        {order.hasLuggage && <span className="ml-2 text-xs text-slate-500">(com bagagem)</span>}
+                        {localOrder.passengerCount} pessoa(s)
+                        {localOrder.hasLuggage && <span className="ml-2 text-xs text-slate-500">(com bagagem)</span>}
                       </span>
                     </div>
                   )}
@@ -291,7 +324,7 @@ const OrderDetailModal = ({ isOpen, onClose, order, onGiveFeedback }) => {
                     <span className="text-sm text-slate-600">Pagamento</span>
                     <div className="flex items-center gap-2">
                       <CreditCard size={12} className="text-slate-400" />
-                      <span className="text-sm text-slate-700">{order.paymentMethod || "—"}</span>
+                      <span className="text-sm text-slate-700">{localOrder.paymentMethod || "—"}</span>
                     </div>
                   </div>
 
@@ -305,20 +338,20 @@ const OrderDetailModal = ({ isOpen, onClose, order, onGiveFeedback }) => {
                   </div>
 
                   {/* Driver Info */}
-                  {order.driver && (
+                  {localOrder.driver && (
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
                         <User size={14} className="text-slate-400" />
                         <span className="text-sm text-slate-600">Motorista</span>
                       </div>
                       <span className="text-sm font-semibold text-slate-800">
-                        {typeof order.driver === 'string' ? order.driver : order.driver?.name}
+                        {typeof localOrder.driver === 'string' ? localOrder.driver : localOrder.driver?.name}
                       </span>
                     </div>
                   )}
 
                   {/* Client Info */}
-                  {order.client && (
+                  {localOrder.client && (
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-2">
                         <User size={14} className="text-slate-400" />
@@ -326,38 +359,38 @@ const OrderDetailModal = ({ isOpen, onClose, order, onGiveFeedback }) => {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-semibold text-slate-800">
-                          {typeof order.client === 'string' ? order.client : order.client?.name}
+                          {typeof localOrder.client === 'string' ? localOrder.client : localOrder.client?.name}
                         </p>
-                        {order.client?.phone && (
-                          <p className="text-xs text-slate-500">{order.client.phone}</p>
+                        {localOrder.client?.phone && (
+                          <p className="text-xs text-slate-500">{localOrder.client.phone}</p>
                         )}
                       </div>
                     </div>
                   )}
 
                   {/* Company Info */}
-                  {order.company && (
+                  {localOrder.company && (
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
                         <Building2 size={14} className="text-slate-400" />
                         <span className="text-sm text-slate-600">Empresa</span>
                       </div>
                       <span className="text-sm text-slate-700">
-                        {typeof order.company === 'string' ? order.company : order.company?.name}
+                        {typeof localOrder.company === 'string' ? localOrder.company : localOrder.company?.name}
                       </span>
                     </div>
                   )}
 
                   {/* Coordinates (if available) */}
-                  {order.pickupCoords && (
+                  {localOrder.pickupCoords && (
                     <div className="bg-slate-50 rounded-lg p-2">
                       <p className="text-[10px] text-slate-400 mb-1">Coordenadas</p>
                       <p className="text-[10px] text-slate-600 font-mono">
-                        Origem: {order.pickupCoords.lat?.toFixed(5)}, {order.pickupCoords.lng?.toFixed(5)}
+                        Origem: {localOrder.pickupCoords.lat?.toFixed(5)}, {localOrder.pickupCoords.lng?.toFixed(5)}
                       </p>
-                      {order.dropoffCoords && (
+                      {localOrder.dropoffCoords && (
                         <p className="text-[10px] text-slate-600 font-mono mt-0.5">
-                          Destino: {order.dropoffCoords.lat?.toFixed(5)}, {order.dropoffCoords.lng?.toFixed(5)}
+                          Destino: {localOrder.dropoffCoords.lat?.toFixed(5)}, {localOrder.dropoffCoords.lng?.toFixed(5)}
                         </p>
                       )}
                     </div>
@@ -366,7 +399,7 @@ const OrderDetailModal = ({ isOpen, onClose, order, onGiveFeedback }) => {
               </div>
 
               {/* Instructions */}
-              {order.instructions && (
+              {localOrder.instructions && (
                 <div className="border-t border-slate-100 pt-3">
                   <div className="flex items-center gap-2 mb-2">
                     <MessageSquare size={14} className="text-slate-400" />
@@ -375,12 +408,12 @@ const OrderDetailModal = ({ isOpen, onClose, order, onGiveFeedback }) => {
                     </h3>
                   </div>
                   <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg italic">
-                    "{order.instructions}"
+                    "{localOrder.instructions}"
                   </p>
                 </div>
               )}
 
-              {order.observations && (
+              {localOrder.observations && (
                 <div className="border-t border-slate-100 pt-3">
                   <div className="flex items-center gap-2 mb-2">
                     <MessageSquare size={14} className="text-slate-400" />
@@ -389,7 +422,7 @@ const OrderDetailModal = ({ isOpen, onClose, order, onGiveFeedback }) => {
                     </h3>
                   </div>
                   <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">
-                    {order.observations}
+                    {localOrder.observations}
                   </p>
                 </div>
               )}
@@ -401,7 +434,7 @@ const OrderDetailModal = ({ isOpen, onClose, order, onGiveFeedback }) => {
             <div className="flex gap-2">
               {isCompleted && onGiveFeedback && (
                 <button 
-                  onClick={() => onGiveFeedback(order)} 
+                   onClick={() => onGiveFeedback(localOrder)} 
                   className="flex-1 py-2.5 rounded-xl bg-amber-100 text-amber-700 font-semibold text-sm hover:bg-amber-200 transition-colors flex items-center justify-center gap-2"
                 >
                   <Star size={16} />
@@ -434,7 +467,7 @@ const OrderDetailModal = ({ isOpen, onClose, order, onGiveFeedback }) => {
         <TrackOrderModal
           isOpen={showTrackModal}
           onClose={() => setShowTrackModal(false)}
-          order={order}
+          order={localOrder}
         />
       )}
     </>

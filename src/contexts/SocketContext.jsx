@@ -29,7 +29,10 @@ export function SocketProvider({ children }) {
       transports: ["websocket", "polling"],
     });
 
-    s.on("connect", () => setConnected(true));
+    s.on("connect", () => {
+      setConnected(true);
+      s.emit('notification:fetch');
+    });
     s.on("disconnect", () => setConnected(false));
 
     setSocket(s);

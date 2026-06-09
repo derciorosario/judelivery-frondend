@@ -6,6 +6,7 @@ import { GoogleMap, Marker, DirectionsRenderer, Autocomplete } from "@react-goog
 import LocationStep from "./LocationStep";
 import DetailsStep from "./DetailsStep";
 import SummaryStep from "./SummaryStep";
+import { toast } from "../../../lib/toast";
 
 const GOOGLE_MAPS_KEY = "AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak";
 const MAPUTO_CENTER = { lat: -25.9653, lng: 32.5778 };
@@ -164,10 +165,10 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
       destCoords = form.destCoords;
     }
     
-    if (!originCoords || !destCoords) {
-      alert("Por favor, selecione origem e destino primeiro.");
-      return;
-    }
+if (!originCoords || !destCoords) {
+       toast.error("Por favor, selecione origem e destino primeiro.");
+       return;
+     }
     
     setLoadingRoute(true);
     const directionsService = new window.google.maps.DirectionsService();
@@ -197,10 +198,10 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
             }))
           });
           setRouteMapOpen(true);
-        } else {
-          console.error("Directions request failed due to " + status);
-          alert("Não foi possível calcular a rota. Por favor, tente novamente.");
-        }
+} else {
+           console.error("Directions request failed due to " + status);
+           toast.error("Não foi possível calcular a rota. Por favor, tente novamente.");
+         }
         setLoadingRoute(false);
       }
     );
@@ -429,10 +430,10 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
   };
 
   const useCurrentLocation = async (field) => {
-    if (!navigator.geolocation) {
-      alert("Geolocalização não é suportada pelo seu navegador.");
-      return;
-    }
+if (!navigator.geolocation) {
+       toast.error("Geolocalização não é suportada pelo seu navegador.");
+       return;
+     }
     
     setLoadingLocations(prev => ({ ...prev, [field]: true }));
     
@@ -479,11 +480,11 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
           setLoadingLocations(prev => ({ ...prev, [field]: false }));
         }
       },
-      (err) => {
-        console.error("Geolocation error:", err);
-        alert("Não foi possível obter a sua localização atual. Por favor, verifique as permissões.");
-        setLoadingLocations(prev => ({ ...prev, [field]: false }));
-      },
+(err) => {
+         console.error("Geolocation error:", err);
+         toast.error("Não foi possível obter a sua localização atual. Por favor, verifique as permissões.");
+         setLoadingLocations(prev => ({ ...prev, [field]: false }));
+       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
   };
@@ -520,25 +521,25 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     }
   };
 
-  const handleNextStep = () => {
-    if (!isLocationValid()) {
-      alert("Por favor, selecione uma localização válida usando a pesquisa ou o mapa.");
-      return;
-    }
-    setStep(step + 1);
-  };
+const handleNextStep = () => {
+     if (!isLocationValid()) {
+       toast.error("Por favor, selecione uma localização válida usando a pesquisa ou o mapa.");
+       return;
+     }
+     setStep(step + 1);
+   };
 
 const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (step < (serviceType === "taxi" ? 4 : 4)) {
-      if (!isLocationValid()) {
-        alert("Por favor, selecione uma localização válida usando a pesquisa ou o mapa.");
-        return;
-      }
-      setStep(step + 1);
-      return;
-    }
+if (step < (serviceType === "taxi" ? 4 : 4)) {
+       if (!isLocationValid()) {
+         toast.error("Por favor, selecione uma localização válida usando a pesquisa ou o mapa.");
+         return;
+       }
+       setStep(step + 1);
+       return;
+     }
     
     setSaving(true);
     setSubmitStatus('loading');
@@ -606,12 +607,12 @@ const handleSubmit = async (e) => {
         await apiCreateOrder(orderPayload);
         setSubmitStatus('success');
       }
-    } catch (error) {
-      console.error("Failed to save order:", error);
-      setSubmitStatus('idle');
-      setSaving(false);
-      alert(error.response?.data?.message || "Falha ao salvar pedido. Tente novamente.");
-    }
+} catch (error) {
+       console.error("Failed to save order:", error);
+       setSubmitStatus('idle');
+       setSaving(false);
+       toast.error(error.response?.data?.message || "Falha ao salvar pedido. Tente novamente.");
+     }
   };
   
   if (!isOpen) return null;

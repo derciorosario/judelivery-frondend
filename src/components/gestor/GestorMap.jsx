@@ -32,7 +32,7 @@ const GOOGLE_MAPS_KEY = "AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak";
 const MAPUTO_CENTER = { lat: -25.9653, lng: 32.5778 };
 const libraries = ["places"];
 
-const GestorMap = () => {
+const GestorMap = ({ initialDriverId }) => {
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_KEY, libraries });
   const { socket, connected } = useSocket();
   const mapRef = useRef(null);
@@ -51,6 +51,7 @@ const GestorMap = () => {
   const [showDriverList, setShowDriverList] = useState(false);
   const [showDriverDetails, setShowDriverDetails] = useState(false);
   const geocoderRef = useRef(null);
+  const initialDriverProcessed = useRef(false);
 
   const statusConfig = {
     working: {
@@ -170,6 +171,21 @@ const GestorMap = () => {
 
     fetchDrivers();
   }, []);
+
+  useEffect(() => {
+    if (initialDriverId && drivers.length > 0 && !initialDriverProcessed.current) {
+      const driver = drivers.find(d => d.id === initialDriverId || d.userId === initialDriverId);
+      if (driver) {
+        handleDriverSelect(driver);
+        setShowDriverDetails(true);
+        initialDriverProcessed.current = true;
+      }
+    }
+  }, [drivers, initialDriverId]);
+
+  useEffect(() => {
+    initialDriverProcessed.current = false;
+  }, [initialDriverId]);
 
   // Socket connection handlers
   useEffect(() => {
