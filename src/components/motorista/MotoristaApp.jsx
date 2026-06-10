@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getDriverOrders, getOrder, updateOrder } from "../../api/client";
+import { getOrder } from "../../api/client";
 import BottomNav from "../common/BottomNav";
 import Header from "../common/Header";
+import OrdersList from "../common/OrdersList";
 import useDriverLocation from "./useDriverLocation";
 import MotoristaHome from "./MotoristaHome";
-import MotoristaOrders from "./MotoristaOrders";
-import { MotoristaOrderDetailModal } from "./MotoristaOrders";
 import MotoristaHistory from "./MotoristaHistory";
 import MotoristaProfile from "./MotoristaProfile";
 import MotoristaMap from "./MotoristaMap";
@@ -19,12 +18,9 @@ const MotoristaApp = () => {
   const routerLocation = useLocation();
   const navigate = useNavigate();
   
-  const [driverOrders, setDriverOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
-
   const [orderRefreshKey, setOrderRefreshKey] = useState(0);
-
 
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },
@@ -73,38 +69,10 @@ const MotoristaApp = () => {
     return () => window.removeEventListener("notification:openOrder", handleOpenOrder);
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      getDriverOrders()
-        .then(res => setDriverOrders(res.data))
-        .catch(err => console.error("Failed to fetch driver orders:", err))
-    }
-  }, [user]);
-
-  const activeOrder = driverOrders.find(o => o.status === "in_transit" || o.status === "assigned");
-
-  const location = useDriverLocation({ autoStart: true, orderId: activeOrder?.id });
+  const location = useDriverLocation({ autoStart: true });
 
   const handleOrderUpdate = (updatedOrder) => {
-    setSelectedOrder(updatedOrder);
-    setDriverOrders((prev) =>
-      prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
-    );
-  };
-
-  const handleStatusChange = (newStatus) => {
-    if (!selectedOrder) return;
-    updateOrderStatus(selectedOrder.id, newStatus);
-  };
-
-  const updateOrderStatus = async (orderId, newStatus) => {
-    try {
-      const payload = { status: newStatus };
-      const res = await updateOrder(orderId, payload);
-      handleOrderUpdate(res.data);
-    } catch (err) {
-      console.error(err);
-    }
+    setOrderRefreshKey(prev => prev + 1);
   };
 
   return (
@@ -116,26 +84,25 @@ const MotoristaApp = () => {
         onNotificationClick={() => setTab("notifications")}
       />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
-        {activeTab === "home" && <MotoristaHome online={online} setOnline={setOnline} location={location} />}
-        {activeTab === "map" && <MotoristaMap online={online} onToggleOnline={setOnline} location={location} />}
-        {activeTab === "orders" && <MotoristaOrders refreshKey={orderRefreshKey} />}
+        {activeTab === "home" && (
+          <MotoristaHome online={online} setOnline={setOnline} location={location} />
+        )}
+        {activeTab === "map" && (
+          <MotoristaMap online={online} onToggleOnline={setOnline} location={location} />
+        )}
+        {activeTab === "orders" && (
+          <OrdersList
+            refreshKey={orderRefreshKey}
+            showNewOrderButton={false}
+            title="Os Meus Pedidos"
+            onOrderUpdate={handleOrderUpdate}
+          />
+        )}
         {activeTab === "history" && <MotoristaHistory />}
         {activeTab === "profile" && <MotoristaProfile user={user} />}
         {activeTab === "notifications" && <Notifications />}
       </div>
       <BottomNav tabs={tabs} active={activeTab} setActive={setTab} />
-
-      <MotoristaOrderDetailModal
-        isOpen={showOrderDetails}
-        onClose={() => {
-          setShowOrderDetails(false);
-          setSelectedOrder(null);
-          setOrderRefreshKey(k => k + 1);
-        }}
-        order={selectedOrder}
-        onUpdate={handleOrderUpdate}
-        onStatusChange={handleStatusChange}
-      />
     </div>
   );
 };

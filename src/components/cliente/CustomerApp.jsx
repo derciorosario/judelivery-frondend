@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
-import { CUSTOMER_ORDERS, ORDERS, CUSTOMERS } from "../../data/mockData";
+import { CUSTOMER_ORDERS, CUSTOMERS } from "../../data/mockData";
 import BottomNav from "../common/BottomNav";
 import Header from "../common/Header";
+import OrdersList from "../common/OrdersList";
 import CustomerHome from "./CustomerHome";
-import CustomerOrders from "./CustomerOrders";
 import CustomerProfile from "./CustomerProfile";
 import CreateOrderModal from "./modals/CreateOrderModal";
-import OrderDetailModal from "./modals/OrderDetailModal";
 import FeedbackModal from "./modals/FeedbackModal";
 import SupportModal from "./modals/SupportModal";
 import ServiceSelectionModal from "./modals/ServiceSelectionModal";
@@ -18,28 +17,26 @@ const CustomerApp = () => {
   const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [showServiceSelection, setShowServiceSelection] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [selectedOrderId, setSelectedOrderId] = useState(null);
-  const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [shouldRefreshOrders, setShouldRefreshOrders] = useState(false);
   const [feedbackOrder, setFeedbackOrder] = useState(null);
   const [showSupport, setShowSupport] = useState(false);
   const [selectedServiceType, setSelectedServiceType] = useState(null);
-  const [refreshData,setRefreshData]=useState(false)
+  const [refreshData, setRefreshData] = useState(false);
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
-  useEffect(()=>{
-    if(refreshData) setRefreshData(false)
-  },[refreshData])
+  useEffect(() => {
+    if (refreshData) setRefreshData(false);
+  }, [refreshData]);
 
   useEffect(() => {
     const handleOpenOrder = (e) => {
       const orderId = e.detail?.orderId;
       if (orderId) {
-        setSelectedOrderId(orderId);
-        setShowOrderDetails(true);
+        setSelectedOrder({ id: orderId });
+        setShouldRefreshOrders(prev => !prev);
       }
     };
     window.addEventListener("notification:openOrder", handleOpenOrder);
@@ -111,7 +108,6 @@ const CustomerApp = () => {
 
   const handleViewOrderDetails = (order) => {
     setSelectedOrder(order);
-    setShowOrderDetails(true);
   };
 
   const handleGiveFeedback = (order) => {
@@ -128,12 +124,15 @@ const CustomerApp = () => {
   const handleTrackOrder = () => {
     if (activeOrder) {
       setSelectedOrder(activeOrder);
-      setShowOrderDetails(true);
-    } else if (customerOrders.length > 0) {
-      setSelectedOrder(customerOrders[0]);
-      setShowOrderDetails(true);
     }
     setTab("tracking");
+  };
+
+  const handleOrderUpdate = (updatedOrder) => {
+    setShouldRefreshOrders(prev => !prev);
+    if (updatedOrder.action === "feedback" && updatedOrder.id) {
+      handleGiveFeedback(updatedOrder);
+    }
   };
 
   return (
@@ -163,34 +162,22 @@ const CustomerApp = () => {
           />
         )}
         {activeTab === "orders" && (
-          <CustomerOrders
-            user={user}
-            onViewDetails={handleViewOrderDetails}
-            onRepeatOrder={(order) => {
-              setSelectedOrder(order);
-              setSelectedServiceType(order.serviceType || "delivery");
-              setShowCreateOrder(true);
-            }}
-            onGiveFeedback={handleGiveFeedback}
-            onOpenCreateOrder={handleOpenCreateOrder}
-            refreshOrders={shouldRefreshOrders || refreshData}
-            onRefreshOrders={() => setShouldRefreshOrders(prev => !prev)}
+          <OrdersList
+            refreshKey={shouldRefreshOrders || refreshData}
+            onNewOrderClick={handleOpenCreateOrder}
+            showNewOrderButton={true}
+            title="Meus Pedidos"
+            onOrderUpdate={handleOrderUpdate}
           />
         )}
         {activeTab === "tracking" && (
-          <CustomerOrders
-            user={user}
-            onViewDetails={handleViewOrderDetails}
-            onRepeatOrder={(order) => {
-              setSelectedOrder(order);
-              setSelectedServiceType(order.serviceType || "delivery");
-              setShowCreateOrder(true);
-            }}
-            onGiveFeedback={handleGiveFeedback}
-            onOpenCreateOrder={handleOpenCreateOrder}
-            refreshOrders={shouldRefreshOrders || refreshData}
-            onRefreshOrders={() => setShouldRefreshOrders(prev => !prev)}
+          <OrdersList
+            refreshKey={shouldRefreshOrders || refreshData}
+            onNewOrderClick={handleOpenCreateOrder}
+            showNewOrderButton={true}
+            title="Rastrear Pedido"
             statusFilter="in_transit"
+            onOrderUpdate={handleOrderUpdate}
           />
         )}
         {activeTab === "profile" && (
@@ -215,8 +202,8 @@ const CustomerApp = () => {
           setSelectedServiceType(null);
           setShowServiceSelection(false);
 
-          if(refresh==true){
-             setRefreshData(true)
+          if (refresh === true) {
+            setRefreshData(true);
           }
         }}
         user={user}
@@ -230,18 +217,6 @@ const CustomerApp = () => {
         isOpen={showServiceSelection}
         onClose={() => setShowServiceSelection(false)}
         onSelectService={handleServiceSelect}
-      />
-
-      <OrderDetailModal
-        isOpen={showOrderDetails}
-        onClose={() => {
-          setShowOrderDetails(false);
-          setSelectedOrder(null);
-          setSelectedOrderId(null);
-        }}
-        order={selectedOrder}
-        orderId={selectedOrderId}
-        onGiveFeedback={handleGiveFeedback}
       />
 
       <FeedbackModal

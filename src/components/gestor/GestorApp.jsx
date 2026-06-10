@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
+import { getOrder } from "../../api/client";
 import BottomNav from "../common/BottomNav";
 import Header from "../common/Header";
-import AdminOrders from "../admin/AdminOrders";
+import OrdersList from "../common/OrdersList";
 import AdminDrivers from "../admin/AdminDrivers";
 import AdminProducts from "../admin/AdminProducts";
 import AdminCustomers from "../admin/AdminCustomers";
@@ -15,9 +16,8 @@ import { AdminOrderDetailModal } from "../admin/AdminOrderDetailModal";
 import GestorHome from "./GestorHome";
 import GestorMap from "./GestorMap";
 import GestorRequests from "./GestorRequests";
-import L from "leaflet";
-import { getOrder } from "../../api/client";
 import Notifications from "../common/Notifications";
+import L from "leaflet";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -38,8 +38,6 @@ const GestorApp = () => {
   const [selectedDriverForNotification, setSelectedDriverForNotification] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
-
-
 
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },
@@ -69,9 +67,7 @@ const GestorApp = () => {
       navigate(tab.path);
     } else {
       navigate("/");
-    }  
-
-    
+    }
   }, [navigate, tabs]);
 
   useEffect(() => {
@@ -118,7 +114,7 @@ const GestorApp = () => {
   const handleAdminCreateOrderClose = () => {
     setShowAdminCreateOrder(false);
     setSelectedClientForOrder(null);
-     setOrderRefreshKey(k => k + 1);
+    setOrderRefreshKey(k => k + 1);
   };
 
   const handleOrderUpdate = (updatedOrder) => {
@@ -136,7 +132,15 @@ const GestorApp = () => {
       />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
         {activeTab === "home" && <GestorHome />}
-        {activeTab === "orders" && <AdminOrders onOpenCreateDelivery={() => setShowClientSelect(true)} refreshKey={orderRefreshKey} />}
+        {activeTab === "orders" && (
+          <OrdersList
+            refreshKey={orderRefreshKey}
+            onNewOrderClick={() => setShowClientSelect(true)}
+            showNewOrderButton={true}
+            title="Gestão de Pedidos"
+            onOrderUpdate={handleOrderUpdate}
+          />
+        )}
         {activeTab === "map" && <GestorMap initialDriverId={selectedDriverForNotification} />}
         {activeTab === "drivers" && <AdminDrivers />}
         {activeTab === "managers" && <AdminManagers />}
@@ -167,7 +171,6 @@ const GestorApp = () => {
             setShowAdminCreateOrder(false);
             setShowClientSelect(true);
           }}
-          
         />
       )}
 

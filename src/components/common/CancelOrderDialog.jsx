@@ -24,6 +24,14 @@ const CANCELLATION_REASONS = {
     { value: "service_unavailable", label: "Serviço indisponível" },
     { value: "duplicate_order", label: "Pedido duplicado" },
     { value: "other", label: "Outro motivo" }
+  ],
+   manager: [
+    { value: "customer_request", label: "Pedido do cliente" },
+    { value: "driver_request", label: "Pedido do motorista" },
+    { value: "fraud_suspected", label: "Fraude suspeita" },
+    { value: "service_unavailable", label: "Serviço indisponível" },
+    { value: "duplicate_order", label: "Pedido duplicado" },
+    { value: "other", label: "Outro motivo" }
   ]
 };
 

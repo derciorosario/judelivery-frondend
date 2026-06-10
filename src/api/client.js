@@ -283,7 +283,7 @@ export const deleteCustomer = (id) => client.delete(`/customers/${id}`);
 
 // ==================== ORDERS API ====================
 
-export const getOrders = () => client.get('/orders');
+export const getOrders = (params) => client.get('/orders',{ params });
 
 export const getOrder = (id) => client.get(`/orders/${id}`);
 
@@ -297,7 +297,7 @@ export const deleteOrder = (id) => client.delete(`/orders/${id}`);
 
 export const getCustomerOrders = (params) => client.get('/orders/mine', { params });
 
-export const getDriverOrders = () => client.get('/orders/driver');
+export const getDriverOrders = (params) => client.get('/orders/driver',{ params });
 
 export const getDriverStatuses = () => client.get('/drivers/statuses');
 

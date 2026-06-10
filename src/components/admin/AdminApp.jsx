@@ -3,8 +3,8 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import BottomNav from "../common/BottomNav";
 import Header from "../common/Header";
+import OrdersList from "../common/OrdersList";
 import AdminHome from "./AdminHome";
-import AdminOrders from "./AdminOrders";
 import AdminDrivers from "./AdminDrivers";
 import AdminProducts from "./AdminProducts";
 import AdminCustomers from "./AdminCustomers";
@@ -12,15 +12,15 @@ import AdminIncidents from "./AdminIncidents";
 import AdminReports from "./AdminReports";
 import AdminFinance from "./AdminFinance";
 import AdminRequests from "./AdminRequests";
+import AdminManagers from "./AdminManagers";
 import CreateOrderModal from "../cliente/modals/CreateOrderModal";
 import AdminClientSelectModal from "./AdminClientSelectModal";
 import { AdminOrderDetailModal } from "./AdminOrderDetailModal";
-import { CUSTOMER_REQUESTS, ORDERS } from "../../data/mockData";
 import { getOrder } from "../../api/client";
 import Notifications from "../common/Notifications";
 
 const AdminApp = () => {
-  const [customerRequests, setCustomerRequests] = useState(CUSTOMER_REQUESTS);
+  const [customerRequests, setCustomerRequests] = useState([]);
   const [orderRefreshKey, setOrderRefreshKey] = useState(0);
   const [showAdminCreateOrder, setShowAdminCreateOrder] = useState(false);
   const [showClientSelect, setShowClientSelect] = useState(false);
@@ -97,38 +97,13 @@ const AdminApp = () => {
   }, [user, navigate]);
 
   const handleApproveRequest = (requestId) => {
-    const request = customerRequests.find(r => r.id === requestId);
-    if (request) {
-      const newOrder = {
-        id: `#${String(ORDERS.length + 1).padStart(3, "0")}`,
-        client: request.customerName,
-        origin: request.origin,
-        dest: request.dest,
-        status: "Aprovado",
-        driver: "—",
-        total: "0 MZN",
-        time: new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }),
-        dist: "5.0 km",
-        productId: null,
-        customerId: request.customerId,
-        paymentMethod: "dinheiro",
-        paymentStatus: "pendente",
-        instructions: request.instructions,
-        scheduledTime: request.scheduledTime,
-      };
-      const basePrice = 50;
-      const pricePerKm = 15;
-      const estimatedDist = 5.0;
-      newOrder.total = (basePrice + pricePerKm * estimatedDist) + " MZN";
-      newOrder.dist = estimatedDist + " km";
-      
-      ORDERS.push(newOrder);
-      setCustomerRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: "approved" } : r));
-    }
+    // Handle request approval
+    console.log("Approve request:", requestId);
   };
 
   const handleRejectRequest = (requestId) => {
-    setCustomerRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: "rejected" } : r));
+    // Handle request rejection
+    console.log("Reject request:", requestId);
   };
 
   const handleOpenCreateOrder = () => {
@@ -158,9 +133,12 @@ const AdminApp = () => {
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
         {activeTab === "home" && <AdminHome customerRequests={customerRequests.filter(r => r.status === "pending")} />}
         {activeTab === "orders" && (
-          <AdminOrders
-            onOpenCreateDelivery={handleOpenCreateOrder}
+          <OrdersList
             refreshKey={orderRefreshKey}
+            onNewOrderClick={handleOpenCreateOrder}
+            showNewOrderButton={true}
+            title="Gestão de Pedidos"
+            onOrderUpdate={handleOrderUpdate}
           />
         )}
         {activeTab === "drivers" && <AdminDrivers />}
