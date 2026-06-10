@@ -15,9 +15,9 @@ import AdminRequests from "./AdminRequests";
 import AdminManagers from "./AdminManagers";
 import CreateOrderModal from "../cliente/modals/CreateOrderModal";
 import AdminClientSelectModal from "./AdminClientSelectModal";
-import { AdminOrderDetailModal } from "./AdminOrderDetailModal";
 import { getOrder } from "../../api/client";
 import Notifications from "../common/Notifications";
+import OrderDetailModal from "../modals/OrderDetailModal";
 
 const AdminApp = () => {
   const [customerRequests, setCustomerRequests] = useState([]);
@@ -180,7 +180,7 @@ const AdminApp = () => {
         />
       )}
 
-      <AdminOrderDetailModal
+      <OrderDetailModal
         isOpen={showOrderDetails}
         onClose={() => {
           setShowOrderDetails(false);
@@ -188,6 +188,7 @@ const AdminApp = () => {
         }}
         order={selectedOrder}
         onUpdate={handleOrderUpdate}
+        role="manager"
       />
     </div>
   );

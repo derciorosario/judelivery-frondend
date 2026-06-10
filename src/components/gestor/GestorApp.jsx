@@ -18,6 +18,7 @@ import GestorMap from "./GestorMap";
 import GestorRequests from "./GestorRequests";
 import Notifications from "../common/Notifications";
 import L from "leaflet";
+import OrderDetailModal from "../modals/OrderDetailModal";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -174,7 +175,7 @@ const GestorApp = () => {
         />
       )}
 
-      <AdminOrderDetailModal
+      <OrderDetailModal
         isOpen={showOrderDetails}
         onClose={() => {
           setShowOrderDetails(false);
@@ -182,6 +183,7 @@ const GestorApp = () => {
         }}
         order={selectedOrder}
         onUpdate={handleOrderUpdate}
+        role="manager"
       />
     </div>
   );

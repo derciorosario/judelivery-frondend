@@ -7,12 +7,11 @@ import { toast } from "../../lib/toast";
 import TrackOrderModal from "../cliente/modals/TrackOrderModal";
 import CreateOrderModal from "../cliente/modals/CreateOrderModal";
 import CancelOrderDialog from "./CancelOrderDialog";
+import ContactSupportModal from "./modals/ContactSupportModal";
 import { useAuth } from "../../contexts/AuthContext";
 import AdminClientSelectModal from "../admin/AdminClientSelectModal";
-import { AdminOrderDetailModal } from "../admin/AdminOrderDetailModal";
-import { MotoristaOrderDetailModal } from "../motorista/MotoristaOrders";
-import OrderDetailModal from "../cliente/modals/OrderDetailModal";
 import NavigationModal from "../motorista/modals/NavigationModal";
+import OrderDetailModal from "../modals/OrderDetailModal";
 
 const STATUS_LABELS = {
   pending_approval: "Pendente",
@@ -65,8 +64,9 @@ const OrdersList = ({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditOrder, setShowEditOrder] = useState(false);
   const [showClientSelect, setShowClientSelect] = useState(false);
-  const [showNavigation, setShowNavigation] = useState(false);
-  const [selectedClientForEdit, setSelectedClientForEdit] = useState(null);
+const [showNavigation, setShowNavigation] = useState(false);
+   const [showContactModal, setShowContactModal] = useState(false);
+   const [selectedClientForEdit, setSelectedClientForEdit] = useState(null);
   const [updating, setUpdating] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState(null);
   const sentinelRef = useRef(null);
@@ -97,6 +97,48 @@ const OrdersList = ({
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
+
+
+
+  // Add this helper function near the top with other helpers
+  const formatScheduledTime = (scheduledTime) => {
+    if (!scheduledTime) return null;
+    try {
+      const date = new Date(scheduledTime);
+      return date.toLocaleString("pt-MZ", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    } catch (e) {
+      return scheduledTime;
+    }
+  };
+
+  const getUrgencyBadge = (urgencyLevel) => {
+    switch(urgencyLevel) {
+      case 'very_urgent':
+        return 'bg-red-100 text-red-700';
+      case 'urgent':
+        return 'bg-orange-100 text-orange-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const getUrgencyLabel = (urgencyLevel) => {
+    switch(urgencyLevel) {
+      case 'very_urgent':
+        return 'Muito Urgente';
+      case 'urgent':
+        return 'Urgente';
+      default:
+        return 'Normal';
+    }
+  };
+
 
   const filterMap = useMemo(() => ({
     "Todos": null,
@@ -193,6 +235,9 @@ const OrdersList = ({
       }
     }
   }, [initialOrderId, orders, loading]);
+
+
+
 
   const fetchNextPage = useCallback(() => {
     if (!hasMore || loadingMore || loading) return;
@@ -322,6 +367,12 @@ const OrdersList = ({
     setMenuOpenId(null);
   };
 
+  const handleContactClick = (order) => {
+    setSelectedOrder(order);
+    setShowContactModal(true);
+    setMenuOpenId(null);
+  };
+
   const visibleOrders = orders;
   const isTrackingView = statusFilter === "in_transit";
 
@@ -331,11 +382,14 @@ const OrdersList = ({
 
     if (isStaff) {
       return (
-        <AdminOrderDetailModal
+        <OrderDetailModal
           isOpen={showOrderDetails}
-          onClose={() => {
+          onClose={(refresh) => {
             setShowOrderDetails(false);
             setSelectedOrder(null);
+            if(refresh==true){
+              fetchOrders(1, false)
+            }
           }}
           order={selectedOrder}
           onUpdate={(updatedOrder) => {
@@ -343,11 +397,12 @@ const OrdersList = ({
             if (onOrderUpdate) onOrderUpdate(updatedOrder);
             setSelectedOrder(updatedOrder);
           }}
+          role="manager"
         />
       );
     } else if (isDriver) {
       return (
-        <MotoristaOrderDetailModal
+        <OrderDetailModal
           isOpen={showOrderDetails}
           onClose={() => {
             setShowOrderDetails(false);
@@ -361,15 +416,19 @@ const OrdersList = ({
           }}
           onStatusChange={handleUpdateStatus}
           updating={updating}
+          role="driver"
         />
       );
     } else if (isCustomer) {
       return (
         <OrderDetailModal
           isOpen={showOrderDetails}
-          onClose={() => {
+          onClose={(refresh) => {
             setShowOrderDetails(false);
             setSelectedOrder(null);
+            if(refresh==true){
+                fetchOrders(1, false)
+            }
           }}
           order={selectedOrder}
           orderId={selectedOrder.id}
@@ -437,7 +496,7 @@ const OrdersList = ({
               const canEdit = (isStaff || (isCustomer && isPending)) && displayStatus !== "Concluído" && displayStatus !== "Cancelado" && displayStatus !== "Em entrega";
               const canCancel = displayStatus !== "Concluído" && displayStatus !== "Cancelado";
               const canTrack = displayStatus === "Em entrega";
-              const canGiveFeedback = displayStatus === "Concluído" && isCustomer;
+              const canGiveFeedback = displayStatus === "Concluído" && isCustomer && !(order.feedbacks && order.feedbacks.length > 0);
               const canRepeat = displayStatus === "Concluído" && isCustomer;
               const canDelete = isStaff;
               const isMenuOpen = menuOpenId === order.id;
@@ -462,51 +521,99 @@ const OrdersList = ({
                   ref={el => orderRefs.current[order.id] = el}
                   className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-bold text-slate-800">{toShortId(order.id)}</span>
-                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${statusBadge}`}>
-                        {displayStatus}
-                      </span>
-                      <span
-                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                          isDelivery ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"
-                        }`}
-                      >
-                        <span className="inline-flex items-center gap-1">
-                          <Icon name={isDelivery ? "package" : "car"} size={10} />
-                          {isDelivery ? "Entrega" : "Táxi"}
-                        </span>
-                      </span>
-                    </div>
-                    <span className="text-sm font-bold text-orange-500">{order.total} MZN</span>
-                  </div>
 
-                  <p className="text-sm font-medium text-slate-700">
-                    {order.client?.name || order.client || "Cliente"}
-                  </p>
-                  {order.productName && (
-                    <p className="text-xs text-slate-500">
-                      <Icon name="package" size={10} className="inline mr-1" />
-                      {order.productName}
-                    </p>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-bold text-slate-800">{toShortId(order.id)}</span>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${statusBadge}`}>
+                    {displayStatus}
+                  </span>
+                  <span
+                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                      isDelivery ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      <Icon name={isDelivery ? "package" : "car"} size={10} />
+                      {isDelivery ? "Entrega" : "Táxi"}
+                    </span>
+                  </span>
+                  
+                  {/* Urgency Badge - show for all orders */}
+                  {order.urgencyLevel && order.urgencyLevel !== 'normal' && (
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${getUrgencyBadge(order.urgencyLevel)}`}>
+                      <span className="inline-flex items-center gap-1">
+                        <Icon name="alertCircle" size={10} />
+                        {getUrgencyLabel(order.urgencyLevel)}
+                      </span>
+                    </span>
                   )}
-                  <p className="text-xs text-slate-500">
-                    {isDelivery
-                      ? `${order.origin || ""} → ${order.dest || ""}`
-                      : `${order.pickupLocation || ""} → ${order.dropoffLocation || ""}`}
-                  </p>
-                  {order.driver && (
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      <Icon name="users" size={10} className="inline mr-1" />
-                      {typeof order.driver === "string" ? order.driver : order.driver?.name || "Motorista atribuído"}
-                    </p>
-                  )}
-                  <p className="text-xs text-slate-400">
-                    {order.time || new Date(order.createdAt).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
-                  </p>
+                </div>
+                <span className="text-sm font-bold text-orange-500">{order.total} MZN</span>
+              </div>
+
+              <p className="text-sm font-medium text-slate-700">
+                {order.client?.name || order.client || "Cliente"}
+              </p>
+
+              {order.productName && (
+                <p className="text-xs text-slate-500">
+                  <Icon name="package" size={10} className="inline mr-1" />
+                  {order.productName}
+                </p>
+              )}
+
+              <p className="text-xs text-slate-500">
+                {isDelivery
+                  ? `${order.origin || ""} → ${order.dest || ""}`
+                  : `${order.pickupLocation || ""} → ${order.dropoffLocation || ""}`}
+              </p>
+
+              {/* Scheduled Date & Time - show only for scheduled orders */}
+              {order.status === 'scheduled' && order.scheduledTime && (
+                <p className="text-xs text-purple-600 font-medium mt-1">
+                  <Icon name="calendar" size={10} className="inline mr-1" />
+                  Agendado para: {formatScheduledTime(order.scheduledTime)}
+                </p>
+              )}
+
+              {/* Urgency level text for normal urgency (to keep consistency) */}
+              {order.urgencyLevel && order.urgencyLevel !== 'normal' && order.status !== 'scheduled' && (
+                <p className="text-xs text-orange-600 mt-0.5">
+                  <Icon name="alertCircle" size={10} className="inline mr-1" />
+                  Nível: {getUrgencyLabel(order.urgencyLevel)}
+                </p>
+              )}
+
+              {order.driver && (
+                <p className="text-xs text-slate-500 mt-0.5">
+                  <Icon name="users" size={10} className="inline mr-1" />
+                  {typeof order.driver === "string" ? order.driver : order.driver?.name || "Motorista atribuído"}
+                </p>
+              )}
+
+              <p className="text-xs text-slate-400">
+                {order.time || new Date(order.createdAt).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
+              </p>
+
+              {order.feedbacks && order.feedbacks.length > 0 && (
+                <p className="text-xs text-amber-600 mt-0.5 font-semibold">
+                  ⭐ {order.feedbacks[0].rating}/5
+                </p>
+              )}
 
                   <div className="flex gap-2 mt-3">
+
+                     {/* Contact button - always visible */}
+                    <button
+                      onClick={() => handleContactClick(order)}
+                      className="flex items-center justify-center p-2 bg-green-100 text-green-600 font-semibold rounded-lg hover:bg-green-200"
+                      title="Contactos"
+                    >
+                      <Icon name="phone" size={16} />
+                    </button>
+
+
                     {/* Details button - always visible */}
                     <button
                       onClick={() => handleViewDetails(order)}
@@ -515,6 +622,7 @@ const OrdersList = ({
                       Detalhes
                     </button>
 
+                   
                     {/* Primary action buttons (max 2) */}
                     {visibleButtons.map((btn) => (
                       <button
@@ -681,6 +789,7 @@ const OrdersList = ({
           onClose={() => {
             setShowCancelDialog(false);
             setSelectedOrder(null);
+            setRefreshKey(Math.random());
           }}
           onConfirm={handleCancelOrder}
           role={role}
@@ -764,6 +873,18 @@ const OrdersList = ({
           isOpen={showNavigation}
           onClose={() => {
             setShowNavigation(false);
+            setSelectedOrder(null);
+          }}
+          order={selectedOrder}
+        />
+      )}
+
+      {/* Contact Support Modal */}
+      {showContactModal && selectedOrder && (
+        <ContactSupportModal
+          isOpen={showContactModal}
+          onClose={() => {
+            setShowContactModal(false);
             setSelectedOrder(null);
           }}
           order={selectedOrder}

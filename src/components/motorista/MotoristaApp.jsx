@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getOrder } from "../../api/client";
+import { getOrder, updateOrder } from "../../api/client";
 import BottomNav from "../common/BottomNav";
 import Header from "../common/Header";
 import OrdersList from "../common/OrdersList";
@@ -11,6 +11,7 @@ import MotoristaHistory from "./MotoristaHistory";
 import MotoristaProfile from "./MotoristaProfile";
 import MotoristaMap from "./MotoristaMap";
 import Notifications from "../common/Notifications";
+import OrderDetailModal from "../modals/OrderDetailModal";
 
 const MotoristaApp = () => {
   const [online, setOnline] = useState(true);
@@ -55,6 +56,7 @@ const MotoristaApp = () => {
   useEffect(() => {
     const handleOpenOrder = async (e) => {
       const orderId = e.detail?.orderId;
+       console.log({orderId})
       if (orderId) {
         try {
           const response = await getOrder(orderId);
@@ -72,8 +74,28 @@ const MotoristaApp = () => {
   const location = useDriverLocation({ autoStart: true });
 
   const handleOrderUpdate = (updatedOrder) => {
+    
     setOrderRefreshKey(prev => prev + 1);
+    setSelectedOrder(prev => ({...prev,status:updatedOrder.status}))
+
   };
+
+
+  const handleStatusChange = (newStatus) => {
+    if (!selectedOrder) return;
+    updateOrderStatus(selectedOrder.id, newStatus);
+};
+
+  const updateOrderStatus = async (orderId, newStatus) => {
+    try {
+      const payload = { status: newStatus };
+      const res = await updateOrder(orderId, payload);
+      handleOrderUpdate(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto">
@@ -103,6 +125,19 @@ const MotoristaApp = () => {
         {activeTab === "notifications" && <Notifications />}
       </div>
       <BottomNav tabs={tabs} active={activeTab} setActive={setTab} />
+
+       <OrderDetailModal
+        isOpen={showOrderDetails}
+        onClose={() => {
+          setShowOrderDetails(false);
+          setSelectedOrder(null);
+          setOrderRefreshKey(k => k + 1);
+        }}
+        order={selectedOrder}
+        onUpdate={handleOrderUpdate}
+        onStatusChange={handleStatusChange}
+        role="driver"
+      />
     </div>
   );
 };

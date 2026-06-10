@@ -301,6 +301,14 @@ export const getDriverOrders = (params) => client.get('/orders/driver',{ params 
 
 export const getDriverStatuses = () => client.get('/drivers/statuses');
 
+// FEEDBACKS
+export const getFeedbacks = (params) => client.get('/feedbacks', { params });
+export const getOrderFeedbacks = (orderId) => client.get(`/feedbacks/order/${orderId}`);
+export const createFeedback = (data) => client.post('/feedbacks', data);
+export const updateFeedback = (id, data) => client.patch(`/feedbacks/${id}`, data);
+export const deleteFeedback = (id) => client.delete(`/feedbacks/${id}`);
+export const getDriverFeedbackStats = (driverId) => client.get(`/feedbacks/driver/${driverId}/stats`);
+
 // ==================== NOTIFICATIONS API ====================
 
 export const getNotifications = (params) => client.get('/notifications', { params });

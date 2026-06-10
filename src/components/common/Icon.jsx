@@ -79,7 +79,8 @@ import {
   ClipboardList,
   MailCheck,
   PlusCircle,
-  Zap
+  Zap,
+  Headphones
 } from "lucide-react"
 
 
@@ -100,7 +101,8 @@ const Icon = ({ name, size = 20, className = "" }) => {
     check: Check,
     x: X,
     plus: Plus,
-    zap:Zap,
+    zap: Zap,
+    headphones: Headphones,
     PlusCircle:PlusCircle,
     eye: Eye,
     logout: LogOut,

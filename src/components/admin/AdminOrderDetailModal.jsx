@@ -26,9 +26,10 @@ import {
   Save,
   UserCheck,
   UserX,
-  Send,
-  Eye,
-  EyeOff
+   Send,
+   Eye,
+   EyeOff,
+   Star
 } from "lucide-react";
 
 const AdminOrderDetailModal = ({ isOpen, onClose, order, orderId, onUpdate }) => {
@@ -480,49 +481,85 @@ const AdminOrderDetailModal = ({ isOpen, onClose, order, orderId, onUpdate }) =>
                </div>
              )}
 
-             {order.status === "cancelled" && (order.cancelledBy || order.cancellationReason) && (
-               <div className="border-t border-slate-100 pt-3">
-                 <div className="flex items-center gap-2 mb-2">
-                   <XCircle size={14} className="text-red-500" />
-                   <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                     Detalhes do Cancelamento
-                   </h3>
-                 </div>
-                 <div className="bg-red-50 rounded-lg p-3 space-y-2">
-                   <div className="flex justify-between items-center">
-                     <span className="text-xs text-slate-500">Cancelado por</span>
-                     <span className="text-xs font-semibold text-slate-800 capitalize">
-                       {order.cancelledBy === "customer" ? "Cliente" :
-                        order.cancelledBy === "driver" ? "Motorista" : "Admin/Gestor"}
-                     </span>
-                   </div>
-                   {order.cancellationReason && (
-                     <div className="flex justify-between items-center">
-                       <span className="text-xs text-slate-500">Motivo</span>
-                       <span className="text-xs font-semibold text-slate-800">
-                         {getCancelReasonLabel(order.cancellationReason)}
-                       </span>
-                     </div>
-                   )}
-                   {order.cancellationComment && (
-                     <div className="flex flex-col gap-1">
-                       <span className="text-xs text-slate-500">Comentário</span>
-                       <p className="text-xs text-slate-700 bg-white p-2 rounded">{order.cancellationComment}</p>
-                     </div>
-                   )}
-                   {order.cancelledAt && (
-                     <div className="flex justify-between items-center">
-                       <span className="text-xs text-slate-500">Data/Hora</span>
-                       <span className="text-xs font-semibold text-slate-800">
-                         {new Date(order.cancelledAt).toLocaleDateString()} às {new Date(order.cancelledAt).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
-                       </span>
-                     </div>
-                   )}
-                 </div>
-               </div>
-             )}
-           </div>
-         )}
+              {order.status === "cancelled" && (order.cancelledBy || order.cancellationReason) && (
+                <div className="border-t border-slate-100 pt-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <XCircle size={14} className="text-red-500" />
+                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                      Detalhes do Cancelamento
+                    </h3>
+                  </div>
+                  <div className="bg-red-50 rounded-lg p-3 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-500">Cancelado por</span>
+                      <span className="text-xs font-semibold text-slate-800 capitalize">
+                        {order.cancelledBy === "customer" ? "Cliente" :
+                         order.cancelledBy === "driver" ? "Motorista" : "Admin/Gestor"}
+                      </span>
+                    </div>
+                    {order.cancellationReason && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-slate-500">Motivo</span>
+                        <span className="text-xs font-semibold text-slate-800">
+                          {getCancelReasonLabel(order.cancellationReason)}
+                        </span>
+                      </div>
+                    )}
+                    {order.cancellationComment && (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-slate-500">Comentário</span>
+                        <p className="text-xs text-slate-700 bg-white p-2 rounded">{order.cancellationComment}</p>
+                      </div>
+                    )}
+                    {order.cancelledAt && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-slate-500">Data/Hora</span>
+                        <span className="text-xs font-semibold text-slate-800">
+                          {new Date(order.cancelledAt).toLocaleDateString()} às {new Date(order.cancelledAt).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {order.feedbacks && order.feedbacks.length > 0 && (
+                <div className="border-t border-slate-100 pt-3">
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                    Avaliações
+                  </h3>
+                  <div className="space-y-3">
+                    {order.feedbacks.map((feedback) => (
+                      <div key={feedback.id} className="bg-slate-50 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-semibold text-slate-700">
+                            {typeof feedback.client === 'string' ? feedback.client : feedback.client?.name || 'Cliente'}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <Star size={14} className="fill-amber-400 text-amber-400" />
+                            <span className="text-xs font-semibold text-slate-700">{feedback.rating}/5</span>
+                          </div>
+                        </div>
+                        {feedback.comment && (
+                          <p className="text-xs text-slate-600 italic">"{feedback.comment}"</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] text-slate-400">
+                            {new Date(feedback.createdAt).toLocaleDateString()}
+                          </span>
+                          {feedback.driver && (
+                            <span className="text-[10px] text-slate-400">
+                              • Motorista: {typeof feedback.driver === 'string' ? feedback.driver : feedback.driver?.name}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
         {activeTab === "actions" && (
           <div className="space-y-4">

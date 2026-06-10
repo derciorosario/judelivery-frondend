@@ -12,14 +12,22 @@ import FeedbackModal from "./modals/FeedbackModal";
 import SupportModal from "./modals/SupportModal";
 import ServiceSelectionModal from "./modals/ServiceSelectionModal";
 import Notifications from "../common/Notifications";
+import { createFeedback } from "../../api/client";
+import { toast } from "../../lib/toast";
+import Icon from "../common/Icon";
+import OrderDetailModal from "../modals/OrderDetailModal";
 
 const CustomerApp = () => {
   const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [showServiceSelection, setShowServiceSelection] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [shouldRefreshOrders, setShouldRefreshOrders] = useState(false);
   const [feedbackOrder, setFeedbackOrder] = useState(null);
+  const [showFeedbackSuccess, setShowFeedbackSuccess] = useState(false);
+  const [feedbackSuccessMessage, setFeedbackSuccessMessage] = useState("");
   const [showSupport, setShowSupport] = useState(false);
   const [selectedServiceType, setSelectedServiceType] = useState(null);
   const [refreshData, setRefreshData] = useState(false);
@@ -35,7 +43,8 @@ const CustomerApp = () => {
     const handleOpenOrder = (e) => {
       const orderId = e.detail?.orderId;
       if (orderId) {
-        setSelectedOrder({ id: orderId });
+        setSelectedOrderId(orderId);
+        setShowOrderDetails(true);
         setShouldRefreshOrders(prev => !prev);
       }
     };
@@ -113,12 +122,27 @@ const CustomerApp = () => {
   const handleGiveFeedback = (order) => {
     setFeedbackOrder(order);
     setShowFeedback(true);
+    setShowOrderDetails(false)
   };
 
-  const handleSubmitFeedback = (rating, comment) => {
-    console.log(`Feedback for order ${feedbackOrder.id}: ${rating} stars, comment: ${comment}`);
-    setShowFeedback(false);
-    setFeedbackOrder(null);
+  const handleSubmitFeedback = async (rating, comment) => {
+    if (!feedbackOrder) return;
+    try {
+      await createFeedback({
+        orderId: feedbackOrder.id,
+        rating,
+        comment,
+        category: "service",
+        driverId: feedbackOrder.driverId || (typeof feedbackOrder.driver === "object" ? feedbackOrder.driver?.id : null)
+      });
+      setFeedbackSuccessMessage(`A sua avaliação para o pedido #${feedbackOrder.id ? feedbackOrder.id.slice(-6).toUpperCase() : ""} foi registada com sucesso!`);
+      setShowFeedbackSuccess(true);
+      setShowFeedback(false);
+      setFeedbackOrder(null);
+    } catch (error) {
+      const message = error?.response?.data?.message || "Erro ao enviar avaliação";
+      toast.error(message);
+    }
   };
 
   const handleTrackOrder = () => {
@@ -133,6 +157,7 @@ const CustomerApp = () => {
     if (updatedOrder.action === "feedback" && updatedOrder.id) {
       handleGiveFeedback(updatedOrder);
     }
+    setRefreshData(true)
   };
 
   return (
@@ -168,6 +193,7 @@ const CustomerApp = () => {
             showNewOrderButton={true}
             title="Meus Pedidos"
             onOrderUpdate={handleOrderUpdate}
+            onGiveFeedback={handleGiveFeedback}
           />
         )}
         {activeTab === "tracking" && (
@@ -178,6 +204,7 @@ const CustomerApp = () => {
             title="Rastrear Pedido"
             statusFilter="in_transit"
             onOrderUpdate={handleOrderUpdate}
+           onGiveFeedback={handleGiveFeedback}
           />
         )}
         {activeTab === "profile" && (
@@ -224,9 +251,44 @@ const CustomerApp = () => {
         onClose={() => {
           setShowFeedback(false);
           setFeedbackOrder(null);
+          setRefreshData(true)
         }}
         order={feedbackOrder}
         onSubmit={handleSubmitFeedback}
+      />
+
+      {showFeedbackSuccess && (
+        <div className="fixed inset-0 !mb-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Icon name="checkCircle" size={24} className="text-green-600" />
+              </div>
+              <h3 className="text-base font-bold text-slate-800">Avaliação enviada!</h3>
+              <p className="text-sm text-slate-500 mt-2">{feedbackSuccessMessage}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowFeedbackSuccess(false)}
+              className="w-full mt-4 py-2.5 rounded-xl bg-orange-500 text-white font-semibold text-sm hover:bg-orange-600 transition-colors"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+       <OrderDetailModal
+        isOpen={showOrderDetails}
+        onClose={() => {
+          setShowOrderDetails(false);
+          setSelectedOrder(null);
+          setSelectedOrderId(null);
+          setRefreshData(true)
+        }}
+        order={selectedOrder}
+        orderId={selectedOrderId}
+        onGiveFeedback={handleGiveFeedback}
       />
 
       <SupportModal
