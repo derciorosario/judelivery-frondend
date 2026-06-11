@@ -73,7 +73,12 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     rideInstructions: "",
     hasLuggage: false,
     returnTrip: false,
-    waitingTime: 0
+    waitingTime: 0,
+    // Manual input flags
+    manualOrigin: false,
+    manualDest: false,
+    manualPickup: false,
+    manualDropoff: false
   });
   
   const calculateRealDistance = useCallback((coords1, coords2) => {
@@ -165,10 +170,10 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
       destCoords = form.destCoords;
     }
     
-if (!originCoords || !destCoords) {
-       toast.error("Por favor, selecione origem e destino primeiro.");
-       return;
-     }
+    if (!originCoords || !destCoords) {
+      toast.error("Para ver a rota, selecione os endereços usando a pesquisa ou o mapa.");
+      return;
+    }
     
     setLoadingRoute(true);
     const directionsService = new window.google.maps.DirectionsService();
@@ -198,10 +203,10 @@ if (!originCoords || !destCoords) {
             }))
           });
           setRouteMapOpen(true);
-} else {
-           console.error("Directions request failed due to " + status);
-           toast.error("Não foi possível calcular a rota. Por favor, tente novamente.");
-         }
+        } else {
+          console.error("Directions request failed due to " + status);
+          toast.error("Não foi possível calcular a rota. Por favor, tente novamente.");
+        }
         setLoadingRoute(false);
       }
     );
@@ -222,7 +227,9 @@ if (!originCoords || !destCoords) {
           rideInstructions: repeatOrder.instructions || "",
           hasLuggage: repeatOrder.hasLuggage || false,
           returnTrip: repeatOrder.returnTrip || false,
-          waitingTime: repeatOrder.waitingTime || 0
+          waitingTime: repeatOrder.waitingTime || 0,
+          manualPickup: false,
+          manualDropoff: false
         }));
       } else {
         setForm(prev => ({
@@ -241,7 +248,9 @@ if (!originCoords || !destCoords) {
           urgencyLevel: repeatOrder.urgencyLevel || "normal",
           paymentMethod: repeatOrder.paymentMethod || "Transferência",
           contactOrigin: customerData?.phone || "",
-          contactDest: customerData?.phone || ""
+          contactDest: customerData?.phone || "",
+          manualOrigin: false,
+          manualDest: false
         }));
       }
     }
@@ -259,7 +268,9 @@ if (!originCoords || !destCoords) {
           rideInstructions: editOrder.instructions || "",
           hasLuggage: editOrder.hasLuggage || false,
           returnTrip: editOrder.returnTrip || false,
-          waitingTime: editOrder.waitingTime || 0
+          waitingTime: editOrder.waitingTime || 0,
+          manualPickup: false,
+          manualDropoff: false
         }));
       } else {
         setForm(prev => ({
@@ -278,7 +289,9 @@ if (!originCoords || !destCoords) {
           urgencyLevel: editOrder.urgencyLevel || "normal",
           paymentMethod: editOrder.paymentMethod || "Transferência",
           contactOrigin: editOrder.contactOrigin || customerData?.phone || "",
-          contactDest: editOrder.contactDest || customerData?.phone || ""
+          contactDest: editOrder.contactDest || customerData?.phone || "",
+          manualOrigin: false,
+          manualDest: false
         }));
       }
     }
@@ -383,13 +396,13 @@ if (!originCoords || !destCoords) {
           const coords = { lat: mapMarker.lat, lng: mapMarker.lng };
           
           if (mapTarget === "origin") {
-            setForm(prev => ({ ...prev, origin: formatted, originCoords: coords }));
+            setForm(prev => ({ ...prev, origin: formatted, originCoords: coords, manualOrigin: false }));
           } else if (mapTarget === "dest") {
-            setForm(prev => ({ ...prev, dest: formatted, destCoords: coords }));
+            setForm(prev => ({ ...prev, dest: formatted, destCoords: coords, manualDest: false }));
           } else if (mapTarget === "pickupLocation") {
-            setForm(prev => ({ ...prev, pickupLocation: formatted, pickupCoords: coords }));
+            setForm(prev => ({ ...prev, pickupLocation: formatted, pickupCoords: coords, manualPickup: false }));
           } else if (mapTarget === "dropoffLocation") {
-            setForm(prev => ({ ...prev, dropoffLocation: formatted, dropoffCoords: coords }));
+            setForm(prev => ({ ...prev, dropoffLocation: formatted, dropoffCoords: coords, manualDropoff: false }));
           }
           setDirections(null);
           setRouteInfo(null);
@@ -397,13 +410,13 @@ if (!originCoords || !destCoords) {
           const coords = { lat: mapMarker.lat, lng: mapMarker.lng };
           const label = searchValue || `${mapMarker.lat.toFixed(5)}, ${mapMarker.lng.toFixed(5)}`;
           if (mapTarget === "origin") {
-            setForm(prev => ({ ...prev, origin: label, originCoords: coords }));
+            setForm(prev => ({ ...prev, origin: label, originCoords: coords, manualOrigin: false }));
           } else if (mapTarget === "dest") {
-            setForm(prev => ({ ...prev, dest: label, destCoords: coords }));
+            setForm(prev => ({ ...prev, dest: label, destCoords: coords, manualDest: false }));
           } else if (mapTarget === "pickupLocation") {
-            setForm(prev => ({ ...prev, pickupLocation: label, pickupCoords: coords }));
+            setForm(prev => ({ ...prev, pickupLocation: label, pickupCoords: coords, manualPickup: false }));
           } else if (mapTarget === "dropoffLocation") {
-            setForm(prev => ({ ...prev, dropoffLocation: label, dropoffCoords: coords }));
+            setForm(prev => ({ ...prev, dropoffLocation: label, dropoffCoords: coords, manualDropoff: false }));
           }
           setDirections(null);
           setRouteInfo(null);
@@ -430,10 +443,10 @@ if (!originCoords || !destCoords) {
   };
 
   const useCurrentLocation = async (field) => {
-if (!navigator.geolocation) {
-       toast.error("Geolocalização não é suportada pelo seu navegador.");
-       return;
-     }
+    if (!navigator.geolocation) {
+      toast.error("Geolocalização não é suportada pelo seu navegador.");
+      return;
+    }
     
     setLoadingLocations(prev => ({ ...prev, [field]: true }));
     
@@ -452,13 +465,13 @@ if (!navigator.geolocation) {
           const coords = { lat: latitude, lng: longitude };
           
           if (field === "origin") {
-            setForm(prev => ({ ...prev, origin: formatted, originCoords: coords }));
+            setForm(prev => ({ ...prev, origin: formatted, originCoords: coords, manualOrigin: false }));
           } else if (field === "dest") {
-            setForm(prev => ({ ...prev, dest: formatted, destCoords: coords }));
+            setForm(prev => ({ ...prev, dest: formatted, destCoords: coords, manualDest: false }));
           } else if (field === "pickupLocation") {
-            setForm(prev => ({ ...prev, pickupLocation: formatted, pickupCoords: coords }));
+            setForm(prev => ({ ...prev, pickupLocation: formatted, pickupCoords: coords, manualPickup: false }));
           } else if (field === "dropoffLocation") {
-            setForm(prev => ({ ...prev, dropoffLocation: formatted, dropoffCoords: coords }));
+            setForm(prev => ({ ...prev, dropoffLocation: formatted, dropoffCoords: coords, manualDropoff: false }));
           }
           setDirections(null);
           setRouteInfo(null);
@@ -466,13 +479,13 @@ if (!navigator.geolocation) {
           const label = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
           const coords = { lat: latitude, lng: longitude };
           if (field === "origin") {
-            setForm(prev => ({ ...prev, origin: label, originCoords: coords }));
+            setForm(prev => ({ ...prev, origin: label, originCoords: coords, manualOrigin: false }));
           } else if (field === "dest") {
-            setForm(prev => ({ ...prev, dest: label, destCoords: coords }));
+            setForm(prev => ({ ...prev, dest: label, destCoords: coords, manualDest: false }));
           } else if (field === "pickupLocation") {
-            setForm(prev => ({ ...prev, pickupLocation: label, pickupCoords: coords }));
+            setForm(prev => ({ ...prev, pickupLocation: label, pickupCoords: coords, manualPickup: false }));
           } else if (field === "dropoffLocation") {
-            setForm(prev => ({ ...prev, dropoffLocation: label, dropoffCoords: coords }));
+            setForm(prev => ({ ...prev, dropoffLocation: label, dropoffCoords: coords, manualDropoff: false }));
           }
           setDirections(null);
           setRouteInfo(null);
@@ -480,11 +493,11 @@ if (!navigator.geolocation) {
           setLoadingLocations(prev => ({ ...prev, [field]: false }));
         }
       },
-(err) => {
-         console.error("Geolocation error:", err);
-         toast.error("Não foi possível obter a sua localização atual. Por favor, verifique as permissões.");
-         setLoadingLocations(prev => ({ ...prev, [field]: false }));
-       },
+      (err) => {
+        console.error("Geolocation error:", err);
+        toast.error("Não foi possível obter a sua localização atual. Por favor, verifique as permissões.");
+        setLoadingLocations(prev => ({ ...prev, [field]: false }));
+      },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
   };
@@ -507,39 +520,67 @@ if (!navigator.geolocation) {
     }
   };
   
+  // Updated isLocationValid function to handle manual input
   const isLocationValid = () => {
     if (serviceType === "taxi") {
       if (step === 1) {
-        return form.pickupCoords && form.dropoffCoords && form.pickupLocation && form.dropoffLocation;
+        // For step 1 (location step), check if both location fields have text
+        // And either have coordinates (selected via autocomplete/map) OR both are in manual mode
+        const hasPickup = form.pickupLocation && form.pickupLocation.trim() !== "";
+        const hasDropoff = form.dropoffLocation && form.dropoffLocation.trim() !== "";
+        
+        if (!hasPickup || !hasDropoff) return false;
+        
+        // If manual mode is on for both, it's valid even without coordinates
+        if (form.manualPickup && form.manualDropoff) return true;
+        
+        // If not manual mode, need coordinates
+        if (!form.manualPickup && !form.pickupCoords) return false;
+        if (!form.manualDropoff && !form.dropoffCoords) return false;
+        
+        return true;
       }
       return true;
     } else {
       if (step === 2) {
-        return form.originCoords && form.destCoords && form.origin && form.dest;
+        // For step 2 (location step for delivery)
+        const hasOrigin = form.origin && form.origin.trim() !== "";
+        const hasDest = form.dest && form.dest.trim() !== "";
+        
+        if (!hasOrigin || !hasDest) return false;
+        
+        // If manual mode is on for both, it's valid even without coordinates
+        if (form.manualOrigin && form.manualDest) return true;
+        
+        // If not manual mode, need coordinates
+        if (!form.manualOrigin && !form.originCoords) return false;
+        if (!form.manualDest && !form.destCoords) return false;
+        
+        return true;
       }
       return true;
     }
   };
 
-const handleNextStep = () => {
-     if (!isLocationValid()) {
-       toast.error("Por favor, selecione uma localização válida usando a pesquisa ou o mapa.");
-       return;
-     }
-     setStep(step + 1);
-   };
+  const handleNextStep = () => {
+    if (!isLocationValid()) {
+      toast.error("Por favor, preencha a origem e destino corretamente.");
+      return;
+    }
+    setStep(step + 1);
+  };
 
-const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-if (step < (serviceType === "taxi" ? 4 : 4)) {
-       if (!isLocationValid()) {
-         toast.error("Por favor, selecione uma localização válida usando a pesquisa ou o mapa.");
-         return;
-       }
-       setStep(step + 1);
-       return;
-     }
+    if (step < (serviceType === "taxi" ? 4 : 4)) {
+      if (!isLocationValid()) {
+        toast.error("Por favor, preencha todos os campos obrigatórios.");
+        return;
+      }
+      setStep(step + 1);
+      return;
+    }
     
     setSaving(true);
     setSubmitStatus('loading');
@@ -549,55 +590,57 @@ if (step < (serviceType === "taxi" ? 4 : 4)) {
       const duration = serviceType === "taxi" ? calculateDuration() : calculateDeliveryDuration();
       const total = serviceType === "taxi" ? calculateRidePrice() : calculateDeliveryPrice();
       
-       const companyId = user?.companyId || customerData?.companyId || null;
-       const resolvedClientId = clientId || user?.id || null;
-       
-       const orderPayload = serviceType === "taxi" ? {
-         companyId,
-         clientId: resolvedClientId,
-         serviceType: "taxi",
-         status: form.isScheduledRide ? "scheduled" : "pending_approval",
-         pickupLocation: form.pickupLocation,
-         dropoffLocation: form.dropoffLocation,
-         pickupCoords: form.pickupCoords,
-         dropoffCoords: form.dropoffCoords,
-         passengerCount: form.passengerCount,
-         hasLuggage: form.hasLuggage,
-         returnTrip: form.returnTrip,
-         waitingTime: form.waitingTime,
-         instructions: form.rideInstructions,
-         scheduledTime: form.isScheduledRide ? form.scheduledRideTime : null,
-         contactOrigin: form.contactOrigin,
-         contactDest: form.contactDest,
-         total,
-         dist: `${distance} km`,
-         time: new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }),
-         paymentMethod: paymentMap[form.paymentMethod] || "bank_transfer",
-         paymentStatus: "pending"
-       } : {
-         companyId,
-         clientId: resolvedClientId,
-         serviceType: "delivery",
-         status: form.isScheduled ? "scheduled" : "pending_approval",
-         origin: form.origin,
-         dest: form.dest,
-         originCoords: form.originCoords,
-         destCoords: form.destCoords,
-         urgencyLevel: form.urgencyLevel,
-         productName: form.productName,
-         quantity: form.quantity,
-         weight: form.weight,
-         instructions: form.instructions,
-         observations: form.observations,
-         scheduledTime: form.isScheduled ? form.scheduledTime : null,
-         contactOrigin: form.contactOrigin,
-         contactDest: form.contactDest,
-         total,
-         dist: `${distance} km`,
-         time: new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }),
-         paymentMethod: paymentMap[form.paymentMethod] || "bank_transfer",
-         paymentStatus: "pending"
-       };
+      const companyId = user?.companyId || customerData?.companyId || null;
+      const resolvedClientId = clientId || user?.id || null;
+      
+      const orderPayload = serviceType === "taxi" ? {
+        companyId,
+        clientId: resolvedClientId,
+        serviceType: "taxi",
+        status: form.isScheduledRide ? "scheduled" : "pending_approval",
+        pickupLocation: form.pickupLocation,
+        dropoffLocation: form.dropoffLocation,
+        pickupCoords: form.pickupCoords,
+        dropoffCoords: form.dropoffCoords,
+        passengerCount: form.passengerCount,
+        hasLuggage: form.hasLuggage,
+        returnTrip: form.returnTrip,
+        waitingTime: form.waitingTime,
+        instructions: form.rideInstructions,
+        scheduledTime: form.isScheduledRide ? form.scheduledRideTime : null,
+        contactOrigin: form.contactOrigin,
+        contactDest: form.contactDest,
+        total,
+        dist: `${distance} km`,
+        time: new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }),
+        paymentMethod: paymentMap[form.paymentMethod] || "bank_transfer",
+        paymentStatus: "pending",
+        isManualInput: form.manualPickup || form.manualDropoff
+      } : {
+        companyId,
+        clientId: resolvedClientId,
+        serviceType: "delivery",
+        status: form.isScheduled ? "scheduled" : "pending_approval",
+        origin: form.origin,
+        dest: form.dest,
+        originCoords: form.originCoords,
+        destCoords: form.destCoords,
+        urgencyLevel: form.urgencyLevel,
+        productName: form.productName,
+        quantity: form.quantity,
+        weight: form.weight,
+        instructions: form.instructions,
+        observations: form.observations,
+        scheduledTime: form.isScheduled ? form.scheduledTime : null,
+        contactOrigin: form.contactOrigin,
+        contactDest: form.contactDest,
+        total,
+        dist: `${distance} km`,
+        time: new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }),
+        paymentMethod: paymentMap[form.paymentMethod] || "bank_transfer",
+        paymentStatus: "pending",
+        isManualInput: form.manualOrigin || form.manualDest
+      };
       
       if (editOrder) {
         const response = await updateOrder(editOrder.id, orderPayload);
@@ -607,12 +650,12 @@ if (step < (serviceType === "taxi" ? 4 : 4)) {
         await apiCreateOrder(orderPayload);
         setSubmitStatus('success');
       }
-} catch (error) {
-       console.error("Failed to save order:", error);
-       setSubmitStatus('idle');
-       setSaving(false);
-       toast.error(error.response?.data?.message || "Falha ao salvar pedido. Tente novamente.");
-     }
+    } catch (error) {
+      console.error("Failed to save order:", error);
+      setSubmitStatus('idle');
+      setSaving(false);
+      toast.error(error.response?.data?.message || "Falha ao salvar pedido. Tente novamente.");
+    }
   };
   
   if (!isOpen) return null;
@@ -630,28 +673,25 @@ if (step < (serviceType === "taxi" ? 4 : 4)) {
   const ridePrice = serviceType === "taxi" ? calculateRidePrice() : 0;
   const deliveryPrice = serviceType === "delivery" ? calculateDeliveryPrice() : 0;
   const isCurrentStepValid = isLocationValid();
-  const hasBothLocations = serviceType === "taxi" 
-    ? (form.pickupCoords && form.dropoffCoords)
-    : (form.originCoords && form.destCoords);
   
   return (
     <div className="fixed inset-0 !mb-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="sticky top-0 bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between">
-            <div>
-<h2 className="text-base font-bold text-slate-800">
-                 {editOrder 
-                   ? (serviceType === "taxi" ? "Editar Corrida" : "Editar Pedido de Entrega")
-                   : (serviceType === "taxi" ? "Solicitar Corrida" : "Novo Pedido de Entrega")
-                 }
-               </h2>
-              <div className="flex items-center gap-2 mt-1">
-                {Array(4).fill().map((_, s) => (
-                  <div key={s} className={`h-1 w-8 rounded-full ${step >= s + 1 ? "bg-orange-500" : "bg-slate-200"}`} />
-                ))}
-              </div>
-              <p className="text-xs text-slate-400 mt-1">{getStepTitle()}</p>
+          <div>
+            <h2 className="text-base font-bold text-slate-800">
+              {editOrder 
+                ? (serviceType === "taxi" ? "Editar Corrida" : "Editar Pedido de Entrega")
+                : (serviceType === "taxi" ? "Solicitar Corrida" : "Novo Pedido de Entrega")
+              }
+            </h2>
+            <div className="flex items-center gap-2 mt-1">
+              {Array(4).fill().map((_, s) => (
+                <div key={s} className={`h-1 w-8 rounded-full ${step >= s + 1 ? "bg-orange-500" : "bg-slate-200"}`} />
+              ))}
             </div>
+            <p className="text-xs text-slate-400 mt-1">{getStepTitle()}</p>
+          </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
             <Icon name="x" size={18} />
           </button>
@@ -697,9 +737,9 @@ if (step < (serviceType === "taxi" ? 4 : 4)) {
                 loadingLocations={loadingLocations}
                 onClearInput={(field) => {
                   if (field === "pickupLocation") {
-                    setForm(prev => ({ ...prev, pickupLocation: "", pickupCoords: null }));
+                    setForm(prev => ({ ...prev, pickupLocation: "", pickupCoords: null, manualPickup: false }));
                   } else if (field === "dropoffLocation") {
-                    setForm(prev => ({ ...prev, dropoffLocation: "", dropoffCoords: null }));
+                    setForm(prev => ({ ...prev, dropoffLocation: "", dropoffCoords: null, manualDropoff: false }));
                   }
                   setDirections(null);
                   setRouteInfo(null);
@@ -747,9 +787,9 @@ if (step < (serviceType === "taxi" ? 4 : 4)) {
                 loadingLocations={loadingLocations}
                 onClearInput={(field) => {
                   if (field === "origin") {
-                    setForm(prev => ({ ...prev, origin: "", originCoords: null }));
+                    setForm(prev => ({ ...prev, origin: "", originCoords: null, manualOrigin: false }));
                   } else if (field === "dest") {
-                    setForm(prev => ({ ...prev, dest: "", destCoords: null }));
+                    setForm(prev => ({ ...prev, dest: "", destCoords: null, manualDest: false }));
                   }
                   setDirections(null);
                   setRouteInfo(null);
@@ -795,7 +835,6 @@ if (step < (serviceType === "taxi" ? 4 : 4)) {
                   type="button"
                   onClick={() => {
                     onClientSelectClick();
-                    //onClose();
                   }}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50"
                 >
@@ -1040,15 +1079,15 @@ if (step < (serviceType === "taxi" ? 4 : 4)) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-<h3 className="text-base font-bold text-slate-800 mb-1">
-               {editOrder ? "Pedido atualizado com sucesso!" : "Pedido enviado com sucesso!"}
-             </h3>
-             <p className="text-xs text-slate-500 mb-5">
-               {editOrder 
-                 ? "O seu pedido foi atualizado com sucesso."
-                 : "O seu pedido foi recebido e está a ser processado. Em breve receberá confirmação."
-               }
-             </p>
+            <h3 className="text-base font-bold text-slate-800 mb-1">
+              {editOrder ? "Pedido atualizado com sucesso!" : "Pedido enviado com sucesso!"}
+            </h3>
+            <p className="text-xs text-slate-500 mb-5">
+              {editOrder 
+                ? "O seu pedido foi atualizado com sucesso."
+                : "O seu pedido foi recebido e está a ser processado. Em breve receberá confirmação."
+              }
+            </p>
             <button
               onClick={() => {
                 setSubmitStatus('idle');
@@ -1060,7 +1099,7 @@ if (step < (serviceType === "taxi" ? 4 : 4)) {
                 setMapMarker(null);
                 setDirections(null);
                 setRouteInfo(null);
-                setSaving(false)
+                setSaving(false);
                 setForm({
                   origin: "",
                   originCoords: null,
@@ -1087,7 +1126,11 @@ if (step < (serviceType === "taxi" ? 4 : 4)) {
                   rideInstructions: "",
                   hasLuggage: false,
                   returnTrip: false,
-                  waitingTime: 0
+                  waitingTime: 0,
+                  manualOrigin: false,
+                  manualDest: false,
+                  manualPickup: false,
+                  manualDropoff: false
                 });
               }}
               className="w-full py-2.5 rounded-xl bg-green-500 text-white font-bold text-sm shadow-lg shadow-green-500/30 hover:bg-green-600 transition-colors"

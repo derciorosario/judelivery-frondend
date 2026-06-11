@@ -12,7 +12,6 @@ const Header = ({ user, onLogout, title, onNotificationClick }) => {
   const [showToast, setShowToast] = useState(false);
   const [lastMessage, setLastMessage] = useState(null);
   const timeoutRef = useRef(null);
-  const animationTimeoutRef = useRef(null);
   const audioRef = useRef(null);
   const { socket } = useSocket();
 
@@ -41,20 +40,8 @@ const Header = ({ user, onLogout, title, onNotificationClick }) => {
   };
 
   const triggerAnimation = () => {
-    // Clear any existing animation timeout
-    if (animationTimeoutRef.current) {
-      clearTimeout(animationTimeoutRef.current);
-    }
-    
     setIsAnimating(true);
-    animationTimeoutRef.current = setTimeout(() => setIsAnimating(false), 2000);
-  };
-
-  const stopAnimation = () => {
-    if (animationTimeoutRef.current) {
-      clearTimeout(animationTimeoutRef.current);
-    }
-    setIsAnimating(false);
+    setTimeout(() => setIsAnimating(false), 2000); // Animation lasts 2 seconds
   };
 
   const showNewMessageToast = (message) => {
@@ -67,29 +54,12 @@ const Header = ({ user, onLogout, title, onNotificationClick }) => {
     }, 3000);
   };
 
-  const handleNotificationClick = () => {
-    // Stop the animation when notification button is clicked
-    stopAnimation();
-    
-    // Call the original onNotificationClick prop
-    if (onNotificationClick) {
-      onNotificationClick();
-    }
-  };
-
   useEffect(() => {
     const handler = (e) => {
       const newCount = e.detail.count;
       const wasZero = unseenCount === 0;
       setUnseenCount(newCount);
-      
-      // Only animate if there are notifications (newCount > 0)
-      if (newCount > 0) {
-        triggerAnimation();
-      } else {
-        // Stop animation if count becomes 0
-        stopAnimation();
-      }
+      triggerAnimation();
       
       if (newCount > (unseenCount || 0)) {
         playNotificationSound();
@@ -105,12 +75,6 @@ const Header = ({ user, onLogout, title, onNotificationClick }) => {
       try {
         const { data } = await client.get('/notifications/unseen-count');
         setUnseenCount(data.count || 0);
-        // If initial count is 0, ensure no animation
-        if (data.count === 0 || !data.count) {
-          stopAnimation();
-        } else if (data.count > 0) {
-          triggerAnimation();
-        }
       } catch (err) {
         console.error('Failed to fetch unseen count:', err);
       }
@@ -126,14 +90,7 @@ const Header = ({ user, onLogout, title, onNotificationClick }) => {
     const handleUnseenCount = (count, message) => {
       const wasZero = unseenCount === 0;
       setUnseenCount(count);
-      
-      // Only animate if there are notifications (count > 0)
-      if (count > 0) {
-        triggerAnimation();
-      } else {
-        // Stop animation if count becomes 0
-        stopAnimation();
-      }
+      triggerAnimation();
       
       if (count > (unseenCount || 0)) {
         playNotificationSound();
@@ -151,18 +108,6 @@ const Header = ({ user, onLogout, title, onNotificationClick }) => {
     };
   }, [socket, unseenCount]);
 
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    return () => {
-      if (animationTimeoutRef.current) {
-        clearTimeout(animationTimeoutRef.current);
-      }
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
   if (!user) return null;
 
   return (
@@ -175,13 +120,20 @@ const Header = ({ user, onLogout, title, onNotificationClick }) => {
         <div className="flex items-center gap-2">
           <div className="relative">
             {/* Animated border container */}
-            <div className={`relative ${isAnimating ? 'animated-border' : ''}`}>
+            <div className={`relative ${isAnimating ? 'animate-border-run' : ''}`}>
               <button 
-                onClick={handleNotificationClick} 
-                className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 relative z-10"
+                onClick={onNotificationClick} 
+                className="relative w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 transition-all duration-300 z-10"
               >
                 <Icon name="bell" size={18} />
               </button>
+              
+              {/* Moving border gradient */}
+              {isAnimating && (
+                <div className="absolute inset-0 rounded-xl pointer-events-none">
+                  <div className="absolute inset-0 rounded-xl border-2 border-transparent bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-border-spin" />
+                </div>
+              )}
             </div>
             
             {unseenCount > 0 && (
@@ -208,60 +160,94 @@ const Header = ({ user, onLogout, title, onNotificationClick }) => {
       )}
 
       <style jsx>{`
-        /* Animated border that moves around */
-        .animated-border {
-          position: relative;
-          border-radius: 12px;
-        }
-        
-        .animated-border::before {
-          content: '';
-          position: absolute;
-          top: -2px;
-          left: -2px;
-          right: -2px;
-          bottom: -2px;
-          background: linear-gradient(
-            90deg,
-            #ff6b6b,
-            #ffd93d,
-            #6bcb77,
-            #4d96ff,
-            #ff6b6b
-          );
-          background-size: 300% 300%;
-          border-radius: 12px;
-          animation: borderRotate 2s linear infinite;
-          z-index: 0;
-        }
-        
-        .animated-border::after {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: white;
-          border-radius: 11px;
-          z-index: 0;
-        }
-        
-        button {
-          position: relative;
-          z-index: 1;
-        }
-        
-        @keyframes borderRotate {
+        @keyframes borderSpin {
           0% {
-            background-position: 0% 50%;
+            border-top-color: #3b82f6;
+            border-right-color: transparent;
+            border-bottom-color: transparent;
+            border-left-color: transparent;
+          }
+          25% {
+            border-top-color: #3b82f6;
+            border-right-color: #8b5cf6;
+            border-bottom-color: transparent;
+            border-left-color: transparent;
           }
           50% {
-            background-position: 100% 50%;
+            border-top-color: #3b82f6;
+            border-right-color: #8b5cf6;
+            border-bottom-color: #ec489a;
+            border-left-color: transparent;
+          }
+          75% {
+            border-top-color: #3b82f6;
+            border-right-color: #8b5cf6;
+            border-bottom-color: #ec489a;
+            border-left-color: #f59e0b;
           }
           100% {
-            background-position: 200% 50%;
+            border-top-color: #3b82f6;
+            border-right-color: #8b5cf6;
+            border-bottom-color: #ec489a;
+            border-left-color: #f59e0b;
           }
+        }
+
+        @keyframes borderRotate {
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
+          }
+        }
+
+        @keyframes dash {
+          to {
+            stroke-dashoffset: -200;
+          }
+        }
+
+        .animate-border-run {
+          animation: borderRotate 2s linear infinite;
+        }
+
+        .animate-border-spin {
+          animation: borderSpin 2s linear infinite;
+        }
+
+        /* Alternative: Conic gradient moving border */
+        .border-moving {
+          background: conic-gradient(
+            from 0deg,
+            #3b82f6,
+            #8b5cf6,
+            #ec489a,
+            #f59e0b,
+            #3b82f6
+          );
+          padding: 2px;
+          border-radius: 0.75rem;
+        }
+
+        .border-moving button {
+          background: white;
+          border-radius: 0.7rem;
+        }
+
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translate(-50%, -20px);
+          }
+          to {
+            opacity: 1;
+            transform: translate(-50%, 0);
+          }
+        }
+
+        .animate-slide-down {
+          animation: slideDown 0.3s ease-out;
         }
       `}</style>
     </>
