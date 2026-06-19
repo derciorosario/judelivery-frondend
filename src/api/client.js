@@ -271,6 +271,9 @@ export const changeProfilePassword = (data) => client.post('/profile/change-pass
 export const getDriverPerformance = () => client.get('/profile/driver/performance');
 export const getDriverReports = () => client.get('/profile/driver/reports');
 
+// Find available drivers for order assignment
+export const getAvailableDrivers = (params) => client.get('/drivers/available', { params });
+
 // ==================== CUSTOMERS API ====================
 
 // Get all customers

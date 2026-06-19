@@ -79,7 +79,10 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     manualOrigin: false,
     manualDest: false,
     manualPickup: false,
-    manualDropoff: false
+    manualDropoff: false,
+    // Driver assignment
+    driverId: null,
+    driverName: null
   });
   
   const calculateRealDistance = useCallback((coords1, coords2) => {
@@ -571,6 +574,14 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     setStep(step + 1);
   };
 
+  const handleDriverAssigned = (driver) => {
+    setForm(prev => ({
+      ...prev,
+      driverId: driver.id,
+      driverName: driver.name
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -594,11 +605,18 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
       const companyId = user?.companyId || customerData?.companyId || null;
       const resolvedClientId = clientId || user?.id || null;
       
+      // Determine status: if driver is assigned, use 'assigned', otherwise 'pending_approval'
+      const hasDriver = form.driverId;
+      const orderStatus = hasDriver 
+        ? (form.isScheduled || form.isScheduledRide ? "scheduled" : "assigned")
+        : (form.isScheduled || form.isScheduledRide ? "scheduled" : "pending_approval");
+      
       const orderPayload = serviceType === "taxi" ? {
         companyId,
         clientId: resolvedClientId,
         serviceType: "taxi",
-        status: form.isScheduledRide ? "scheduled" : "pending_approval",
+        status: orderStatus,
+        driverId: form.driverId,
         pickupLocation: form.pickupLocation,
         dropoffLocation: form.dropoffLocation,
         pickupCoords: form.pickupCoords,
@@ -621,7 +639,8 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
         companyId,
         clientId: resolvedClientId,
         serviceType: "delivery",
-        status: form.isScheduled ? "scheduled" : "pending_approval",
+        status: orderStatus,
+        driverId: form.driverId,
         origin: form.origin,
         dest: form.dest,
         originCoords: form.originCoords,
@@ -749,12 +768,13 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
             )}
             
             {step === 2 && serviceType === "taxi" && (
-              <DetailsStep
-                serviceType="taxi"
-                form={form}
-                onFormChange={setForm}
-              />
-            )}
+                          <DetailsStep
+                            serviceType="taxi"
+                            form={form}
+                            onFormChange={setForm}
+                            onDriverAssigned={handleDriverAssigned}
+                          />
+                        )}
             
             {step === 3 && serviceType === "taxi" && (
               <DetailsStep
@@ -799,14 +819,15 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
             )}
             
             {step === 3 && serviceType === "delivery" && (
-              <DetailsStep
-                serviceType="deliveryDetails"
-                form={form}
-                onFormChange={setForm}
-                getUrgencyLabel={getUrgencyLabel}
-                getUrgencyColor={getUrgencyColor}
-              />
-            )}
+               <DetailsStep
+                 serviceType="deliveryDetails"
+                 form={form}
+                 onFormChange={setForm}
+                 getUrgencyLabel={getUrgencyLabel}
+                 getUrgencyColor={getUrgencyColor}
+                 onDriverAssigned={handleDriverAssigned}
+               />
+             )}
             
             {step === 4 && (
               <SummaryStep

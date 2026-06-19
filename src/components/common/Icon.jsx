@@ -10,6 +10,7 @@ import {
   Check,
   X,
   Plus,
+  Minus,
   Eye,
   LogOut,
   AlertCircle,
@@ -60,7 +61,6 @@ import {
   Gift,
   TrendingUp,
   Clock as ClockIcon,
-  History,
   MapPin as MapPinIcon,
   CheckCircle,
   XCircle,
@@ -80,7 +80,10 @@ import {
   MailCheck,
   PlusCircle,
   Zap,
-  Headphones
+  Headphones,
+  Luggage,
+  Repeat,
+  History
 } from "lucide-react"
 
 
@@ -101,6 +104,7 @@ const Icon = ({ name, size = 20, className = "" }) => {
     check: Check,
     x: X,
     plus: Plus,
+    minus: Minus,
     zap: Zap,
     headphones: Headphones,
     PlusCircle:PlusCircle,
@@ -171,13 +175,15 @@ const Icon = ({ name, size = 20, className = "" }) => {
     whatsapp: MessageCircle,
     facebook: Facebook,
     twitter: Twitter,
-    mailCheck: MailCheck
+    mailCheck: MailCheck,
+    luggage: Luggage,
+    repeat: Repeat
   };
 
   const LucideIcon = icons[name];
   
   if (!LucideIcon) return null;
-  
+
   return <LucideIcon size={size} className={className} />;
 };
 

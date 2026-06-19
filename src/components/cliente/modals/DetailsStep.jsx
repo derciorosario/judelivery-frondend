@@ -1,6 +1,285 @@
+import { useState, useEffect, useRef } from "react";
 import Icon from "../../common/Icon";
+import { getAvailableDrivers } from "../../../api/client";
+import { useSocket } from "../../../contexts/SocketContext";
+import { toast } from "../../../lib/toast";
 
-const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrgencyColor }) => {
+const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrgencyColor, onDriverAssigned, onOrderStatusChange }) => {
+  const { socket } = useSocket();
+  const [searchingDriver, setSearchingDriver] = useState(false);
+  const [availableDrivers, setAvailableDrivers] = useState([]);
+  const [selectedDriver, setSelectedDriver] = useState(null);
+  const [searchProgress, setSearchProgress] = useState(0);
+  const searchIntervalRef = useRef(null);
+  const [orderCreated, setOrderCreated] = useState(false);
+  const [searchError, setSearchError] = useState(null);
+
+  // Calculate estimated duration based on distance and urgency
+  const getEstimatedDuration = () => {
+    if (serviceType === "taxi") {
+      return 30;
+    }
+    const baseDuration = 45;
+    if (form.urgencyLevel === "urgent") return 30;
+    if (form.urgencyLevel === "very_urgent") return 20;
+    return baseDuration;
+  };
+
+  // Get pickup coordinates based on service type
+  const getPickupCoords = () => {
+    if (serviceType === "taxi") {
+      return form.pickupCoords;
+    }
+    return form.originCoords;
+  };
+
+  // Get destination coordinates based on service type
+  const getDestCoords = () => {
+    if (serviceType === "taxi") {
+      return form.dropoffCoords;
+    }
+    return form.destCoords;
+  };
+
+  // Start searching for drivers
+  const startDriverSearch = async () => {
+    if (searchingDriver || orderCreated) return;
+    
+    setSearchingDriver(true);
+    setSearchProgress(0);
+    setAvailableDrivers([]);
+    setSelectedDriver(null);
+    setSearchError(null);
+
+    searchIntervalRef.current = setInterval(() => {
+      setSearchProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(searchIntervalRef.current);
+          return 100;
+        }
+        return prev + 5;
+      });
+    }, 200);
+
+    try {
+       // Map serviceType to what backend expects
+       const apiServiceType = serviceType === "taxi" ? "taxi" : "delivery";
+       const params = {
+         serviceType: apiServiceType,
+         originCoords: getPickupCoords() ? `${getPickupCoords().lat},${getPickupCoords().lng}` : undefined,
+         destCoords: getDestCoords() ? `${getDestCoords().lat},${getDestCoords().lng}` : undefined,
+         pickupCoords: form.pickupCoords ? `${form.pickupCoords.lat},${form.pickupCoords.lng}` : undefined,
+         dropoffCoords: form.dropoffCoords ? `${form.dropoffCoords.lat},${form.dropoffCoords.lng}` : undefined,
+         scheduledTime: form.isScheduled ? form.scheduledTime : form.isScheduledRide ? form.scheduledRideTime : undefined,
+         isScheduled: form.isScheduled || form.isScheduledRide,
+         estimatedDuration: getEstimatedDuration()
+       };
+
+      const response = await getAvailableDrivers(params);
+      setAvailableDrivers(response.data.drivers || []);
+      
+      if (response.data.drivers && response.data.drivers.length > 0) {
+        const closestDriver = response.data.drivers[0];
+        setSelectedDriver(closestDriver);
+        
+        if (onDriverAssigned) {
+          onDriverAssigned(closestDriver);
+        }
+      }
+    } catch (error) {
+      console.error("Error searching for drivers:", error);
+      if (error.response?.status === 403) {
+        setSearchError("Para procurar motoristas, é necessário estar autenticado. O seu pedido será atribuído após a criação.");
+      } else {
+        setSearchError("Erro ao procurar motoristas disponíveis");
+      }
+      if (error.response?.status !== 403) {
+        toast.error("Erro ao procurar motoristas disponíveis");
+      }
+    } finally {
+      clearInterval(searchIntervalRef.current);
+      setSearchProgress(100);
+      setTimeout(() => setSearchingDriver(false), 500);
+    }
+  };
+
+  // Handle driver selection
+  const handleDriverSelect = (driver) => {
+    setSelectedDriver(driver);
+    if (onDriverAssigned) {
+      onDriverAssigned(driver);
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (searchIntervalRef.current) {
+        clearInterval(searchIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Auto-start search when component mounts for delivery details step
+  useEffect(() => {
+    if (serviceType === "deliveryDetails" && !orderCreated) {
+      const timer = setTimeout(() => {
+        startDriverSearch();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [serviceType, form.originCoords, form.destCoords, form.pickupCoords, form.dropoffCoords, form.isScheduled, form.scheduledTime]);
+
+  // Auto-start search for taxi details step
+  useEffect(() => {
+    if (serviceType === "taxi" && !orderCreated) {
+      const timer = setTimeout(() => {
+        startDriverSearch();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [serviceType, form.pickupCoords, form.dropoffCoords, form.isScheduledRide, form.scheduledRideTime]);
+
+  // Socket listener for real-time driver updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDriverUpdate = (data) => {
+      if (searchingDriver) {
+        startDriverSearch();
+      }
+    };
+
+    socket.on('driver:status:updated', handleDriverUpdate);
+    socket.on('driver:location:updated', handleDriverUpdate);
+
+    return () => {
+      socket.off('driver:status:updated', handleDriverUpdate);
+      socket.off('driver:location:updated', handleDriverUpdate);
+    };
+  }, [socket, searchingDriver]);
+
+  // Render driver search UI
+  const renderDriverSearchUI = () => {
+    if (!searchingDriver && availableDrivers.length === 0 && !selectedDriver && !searchError) {
+      return null;
+    }
+
+    return (
+      <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+        {searchingDriver && (
+          <div className="mb-3">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="relative">
+                <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Icon name="truck" size={16} className="text-blue-500" />
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-800">A procurar motorista...</p>
+                <p className="text-xs text-slate-500">Encontrando o motorista mais próximo</p>
+              </div>
+            </div>
+            <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-300 ease-out"
+                style={{ width: `${searchProgress}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">{searchProgress}% concluído</p>
+          </div>
+        )}
+
+        {availableDrivers.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-slate-600 mb-2 flex items-center gap-1">
+              <Icon name="check" size={14} className="text-green-500" />
+              Motoristas disponíveis encontrados
+            </p>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {availableDrivers.map((driver) => (
+                <div
+                  key={driver.id}
+                  onClick={() => handleDriverSelect(driver)}
+                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                    selectedDriver?.id === driver.id
+                      ? "border-blue-500 bg-blue-50 shadow-md"
+                      : "border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/50"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Icon name="user" size={16} className="text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">{driver.name}</p>
+                        <p className="text-xs text-slate-500">{driver.vehicle} • {driver.licensePlate}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      {driver.distance !== null && (
+                        <p className="text-xs font-semibold text-blue-600">{driver.distance} km</p>
+                      )}
+                      {driver.eta && (
+                        <p className="text-[10px] text-slate-400">~{driver.eta} min</p>
+                      )}
+                    </div>
+                  </div>
+                  {driver.rating && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <Icon name="star" size={12} className="text-amber-400" />
+                      <span className="text-xs text-slate-600">{driver.rating}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {searchError && !searchingDriver && (
+          <div className="text-center py-4">
+            <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-2">
+              <Icon name="info" size={24} className="text-amber-500" />
+            </div>
+            <p className="text-sm font-semibold text-slate-800">Modo offline</p>
+            <p className="text-xs text-slate-500 mt-1">
+              {searchError}
+            </p>
+          </div>
+        )}
+
+        {!searchingDriver && availableDrivers.length === 0 && !selectedDriver && !searchError && (
+          <div className="text-center py-4">
+            <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-2">
+              <Icon name="alertTriangle" size={24} className="text-amber-500" />
+            </div>
+            <p className="text-sm font-semibold text-slate-800">Nenhum motorista disponível</p>
+            <p className="text-xs text-slate-500 mt-1">
+              O seu pedido ficará pendente e será atribuído assim que um motorista estiver disponível.
+            </p>
+          </div>
+        )}
+
+        {selectedDriver && !searchingDriver && (
+          <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                <Icon name="check" size={14} className="text-white" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-green-700">Motorista atribuído!</p>
+                <p className="text-xs text-green-600">{selectedDriver.name} está a caminho</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (serviceType === "taxi") {
     return (
       <div className="space-y-4">
@@ -100,6 +379,9 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
             <p className="text-xs text-blue-600">Corrida para agora mesmo</p>
           )}
         </div>
+        
+        {/* Driver Search UI - shown for taxi service type */}
+        {renderDriverSearchUI()}
       </div>
     );
   }
@@ -242,72 +524,37 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
             <span className="text-sm font-medium text-slate-700">Agendar entrega</span>
           </div>
           <button
-            type="button"
-            onClick={() => onFormChange({ ...form, isScheduled: !form.isScheduled })}
-            className={`w-12 h-6 rounded-full transition-colors ${form.isScheduled ? "bg-orange-500" : "bg-slate-300"}`}
-          >
-            <div className={`w-5 h-5 bg-white rounded-full transition-transform ${form.isScheduled ? "translate-x-6" : "translate-x-0.5"} mt-0.5`} />
-          </button>
-        </div>
-        
-        {form.isScheduled && (
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Data e Hora da Entrega *</label>
-            <input
-              type="datetime-local"
-              value={form.scheduledTime}
-              onChange={e => onFormChange({ ...form, scheduledTime: e.target.value })}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-              required={form.isScheduled}
-            />
-            <p className="text-xs text-green-600 mt-1">✓ Agendamento sem taxa adicional</p>
-          </div>
-        )}
-        
-        {!form.isScheduled && (
-          <div className="bg-green-50 rounded-xl p-3 border border-green-200">
-            <div className="flex items-center gap-2">
-              <Icon name="clock" size={16} className="text-green-500" />
-              <p className="text-xs text-green-700 font-medium">Entrega para agora mesmo</p>
-            </div>
-          </div>
-        )}
-      </div>
-      
-      <div>
-        <label className="block text-xs font-semibold text-slate-500 mb-1">Instruções para o motorista</label>
-        <textarea
-          value={form.instructions}
-          onChange={e => onFormChange({ ...form, instructions: e.target.value })}
-          placeholder="Ex: Portão azul, tocar campainha, interfone 45, ponto de referência..."
-          rows={3}
-          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
-        />
-      </div>
-      
-      {form.urgencyLevel !== "normal" && (
-        <div className={`rounded-xl p-3 border ${
-          form.urgencyLevel === "urgent" 
-            ? "bg-amber-50 border-amber-200" 
-            : "bg-red-50 border-red-200"
-        }`}>
-          <div className="flex items-start gap-2">
-            <Icon name={form.urgencyLevel === "urgent" ? "zap" : "alertTriangle"} size={16} className={form.urgencyLevel === "urgent" ? "text-amber-500" : "text-red-500"} />
-            <div>
-              <p className={`text-xs font-semibold ${form.urgencyLevel === "urgent" ? "text-amber-700" : "text-red-700"}`}>
-                {form.urgencyLevel === "urgent" ? "Entrega Urgente" : "Entrega Muito Urgente"}
-              </p>
-              <p className={`text-xs ${form.urgencyLevel === "urgent" ? "text-amber-600" : "text-red-600"} mt-0.5`}>
-                {form.urgencyLevel === "urgent" 
-                  ? "Taxa adicional de 10% para prioridade na entrega" 
-                  : "Taxa adicional de 30% para prioridade máxima - entrega em até 30min"}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+             type="button"
+             onClick={() => onFormChange({ ...form, isScheduled: !form.isScheduled })}
+             className={`w-12 h-6 rounded-full transition-colors ${form.isScheduled ? "bg-orange-500" : "bg-slate-300"}`}
+           >
+             <div className={`w-5 h-5 bg-white rounded-full transition-transform ${form.isScheduled ? "translate-x-6" : "translate-x-0.5"} mt-0.5`} />
+           </button>
+         </div>
+         
+         {form.isScheduled && (
+           <div>
+             <label className="block text-xs font-semibold text-slate-500 mb-1">Data e Hora *</label>
+             <input
+               type="datetime-local"
+               value={form.scheduledTime}
+               onChange={e => onFormChange({ ...form, scheduledTime: e.target.value })}
+               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+               required={form.isScheduled}
+             />
+             <p className="text-xs text-green-600 mt-1">✓ Agendamento sem taxa adicional</p>
+           </div>
+         )}
+         
+         {!form.isScheduled && (
+           <p className="text-xs text-blue-600">Entrega para agora mesmo</p>
+         )}
+       </div>
+       
+       {/* Driver Search UI - shown for delivery details service type */}
+       {renderDriverSearchUI()}
+     </div>
+   );
 };
 
 export default DetailsStep;
