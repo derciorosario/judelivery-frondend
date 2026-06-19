@@ -2,16 +2,18 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { MoreHorizontal } from "lucide-react";
 import Icon from "./Icon";
-import { getOrders, getCustomerOrders, getDriverOrders, getOrder, updateOrder, cancelOrder, deleteOrder } from "../../api/client";
+import { getOrders, getCustomerOrders, getDriverOrders, getOrder, updateOrder, cancelOrder, deleteOrder, createIncident, getOrderIncidents, updateIncidentWithFiles, deleteIncident } from "../../api/client";
 import { toast } from "../../lib/toast";
 import TrackOrderModal from "../cliente/modals/TrackOrderModal";
 import CreateOrderModal from "../cliente/modals/CreateOrderModal";
 import CancelOrderDialog from "./CancelOrderDialog";
 import ContactSupportModal from "./modals/ContactSupportModal";
+import Modal from "./Modal";
 import { useAuth } from "../../contexts/AuthContext";
 import AdminClientSelectModal from "../admin/AdminClientSelectModal";
 import NavigationModal from "../motorista/modals/NavigationModal";
 import OrderDetailModal from "../modals/OrderDetailModal";
+import { API_URL } from "../../api/client";
 
 const STATUS_LABELS = {
   pending_approval: "Pendente",
@@ -31,6 +33,12 @@ const STATUS_BADGE = {
   "Agendado": "bg-purple-100 text-purple-700",
   "Atribuído": "bg-indigo-100 text-indigo-700",
   "Pendente": "bg-amber-100 text-amber-700"
+};
+
+const INCIDENT_TYPE_LABELS = {
+  "accident": "Acidente",
+  "breakdown": "Avaria",
+  "delivery_issue": "Problema Entrega"
 };
 
 const toShortId = (id) => {
@@ -64,11 +72,26 @@ const OrdersList = ({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditOrder, setShowEditOrder] = useState(false);
   const [showClientSelect, setShowClientSelect] = useState(false);
-const [showNavigation, setShowNavigation] = useState(false);
-   const [showContactModal, setShowContactModal] = useState(false);
-   const [selectedClientForEdit, setSelectedClientForEdit] = useState(null);
+  const [showIncidentModal, setShowIncidentModal] = useState(false);
+  const [showIncidentList, setShowIncidentList] = useState(false);
+  const [showEditIncidentModal, setShowEditIncidentModal] = useState(false);
+  const [showDeleteIncidentModal, setShowDeleteIncidentModal] = useState(false);
+  const [selectedIncident, setSelectedIncident] = useState(null);
+  const [incidentForm, setIncidentForm] = useState({ type: "breakdown", title: "", description: "" });
+  const [submittingIncident, setSubmittingIncident] = useState(false);
+  const [orderIncidents, setOrderIncidents] = useState([]);
+  const [loadingIncidents, setLoadingIncidents] = useState(false);
+  const [showNavigation, setShowNavigation] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [selectedClientForEdit, setSelectedClientForEdit] = useState(null);
   const [updating, setUpdating] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState(null);
+  const [incidentPhotos, setIncidentPhotos] = useState([]);
+  const [incidentDocuments, setIncidentDocuments] = useState([]);
+  const [existingIncidentPhotos, setExistingIncidentPhotos] = useState([]);
+  const [existingIncidentDocuments, setExistingIncidentDocuments] = useState([]);
+  const [showPhotoViewer, setShowPhotoViewer] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
   const sentinelRef = useRef(null);
   const initialProcessed = useRef(false);
   const orderRefs = useRef({});
@@ -98,9 +121,6 @@ const [showNavigation, setShowNavigation] = useState(false);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
-
-
-  // Add this helper function near the top with other helpers
   const formatScheduledTime = (scheduledTime) => {
     if (!scheduledTime) return null;
     try {
@@ -139,7 +159,6 @@ const [showNavigation, setShowNavigation] = useState(false);
     }
   };
 
-
   const filterMap = useMemo(() => ({
     "Todos": null,
     "Em andamento": "in_transit,assigned,scheduled",
@@ -166,6 +185,10 @@ const [showNavigation, setShowNavigation] = useState(false);
   const getStatusBadge = (order) => {
     const displayStatus = backendToFrontend(order.status);
     return STATUS_BADGE[displayStatus] || "bg-slate-100 text-slate-700";
+  };
+
+  const getFileUrl = (filename) => {
+    return `${API_URL}/uploads/incidents/${filename}`.replace(`/api/`,'/');
   };
 
   const fetchOrders = useCallback(async (pageNum = 1, append = false) => {
@@ -235,9 +258,6 @@ const [showNavigation, setShowNavigation] = useState(false);
       }
     }
   }, [initialOrderId, orders, loading]);
-
-
-
 
   const fetchNextPage = useCallback(() => {
     if (!hasMore || loadingMore || loading) return;
@@ -371,6 +391,161 @@ const [showNavigation, setShowNavigation] = useState(false);
     setSelectedOrder(order);
     setShowContactModal(true);
     setMenuOpenId(null);
+  };
+
+  const handleReportIncident = async (order) => {
+    setSelectedOrder(order);
+    setLoadingIncidents(true);
+    setShowIncidentList(true);
+    try {
+      const res = await getOrderIncidents(order.id);
+      setOrderIncidents(res.data);
+    } catch (error) {
+      toast.error("Erro ao carregar incidentes");
+      setOrderIncidents([]);
+    } finally {
+      setLoadingIncidents(false);
+    }
+    setMenuOpenId(null);
+  };
+
+  const handleSubmitIncident = async (e) => {
+    e.preventDefault();
+    if (!incidentForm.title || !incidentForm.description || !selectedOrder) return;
+    setSubmittingIncident(true);
+    try {
+      const formData = new FormData();
+      formData.append("type", incidentForm.type);
+      formData.append("title", incidentForm.title);
+      formData.append("description", incidentForm.description);
+      formData.append("status", "pending");
+      formData.append("orderId", selectedOrder.id);
+      formData.append("driverId", selectedOrder.driverId || selectedOrder.driver?.id || "");
+      formData.append("date", new Date().toISOString().split('T')[0]);
+      formData.append("time", new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }));
+      
+      // Add photos and documents
+      incidentPhotos.forEach(photo => formData.append("photos", photo));
+      incidentDocuments.forEach(doc => formData.append("documents", doc));
+      
+      await createIncident(formData);
+      toast.success("Incidente reportado com sucesso");
+      setShowIncidentModal(false);
+      setIncidentPhotos([]);
+      setIncidentDocuments([]);
+      setIncidentForm({ type: "breakdown", title: "", description: "" });
+      
+      // Refresh incidents list
+      const res = await getOrderIncidents(selectedOrder.id);
+      setOrderIncidents(res.data);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Erro ao reportar incidente");
+    } finally {
+      setSubmittingIncident(false);
+    }
+  };
+
+  const handleEditIncident = (incident) => {
+    setSelectedIncident(incident);
+    setIncidentForm({
+      type: incident.type || "breakdown",
+      title: incident.title || "",
+      description: incident.description || ""
+    });
+    setExistingIncidentPhotos(incident.photos || []);
+    setExistingIncidentDocuments(incident.documents || []);
+    setIncidentPhotos([]);
+    setIncidentDocuments([]);
+    setShowEditIncidentModal(true);
+    setShowIncidentList(false);
+  };
+
+  const handleUpdateIncident = async (e) => {
+    e.preventDefault();
+    if (!incidentForm.title || !incidentForm.description || !selectedIncident) return;
+    setSubmittingIncident(true);
+    try {
+      const formData = new FormData();
+      formData.append("type", incidentForm.type);
+      formData.append("title", incidentForm.title);
+      formData.append("description", incidentForm.description);
+      formData.append("status", selectedIncident.status || "pending");
+      if (selectedOrder) {
+        formData.append("orderId", selectedOrder.id);
+      }
+      if (selectedIncident.driverId) {
+        formData.append("driverId", selectedIncident.driverId);
+      }
+      formData.append("date", selectedIncident.date || new Date().toISOString().split('T')[0]);
+      formData.append("time", selectedIncident.time || new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }));
+      
+      // Append existing files
+      formData.append("existingPhotos", JSON.stringify(existingIncidentPhotos));
+      formData.append("existingDocuments", JSON.stringify(existingIncidentDocuments));
+      
+      // Append new files
+      incidentPhotos.forEach(photo => formData.append("photos", photo));
+      incidentDocuments.forEach(doc => formData.append("documents", doc));
+      
+      await updateIncidentWithFiles(selectedIncident.id, formData);
+      toast.success("Incidente atualizado com sucesso");
+      setShowEditIncidentModal(false);
+      setSelectedIncident(null);
+      setIncidentPhotos([]);
+      setIncidentDocuments([]);
+      setExistingIncidentPhotos([]);
+      setExistingIncidentDocuments([]);
+      setIncidentForm({ type: "breakdown", title: "", description: "" });
+      
+      // Refresh incidents list
+      if (selectedOrder) {
+        const res = await getOrderIncidents(selectedOrder.id);
+        setOrderIncidents(res.data);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Erro ao atualizar incidente");
+    } finally {
+      setSubmittingIncident(false);
+    }
+  };
+
+  const handleDeleteIncident = async () => {
+    if (!selectedIncident) return;
+    try {
+      await deleteIncident(selectedIncident.id);
+      toast.success("Incidente removido com sucesso");
+      setShowDeleteIncidentModal(false);
+      setSelectedIncident(null);
+      
+      // Refresh incidents list
+      if (selectedOrder) {
+        const res = await getOrderIncidents(selectedOrder.id);
+        setOrderIncidents(res.data);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Erro ao remover incidente");
+    }
+  };
+
+  const openPhotoViewer = (photo) => {
+    setSelectedPhoto(photo);
+    setShowPhotoViewer(true);
+  };
+
+  const removeIncidentPhoto = (index) => {
+    setIncidentPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeIncidentDocument = (index) => {
+    setIncidentDocuments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeExistingIncidentPhoto = (photoToRemove) => {
+    setExistingIncidentPhotos(prev => prev.filter(p => p !== photoToRemove));
+  };
+
+  const removeExistingIncidentDocument = (docToRemove) => {
+    setExistingIncidentDocuments(prev => prev.filter(d => d !== docToRemove));
   };
 
   const visibleOrders = orders;
@@ -613,6 +788,17 @@ const [showNavigation, setShowNavigation] = useState(false);
                       <Icon name="phone" size={16} />
                     </button>
 
+                    {/* Report Incident button - for drivers */}
+                    {isDriver && (
+                      <button
+                        onClick={() => handleReportIncident(order)}
+                        className="flex items-center justify-center p-2 bg-red-100 text-red-600 font-semibold rounded-lg hover:bg-red-200"
+                        title="Incidentes"
+                      >
+                        <Icon name="alertTriangle" size={16} />
+                      </button>
+                    )}
+
 
                     {/* Details button - always visible */}
                     <button
@@ -789,7 +975,6 @@ const [showNavigation, setShowNavigation] = useState(false);
           onClose={() => {
             setShowCancelDialog(false);
             setSelectedOrder(null);
-            setRefreshKey(Math.random());
           }}
           onConfirm={handleCancelOrder}
           role={role}
@@ -889,6 +1074,438 @@ const [showNavigation, setShowNavigation] = useState(false);
           }}
           order={selectedOrder}
         />
+      )}
+
+      {/* Incident List Modal for Driver */}
+      {showIncidentList && (
+        <Modal isOpen={showIncidentList} onClose={() => { setShowIncidentList(false); setSelectedOrder(null); setOrderIncidents([]); }} title="Incidentes do Pedido">
+          <div className="space-y-4">
+            {loadingIncidents ? (
+              <div className="text-center py-6">
+                <div className="animate-spin w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                <p className="text-xs text-slate-500">A carregar...</p>
+              </div>
+            ) : orderIncidents.length === 0 ? (
+              <div className="text-center py-6">
+                <Icon name="alertTriangle" size={24} className="text-slate-300 mx-auto mb-2" />
+                <p className="text-sm text-slate-500">Nenhum incidente registado para este pedido</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {orderIncidents.map(inc => (
+                  <div key={inc.id} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${inc.type === 'accident' ? 'bg-red-100 text-red-700' : inc.type === 'breakdown' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {INCIDENT_TYPE_LABELS[inc.type] || inc.type}
+                      </span>
+                      <span className="text-xs text-slate-400">{inc.date} {inc.time}</span>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-800">{inc.title}</p>
+                    <p className="text-xs text-slate-500 line-clamp-2">{inc.description}</p>
+                    {inc.photos && inc.photos.length > 0 && (
+                      <div className="flex gap-1 mt-1">
+                        <Icon name="image" size={12} className="text-slate-400" />
+                        <span className="text-[10px] text-slate-400">{inc.photos.length} foto(s)</span>
+                      </div>
+                    )}
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => handleEditIncident(inc)}
+                        className="text-xs text-blue-500 font-medium hover:text-blue-600"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedIncident(inc);
+                          setShowDeleteIncidentModal(true);
+                        }}
+                        className="text-xs text-red-500 font-medium hover:text-red-600"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={() => { setShowIncidentList(false); setShowIncidentModal(true); }} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 flex items-center justify-center gap-2">
+                <Icon name="plus" size={14} /> Novo Incidente
+              </button>
+              <button type="button" onClick={() => { setShowIncidentList(false); setSelectedOrder(null); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
+                Fechar
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Report Incident Modal for Driver */}
+      {showIncidentModal && (
+        <Modal isOpen={showIncidentModal} onClose={() => { setShowIncidentModal(false); setSelectedOrder(null); setIncidentPhotos([]); setIncidentDocuments([]); setIncidentForm({ type: "breakdown", title: "", description: "" }); }} title="Reportar Incidente">
+          <form onSubmit={handleSubmitIncident} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Tipo de Incidente</label>
+              <select
+                value={incidentForm.type}
+                onChange={e => setIncidentForm({ ...incidentForm, type: e.target.value })}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+              >
+                <option value="accident">Acidente</option>
+                <option value="breakdown">Avaria</option>
+                <option value="delivery_issue">Problema Entrega</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Título</label>
+              <input
+                type="text"
+                value={incidentForm.title}
+                onChange={e => setIncidentForm({ ...incidentForm, title: e.target.value })}
+                placeholder="Ex: Pneu furado na EN1"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Descrição</label>
+              <textarea
+                value={incidentForm.description}
+                onChange={e => setIncidentForm({ ...incidentForm, description: e.target.value })}
+                placeholder="Descreva o incidente..."
+                rows={3}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+                required
+              />
+            </div>
+
+            {/* Photos */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-2">Fotos</label>
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                {incidentPhotos.map((photo, index) => (
+                  <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200 group">
+                    <img
+                      src={URL.createObjectURL(photo)}
+                      alt={photo.name}
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeIncidentPhoto(index)}
+                      className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-sm hover:bg-red-600 transition-colors shadow-lg z-10"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-slate-500 text-xs font-semibold cursor-pointer hover:border-orange-300 hover:text-orange-600 transition-colors">
+                <Icon name="camera" size={16} />
+                Adicionar Fotos
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => setIncidentPhotos(prev => [...prev, ...Array.from(e.target.files)])}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
+            {/* Documents */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-2">Documentos</label>
+              <div className="space-y-2 mb-2">
+                {incidentDocuments.map((doc, index) => (
+                  <div key={index} className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 border border-slate-200">
+                    <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                      <Icon name="file" size={18} className="text-red-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-slate-700 truncate">{doc.name}</p>
+                      <p className="text-[10px] text-slate-400">{(doc.size / 1024).toFixed(1)} KB</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeIncidentDocument(index)}
+                      className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 shrink-0"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-slate-500 text-xs font-semibold cursor-pointer hover:border-orange-300 hover:text-orange-600 transition-colors">
+                <Icon name="upload" size={16} />
+                Adicionar Documentos
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  multiple
+                  onChange={(e) => setIncidentDocuments(prev => [...prev, ...Array.from(e.target.files)])}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={() => { setShowIncidentModal(false); setSelectedOrder(null); setIncidentPhotos([]); setIncidentDocuments([]); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
+                Cancelar
+              </button>
+              <button type="submit" disabled={submittingIncident} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                {submittingIncident ? "A enviar..." : "Reportar"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Edit Incident Modal */}
+      {showEditIncidentModal && selectedIncident && (
+        <Modal isOpen={showEditIncidentModal} onClose={() => { setShowEditIncidentModal(false); setSelectedIncident(null); setIncidentPhotos([]); setIncidentDocuments([]); setExistingIncidentPhotos([]); setExistingIncidentDocuments([]); }} title="Editar Incidente">
+          <form onSubmit={handleUpdateIncident} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Tipo de Incidente</label>
+              <select
+                value={incidentForm.type}
+                onChange={e => setIncidentForm({ ...incidentForm, type: e.target.value })}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+              >
+                <option value="accident">Acidente</option>
+                <option value="breakdown">Avaria</option>
+                <option value="delivery_issue">Problema Entrega</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Título</label>
+              <input
+                type="text"
+                value={incidentForm.title}
+                onChange={e => setIncidentForm({ ...incidentForm, title: e.target.value })}
+                placeholder="Ex: Pneu furado na EN1"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Descrição</label>
+              <textarea
+                value={incidentForm.description}
+                onChange={e => setIncidentForm({ ...incidentForm, description: e.target.value })}
+                placeholder="Descreva o incidente..."
+                rows={3}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+                required
+              />
+            </div>
+
+            {/* Photos */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-2">Fotos</label>
+              
+              {/* Existing Photos */}
+              {existingIncidentPhotos.length > 0 && (
+                <div className="mb-2">
+                  <p className="text-[10px] text-slate-400 mb-1">Fotos existentes:</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {existingIncidentPhotos.map((photo, index) => (
+                      <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200 group">
+                        <img
+                          src={getFileUrl(photo)}
+                          alt={`Photo ${index + 1}`}
+                          className="w-full h-full object-cover cursor-pointer"
+                          onClick={() => openPhotoViewer(photo)}
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer" onClick={() => openPhotoViewer(photo)}>
+                          <Icon name="eye" size={20} className="text-white" />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeExistingIncidentPhoto(photo);
+                          }}
+                          className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-sm hover:bg-red-600 transition-colors shadow-lg z-10"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* New Photos */}
+              {incidentPhotos.length > 0 && (
+                <div className="mb-2">
+                  <p className="text-[10px] text-slate-400 mb-1">Novas fotos:</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {incidentPhotos.map((photo, index) => (
+                      <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200 group">
+                        <img
+                          src={URL.createObjectURL(photo)}
+                          alt={photo.name}
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeIncidentPhoto(index)}
+                          className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-sm hover:bg-red-600 transition-colors shadow-lg z-10"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-slate-500 text-xs font-semibold cursor-pointer hover:border-orange-300 hover:text-orange-600 transition-colors">
+                <Icon name="camera" size={16} />
+                Adicionar Fotos
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => setIncidentPhotos(prev => [...prev, ...Array.from(e.target.files)])}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
+            {/* Documents */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-2">Documentos</label>
+              
+              {/* Existing Documents */}
+              {existingIncidentDocuments.length > 0 && (
+                <div className="space-y-2 mb-2">
+                  <p className="text-[10px] text-slate-400 mb-1">Documentos existentes:</p>
+                  {existingIncidentDocuments.map((doc, index) => (
+                    <div key={index} className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 border border-slate-200">
+                      <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                        <Icon name="file" size={18} className="text-red-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-slate-700 truncate">{doc}</p>
+                      </div>
+                      <a
+                        href={getFileUrl(doc)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:text-blue-600 p-1"
+                      >
+                        <Icon name="eye" size={16} />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => removeExistingIncidentDocument(doc)}
+                        className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 shrink-0"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* New Documents */}
+              {incidentDocuments.length > 0 && (
+                <div className="space-y-2 mb-2">
+                  <p className="text-[10px] text-slate-400 mb-1">Novos documentos:</p>
+                  {incidentDocuments.map((doc, index) => (
+                    <div key={index} className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 border border-slate-200">
+                      <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                        <Icon name="file" size={18} className="text-red-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-slate-700 truncate">{doc.name}</p>
+                        <p className="text-[10px] text-slate-400">{(doc.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeIncidentDocument(index)}
+                        className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 shrink-0"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-slate-500 text-xs font-semibold cursor-pointer hover:border-orange-300 hover:text-orange-600 transition-colors">
+                <Icon name="upload" size={16} />
+                Adicionar Documentos
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  multiple
+                  onChange={(e) => setIncidentDocuments(prev => [...prev, ...Array.from(e.target.files)])}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={() => { setShowEditIncidentModal(false); setSelectedIncident(null); setIncidentPhotos([]); setIncidentDocuments([]); setExistingIncidentPhotos([]); setExistingIncidentDocuments([]); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
+                Cancelar
+              </button>
+              <button type="submit" disabled={submittingIncident} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                {submittingIncident ? "A atualizar..." : "Atualizar"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Delete Incident Confirmation Modal */}
+      {showDeleteIncidentModal && selectedIncident && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
+            <div className="text-center mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Icon name="alertTriangle" size={24} className="text-red-600" />
+              </div>
+              <h3 className="text-base font-bold text-slate-800">Remover Incidente</h3>
+              <p className="text-sm text-slate-500 mt-1">
+                Tem certeza que deseja remover este incidente? Esta ação não pode ser revertida.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => { setShowDeleteIncidentModal(false); setSelectedIncident(null); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
+                Cancelar
+              </button>
+              <button onClick={handleDeleteIncident} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-bold text-sm shadow-lg shadow-red-300 hover:bg-red-600">
+                Remover
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Photo Viewer Modal */}
+      {showPhotoViewer && selectedPhoto && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setShowPhotoViewer(false)}
+        >
+          <div className="relative max-w-4xl w-full max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setShowPhotoViewer(false)}
+              className="absolute -top-12 right-0 text-white hover:text-gray-300"
+            >
+              <Icon name="x" size={24} />
+            </button>
+            <img
+              src={getFileUrl(selectedPhoto)}
+              alt="Visualização"
+              className="w-full h-full object-contain rounded-lg"
+            />
+          </div>
+        </div>
       )}
     </div>
   );

@@ -6,7 +6,6 @@ import Header from "../common/Header";
 import OrdersList from "../common/OrdersList";
 import AdminHome from "./AdminHome";
 import AdminDrivers from "./AdminDrivers";
-import AdminProducts from "./AdminProducts";
 import AdminCustomers from "./AdminCustomers";
 import AdminIncidents from "./AdminIncidents";
 import AdminReports from "./AdminReports";
@@ -35,7 +34,6 @@ const AdminApp = () => {
     { id: "home", label: "Início", icon: "home", path: "/" },
     { id: "orders", label: "Pedidos", icon: "package", path: "/orders" },
     { id: "drivers", label: "Motoristas", icon: "users", path: "/drivers" },
-    { id: "products", label: "Produtos", icon: "shopping", path: "/products" },
     { id: "customers", label: "Clientes", icon: "user", path: "/customers" },
     { id: "managers", label: "Gestores", icon: "users", path: "/managers" },
     { id: "incidents", label: "Incidentes", icon: "alertTriangle", path: "/incidents" },
@@ -144,7 +142,6 @@ const AdminApp = () => {
         {activeTab === "drivers" && <AdminDrivers />}
         {activeTab === "managers" && <AdminManagers />}
         {activeTab === "requests" && <AdminRequests requests={customerRequests} onApprove={handleApproveRequest} onReject={handleRejectRequest} />}
-        {activeTab === "products" && <AdminProducts />}
         {activeTab === "customers" && <AdminCustomers />}
         {activeTab === "incidents" && <AdminIncidents />}
         {activeTab === "finance" && <AdminFinance />}

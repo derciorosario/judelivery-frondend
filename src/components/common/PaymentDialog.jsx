@@ -1,24 +1,30 @@
 // src/components/common/PaymentDialog.jsx
 import { useState, useEffect } from "react";
-import { CreditCard, Smartphone, Building, Info } from "lucide-react";
+import { CreditCard, Smartphone, Building, Info, Phone } from "lucide-react";
 import Modal from "./Modal";
+import { createPayment } from "../../api/client";
+import { toast } from "../../lib/toast";
 
 const PaymentDialog = ({ 
   isOpen, 
   onClose, 
   onConfirm, 
   orderTotal, 
+  orderId,
   isSubmitting, 
   role = "driver",
   defaultPaymentType = null,
   defaultPaymentMethod = null,
-  existingPaymentMethod = null
+  existingPaymentMethod = null,
+  onPaymentSuccess
 }) => {
   const [paymentMethod, setPaymentMethod] = useState(defaultPaymentMethod);
   const [paymentType, setPaymentType] = useState(defaultPaymentType);
   const [calculatedTotal, setCalculatedTotal] = useState(orderTotal);
   const [fee, setFee] = useState(0);
   const [feePercentage, setFeePercentage] = useState(0);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const directTransferOptions = [
     { id: "cash", name: "Dinheiro", number: "Pagar em dinheiro na entrega", holder: "Pague ao motorista" },
@@ -50,10 +56,10 @@ const PaymentDialog = ({
     if (paymentType === "online" && paymentMethod) {
       const selectedOption = onlinePaymentOptions.find(opt => opt.id === paymentMethod);
       if (selectedOption) {
-        const feeAmount = (orderTotal * selectedOption.fee) / 100;
+        const feeAmount = (parseFloat(orderTotal) * parseFloat(selectedOption.fee)) / 100;
         setFee(feeAmount);
-        setFeePercentage(selectedOption.fee);
-        setCalculatedTotal(orderTotal + feeAmount);
+        setFeePercentage(parseFloat(selectedOption.fee));
+        setCalculatedTotal(parseFloat(orderTotal) + parseFloat(feeAmount));
       } else {
         setFee(0);
         setFeePercentage(0);
@@ -66,30 +72,68 @@ const PaymentDialog = ({
     }
   }, [paymentType, paymentMethod, orderTotal]);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!paymentType) {
-      alert("Por favor, selecione um tipo de pagamento");
+      toast.error("Por favor, selecione um tipo de pagamento");
       return;
     }
     if (!paymentMethod) {
-      alert("Por favor, selecione um método de pagamento");
+      toast.error("Por favor, selecione um método de pagamento");
       return;
     }
-    
+
     // Map payment method to the correct format for the API
     let apiPaymentMethod = paymentMethod;
     if (paymentType === "direct" && paymentMethod === "bic") {
       apiPaymentMethod = "bank_transfer";
     }
-    
-    onConfirm({
-      paymentType,
-      paymentMethod: apiPaymentMethod,
-      totalWithFees: calculatedTotal,
-      originalTotal: orderTotal,
-      fee,
-      feePercentage
-    });
+
+    setIsProcessing(true);
+    try {
+      const paymentData = {
+        orderId,
+        paymentType,
+        paymentMethod: apiPaymentMethod,
+        amount: orderTotal,
+        fee,
+        feePercentage,
+        totalWithFees: calculatedTotal,
+        phoneNumber: paymentType === "online" && paymentMethod === "mpesa" ? phoneNumber : undefined
+      };
+
+      const response = await createPayment(paymentData);
+      
+      toast.success("Pagamento processado com sucesso!");
+      
+      if (onPaymentSuccess) {
+        onPaymentSuccess({
+          paymentType,
+          paymentMethod: apiPaymentMethod,
+          totalWithFees: calculatedTotal,
+          originalTotal: orderTotal,
+          fee,
+          feePercentage,
+          paymentId: response.data?.id,
+          status: response.data?.status
+        });
+      }
+      
+      if (onConfirm) {
+        onConfirm({
+          paymentType,
+          paymentMethod: apiPaymentMethod,
+          totalWithFees: calculatedTotal,
+          originalTotal: orderTotal,
+          fee,
+          feePercentage
+        });
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+      toast.error(error.response?.data?.message || "Erro ao processar pagamento");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const getRoleTitle = () => {
@@ -98,6 +142,8 @@ const PaymentDialog = ({
 
   // Show existing payment method info if present
   const showExistingPaymentInfo = existingPaymentMethod && !paymentType && !paymentMethod;
+
+  const isMpesaSelected = paymentType === "online" && paymentMethod === "mpesa";
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={getRoleTitle()} size="lg">
@@ -248,12 +294,34 @@ const PaymentDialog = ({
               })}
             </div>
             
-            {paymentMethod && (
+            {/* Phone number input for M-Pesa */}
+            {isMpesaSelected && (
+              <div className="mt-3">
+                <label className="block text-xs font-semibold text-slate-500 mb-2">Número de telefone M-Pesa</label>
+                <div className="relative">
+                  <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="84 123 4567"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Insira o número M-Pesa registado para receber o pedido de pagamento
+                </p>
+              </div>
+            )}
+            
+            {paymentMethod && !isMpesaSelected && (
               <div className="mt-3 p-2 bg-amber-50 rounded-lg border border-amber-100">
                 <div className="flex items-start gap-2">
                   <Info size={14} className="text-amber-500 mt-0.5" />
                   <p className="text-xs text-amber-700">
-                    💡 Simulação de pagamento online. Esta funcionalidade será implementada em breve.
+                    {paymentMethod === "emola" 
+                      ? "Será redirecionado para o E-Mola para completar o pagamento."
+                      : "Será redirecionado para o gateway de pagamento para completar o pagamento."}
                     O valor total inclui taxa de {onlinePaymentOptions.find(o => o.id === paymentMethod)?.fee}%.
                   </p>
                 </div>
@@ -276,17 +344,17 @@ const PaymentDialog = ({
         <div className="flex gap-3 pt-3 border-t border-slate-100">
           <button
             onClick={onClose}
-            disabled={isSubmitting}
+            disabled={isProcessing || isSubmitting}
             className="flex-1 py-2.5 rounded-lg border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors"
           >
             Cancelar
           </button>
           <button
             onClick={handleConfirm}
-            disabled={isSubmitting || !paymentType || !paymentMethod}
+            disabled={isProcessing || isSubmitting || !paymentType || !paymentMethod || (isMpesaSelected && !phoneNumber)}
             className="flex-1 py-2.5 rounded-lg bg-green-500 text-white font-semibold text-sm hover:bg-green-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
           >
-            {isSubmitting ? (
+            {isProcessing || isSubmitting ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 Processando...

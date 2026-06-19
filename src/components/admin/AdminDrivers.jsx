@@ -4,7 +4,7 @@ import Icon from "../common/Icon";
 import Modal from "../common/Modal";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { getDrivers, createDriver, updateDriver, deleteDriver, getDriverStatuses } from "../../api/client";
+import { getDrivers, createDriver, updateDriver, deleteDriver } from "../../api/client";
 import { toast } from "../../lib/toast";
 import ImageViewer from "../common/ImageViewer";
 import { useRef } from "react";
@@ -125,15 +125,15 @@ const FileUploadInput = ({ label, setViewerOpen, setSelectedImage, fieldName, fi
 };
 
 const AddDriverModal = ({ isOpen, onClose, onAdd }) => {
-  const [form, setForm] = useState({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "" });
-  const [files, setFiles] = useState({ profilePhoto: null, biCopy: null, driverLicenseCopy: null, vehicleRegistration: null, insuranceDocument: null });
+  const [form, setForm] = useState({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "", zone: "", admissionDate: "" });
+  const [files, setFiles] = useState({ profilePhoto: null, biCopy: null, driverLicenseCopy: null, vehicleRegistration: null, insuranceDocument: null, trainingCertificateCopy: null });
   const [autoGeneratePassword, setAutoGeneratePassword] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
-      setForm({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "" });
-      setFiles({ profilePhoto: null, biCopy: null, driverLicenseCopy: null, vehicleRegistration: null, insuranceDocument: null });
+      setForm({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "", zone: "", admissionDate: "" });
+      setFiles({ profilePhoto: null, biCopy: null, driverLicenseCopy: null, vehicleRegistration: null, insuranceDocument: null, trainingCertificateCopy: null });
       setAutoGeneratePassword(true);
     }
   }, [isOpen]);
@@ -160,6 +160,8 @@ const AddDriverModal = ({ isOpen, onClose, onAdd }) => {
     formData.append("birthDate", form.birthDate || "");
     formData.append("address", form.address || "");
     formData.append("emergencyContact", form.emergencyContact || "");
+    formData.append("zone", form.zone || "");
+    formData.append("admissionDate", form.admissionDate || "");
     if (!autoGeneratePassword && form.password) formData.append("password", form.password);
 
     Object.entries(files).forEach(([key, value]) => {
@@ -170,8 +172,8 @@ const AddDriverModal = ({ isOpen, onClose, onAdd }) => {
       const response = await createDriver(formData);
       onAdd(response.data);
       onClose();
-      setForm({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "" });
-      setFiles({ profilePhoto: null, biCopy: null, driverLicenseCopy: null, vehicleRegistration: null, insuranceDocument: null });
+      setForm({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "", zone: "", admissionDate: "" });
+      setFiles({ profilePhoto: null, biCopy: null, driverLicenseCopy: null, vehicleRegistration: null, insuranceDocument: null, trainingCertificateCopy: null });
       toast.success("Motorista criado com sucesso");
     } catch (error) {
       const message = error?.response?.data?.message || "Erro ao criar motorista";
@@ -227,17 +229,28 @@ const AddDriverModal = ({ isOpen, onClose, onAdd }) => {
           <label className="block text-xs font-semibold text-slate-500 mb-1">Data de Nascimento</label>
           <DatePicker selected={form.birthDate ? new Date(form.birthDate) : null} onChange={(date) => setForm({ ...form, birthDate: date ? date.toISOString().split("T")[0] : "" })} dateFormat="yyyy-MM-dd" placeholderText="Selecionar data" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
         </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Endereço</label>
-          <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Bairro, Rua, Nº" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-        </div>
-        <div className="border-t border-slate-200 pt-4">
+       <div>
+         <label className="block text-xs font-semibold text-slate-500 mb-1">Endereço</label>
+         <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Bairro, Rua, Nº" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+       </div>
+       <div className="grid grid-cols-2 gap-2">
+         <div>
+           <label className="block text-xs font-semibold text-slate-500 mb-1">Zona</label>
+           <input type="text" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} placeholder="Ex: Centro" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+         </div>
+         <div>
+           <label className="block text-xs font-semibold text-slate-500 mb-1">Data de Admissão</label>
+           <DatePicker selected={form.admissionDate ? new Date(form.admissionDate) : null} onChange={(date) => setForm({ ...form, admissionDate: date ? date.toISOString().split("T")[0] : "" })} dateFormat="yyyy-MM-dd" placeholderText="Selecionar data" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+         </div>
+       </div>
+       <div className="border-t border-slate-200 pt-4">
           <p className="text-xs font-semibold text-slate-500 mb-3">Documentos</p>
           <div className="space-y-3">
             <FileUploadInput label="Cópia do BI" fieldName="biCopy" file={files.biCopy} onFileChange={handleFileChange} onRemove={handleRemoveFile} />
             <FileUploadInput label="Carta de Condução" fieldName="driverLicenseCopy" file={files.driverLicenseCopy} onFileChange={handleFileChange} onRemove={handleRemoveFile} />
             <FileUploadInput label="Registo do Veículo" fieldName="vehicleRegistration" file={files.vehicleRegistration} onFileChange={handleFileChange} onRemove={handleRemoveFile} />
             <FileUploadInput label="Seguro" fieldName="insuranceDocument" file={files.insuranceDocument} onFileChange={handleFileChange} onRemove={handleRemoveFile} />
+            <FileUploadInput label="Certificado de Formação" fieldName="trainingCertificateCopy" file={files.trainingCertificateCopy} onFileChange={handleFileChange} onRemove={handleRemoveFile} />
           </div>
         </div>
         <div className="flex gap-2 pt-2">
@@ -255,16 +268,16 @@ const AddDriverModal = ({ isOpen, onClose, onAdd }) => {
 };
 
 const EditDriverModal = ({ isOpen, onClose, onEdit, driver, setSelectedImage, setViewerOpen }) => {
-  const [form, setForm] = useState({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "" });
-  const [files, setFiles] = useState({ profilePhoto: null, biCopy: null, driverLicenseCopy: null, vehicleRegistration: null, insuranceDocument: null });
-  const [filesToRemove, setFilesToRemove] = useState({ profilePhoto: false, biCopy: false, driverLicenseCopy: false, vehicleRegistration: false, insuranceDocument: false });
+ const [form, setForm] = useState({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "", zone: "", admissionDate: "" });
+ const [files, setFiles] = useState({ profilePhoto: null, biCopy: null, driverLicenseCopy: null, vehicleRegistration: null, insuranceDocument: null, trainingCertificateCopy: null });
+ const [filesToRemove, setFilesToRemove] = useState({ profilePhoto: false, biCopy: false, driverLicenseCopy: false, vehicleRegistration: false, insuranceDocument: false, trainingCertificateCopy: false });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
-      setForm({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "" });
-      setFiles({ profilePhoto: null, biCopy: null, driverLicenseCopy: null, vehicleRegistration: null, insuranceDocument: null });
-      setFilesToRemove({ profilePhoto: false, biCopy: false, driverLicenseCopy: false, vehicleRegistration: false, insuranceDocument: false });
+     setForm({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "", zone: "", admissionDate: "" });
+     setFiles({ profilePhoto: null, biCopy: null, driverLicenseCopy: null, vehicleRegistration: null, insuranceDocument: null, trainingCertificateCopy: null });
+     setFilesToRemove({ profilePhoto: false, biCopy: false, driverLicenseCopy: false, vehicleRegistration: false, insuranceDocument: false, trainingCertificateCopy: false });
     }
   }, [isOpen]);
 
@@ -278,9 +291,11 @@ const EditDriverModal = ({ isOpen, onClose, onEdit, driver, setSelectedImage, se
         licensePlate: driver.licensePlate || "",
         bi: driver.bi || "",
         birthDate: driver.birthDate || "",
-        address: driver.address || "",
-        emergencyContact: driver.emergencyContact || "",
-        password: "",
+       address: driver.address || "",
+       emergencyContact: driver.emergencyContact || "",
+       zone: driver.zone || "",
+       admissionDate: driver.admissionDate || "",
+       password: "",
       });
     }
   }, [driver, isOpen]);
@@ -313,6 +328,8 @@ const EditDriverModal = ({ isOpen, onClose, onEdit, driver, setSelectedImage, se
     formData.append("birthDate", form.birthDate || "");
     formData.append("address", form.address || "");
     formData.append("emergencyContact", form.emergencyContact || "");
+    formData.append("zone", form.zone || "");
+    formData.append("admissionDate", form.admissionDate || "");
     if (form.password) formData.append("password", form.password);
 
     Object.entries(files).forEach(([key, value]) => {
@@ -378,17 +395,28 @@ const EditDriverModal = ({ isOpen, onClose, onEdit, driver, setSelectedImage, se
           <label className="block text-xs font-semibold text-slate-500 mb-1">Data de Nascimento</label>
           <DatePicker selected={form.birthDate ? new Date(form.birthDate) : null} onChange={(date) => setForm({ ...form, birthDate: date ? date.toISOString().split("T")[0] : "" })} dateFormat="yyyy-MM-dd" placeholderText="Selecionar data" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
         </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Endereço</label>
-          <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Bairro, Rua, Nº" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-        </div>
-        <div className="border-t border-slate-200 pt-4">
+       <div>
+         <label className="block text-xs font-semibold text-slate-500 mb-1">Endereço</label>
+         <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Bairro, Rua, Nº" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+       </div>
+       <div className="grid grid-cols-2 gap-2">
+         <div>
+           <label className="block text-xs font-semibold text-slate-500 mb-1">Zona</label>
+           <input type="text" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} placeholder="Ex: Centro" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+         </div>
+         <div>
+           <label className="block text-xs font-semibold text-slate-500 mb-1">Data de Admissão</label>
+           <DatePicker selected={form.admissionDate ? new Date(form.admissionDate) : null} onChange={(date) => setForm({ ...form, admissionDate: date ? date.toISOString().split("T")[0] : "" })} dateFormat="yyyy-MM-dd" placeholderText="Selecionar data" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+         </div>
+       </div>
+       <div className="border-t border-slate-200 pt-4">
           <p className="text-xs font-semibold text-slate-500 mb-3">Documentos</p>
           <div className="space-y-3">
             <FileUploadInput label="Cópia do BI" fieldName="biCopy" file={files.biCopy} onFileChange={handleFileChange} onRemove={handleRemoveFile} existingUrl={driver.biCopyUrl} isRemoved={filesToRemove.biCopy} setSelectedImage={setSelectedImage} setViewerOpen={setViewerOpen} />
-            <FileUploadInput label="Carta de Condução" fieldName="driverLicenseCopy" file={files.driverLicenseCopy} onFileChange={handleFileChange} onRemove={handleRemoveFile} existingUrl={driver.driverLicenseCopyUrl} isRemoved={filesToRemove.driverLicenseCopy} setSelectedImage={setSelectedImage} setViewerOpen={setViewerOpen} />
-            <FileUploadInput label="Registo do Veículo" fieldName="vehicleRegistration" file={files.vehicleRegistration} onFileChange={handleFileChange} onRemove={handleRemoveFile} existingUrl={driver.vehicleRegistrationUrl} isRemoved={filesToRemove.vehicleRegistration} setSelectedImage={setSelectedImage} setViewerOpen={setViewerOpen} />
-            <FileUploadInput label="Seguro" fieldName="insuranceDocument" file={files.insuranceDocument} onFileChange={handleFileChange} onRemove={handleRemoveFile} existingUrl={driver.insuranceDocumentUrl} isRemoved={filesToRemove.insuranceDocument} setSelectedImage={setSelectedImage} setViewerOpen={setViewerOpen} />
+           <FileUploadInput label="Carta de Condução" fieldName="driverLicenseCopy" file={files.driverLicenseCopy} onFileChange={handleFileChange} onRemove={handleRemoveFile} existingUrl={driver.driverLicenseCopyUrl} isRemoved={filesToRemove.driverLicenseCopy} setSelectedImage={setSelectedImage} setViewerOpen={setViewerOpen} />
+           <FileUploadInput label="Registo do Veículo" fieldName="vehicleRegistration" file={files.vehicleRegistration} onFileChange={handleFileChange} onRemove={handleRemoveFile} existingUrl={driver.vehicleRegistrationUrl} isRemoved={filesToRemove.vehicleRegistration} setSelectedImage={setSelectedImage} setViewerOpen={setViewerOpen} />
+           <FileUploadInput label="Seguro" fieldName="insuranceDocument" file={files.insuranceDocument} onFileChange={handleFileChange} onRemove={handleRemoveFile} existingUrl={driver.insuranceDocumentUrl} isRemoved={filesToRemove.insuranceDocument} setSelectedImage={setSelectedImage} setViewerOpen={setViewerOpen} />
+           <FileUploadInput label="Certificado de Formação" fieldName="trainingCertificateCopy" file={files.trainingCertificateCopy} onFileChange={handleFileChange} onRemove={handleRemoveFile} existingUrl={driver.trainingCertificateCopyUrl} isRemoved={filesToRemove.trainingCertificateCopy} setSelectedImage={setSelectedImage} setViewerOpen={setViewerOpen} />
           </div>
         </div>
         <div className="flex gap-2 pt-2">

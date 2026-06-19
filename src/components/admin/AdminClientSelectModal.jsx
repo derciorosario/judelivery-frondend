@@ -44,7 +44,9 @@ const AdminClientSelectModal = ({ isOpen, onClose, onSelect, selectedClient }) =
       const formData = new FormData();
       formData.append("name", newName);
       formData.append("phone", newPhone);
-      formData.append("email", newEmail || `${newPhone}@temp.local`);
+      if (newEmail) {
+        formData.append("email", newEmail);
+      }
       const res = await createCustomer(formData);
       onSelect(res.data);
       onClose();
@@ -127,7 +129,7 @@ const AdminClientSelectModal = ({ isOpen, onClose, onSelect, selectedClient }) =
                   </div>
                   <button
                     onClick={() => onSelect(null)}
-                    className="p-1.5 hover:bg-orange-200 rounded-lg transition-colors"
+                    className="p-1.5 hover:bg-orange-200 hidden rounded-lg transition-colors"
                     title="Remover cliente"
                   >
                     <Icon name="x" size={16} className="text-orange-600" />

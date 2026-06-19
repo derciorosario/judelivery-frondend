@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
-import { CUSTOMER_ORDERS, CUSTOMERS } from "../../data/mockData";
 import BottomNav from "../common/BottomNav";
 import Header from "../common/Header";
 import OrdersList from "../common/OrdersList";
@@ -12,7 +11,11 @@ import FeedbackModal from "./modals/FeedbackModal";
 import SupportModal from "./modals/SupportModal";
 import ServiceSelectionModal from "./modals/ServiceSelectionModal";
 import Notifications from "../common/Notifications";
-import { createFeedback } from "../../api/client";
+import {
+  createFeedback,
+  getCustomerProfile,
+  getCustomerOrders
+} from "../../api/client";
 import { toast } from "../../lib/toast";
 import Icon from "../common/Icon";
 import OrderDetailModal from "../modals/OrderDetailModal";
@@ -31,6 +34,9 @@ const CustomerApp = () => {
   const [showSupport, setShowSupport] = useState(false);
   const [selectedServiceType, setSelectedServiceType] = useState(null);
   const [refreshData, setRefreshData] = useState(false);
+  const [customerProfile, setCustomerProfile] = useState(null);
+  const [customerOrders, setCustomerOrders] = useState([]);
+  const [profileLoading, setProfileLoading] = useState(true);
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -38,6 +44,27 @@ const CustomerApp = () => {
   useEffect(() => {
     if (refreshData) setRefreshData(false);
   }, [refreshData]);
+
+  const loadCustomerData = async () => {
+    if (!user?.id) return;
+    setProfileLoading(true);
+    try {
+      const [profileResponse, ordersResponse] = await Promise.all([
+        getCustomerProfile(),
+        getCustomerOrders({ limit: 50 })
+      ]);
+      setCustomerProfile(profileResponse.data);
+      setCustomerOrders(ordersResponse.data?.orders || ordersResponse.data || []);
+    } catch (error) {
+      console.error("Failed to load customer profile", error);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCustomerData();
+  }, [user, refreshData, shouldRefreshOrders]);
 
   useEffect(() => {
     const handleOpenOrder = (e) => {
@@ -78,26 +105,29 @@ const CustomerApp = () => {
     }
   };
 
-  const customerOrders = CUSTOMER_ORDERS.filter(o => o.clientId === user.id);
-  const activeOrder = customerOrders.find(o => o.statusCode === "in_progress" || o.status === "Em entrega");
-  const pendingOrders = customerOrders.filter(o => o.statusCode === "pending_approval" || o.status === "Pendente");
-  const completedOrders = customerOrders.filter(o => o.statusCode === "completed" || o.status === "Concluído");
-  
-  const customerData = CUSTOMERS.find(c => c.email === user.email) || {
-    id: user.id,
-    name: user.name,
-    phone: user.phone || "",
-    email: user.email,
-    orders: customerOrders.length,
-    rating: 4.8,
+  const activeOrder = customerOrders.find(o => ["in_transit", "assigned", "scheduled", "approved", "pending_approval"].includes(o.status));
+  const pendingOrders = customerOrders.filter(o => ["pending_approval", "approved", "scheduled"].includes(o.status));
+  const completedOrders = customerOrders.filter(o => o.status === "completed");
+
+  const customerData = {
+    id: customerProfile?.customer?.id || user?.id,
+    userId: user?.id,
+    name: customerProfile?.customer?.name || user?.name || "Cliente",
+    phone: customerProfile?.customer?.phone || user?.phone || "",
+    email: customerProfile?.customer?.email || user?.email || "",
+    orders: customerProfile?.stats?.deliveryCount || customerOrders.length,
+    rating: customerProfile?.customer?.rating || 4.8,
     frequent: true,
-    addresses: ["Av. Eduardo Mondlane 45, Maputo"],
-    defaultAddress: "Av. Eduardo Mondlane 45, Maputo"
+    addresses: customerProfile?.addresses?.map(a => a.fullAddress) || [],
+    defaultAddress: customerProfile?.addresses?.find(a => a.isDefault)?.fullAddress || customerProfile?.customer?.address || "",
+    addressesData: customerProfile?.addresses || [],
+    paymentMethods: customerProfile?.paymentMethods || [],
+    preference: customerProfile?.preference || null
   };
 
-  const totalSpent = customerOrders.reduce((sum, o) => sum + (o.totalValue || 0), 0);
-  const deliveryCount = customerOrders.length;
-  const completedCount = customerOrders.filter(o => o.statusCode === "completed" || o.status === "Concluído").length;
+  const totalSpent = customerProfile?.stats?.totalSpent || customerOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+  const deliveryCount = customerProfile?.stats?.deliveryCount || customerOrders.length;
+  const completedCount = customerProfile?.stats?.completedCount || completedOrders.length;
   const averageRating = customerData.rating || 4.5;
 
   const handleCreateOrder = (serviceType = null) => {
@@ -208,12 +238,18 @@ const CustomerApp = () => {
           />
         )}
         {activeTab === "profile" && (
-          <CustomerProfile
-            user={user}
-            customerData={customerData}
-            orders={customerOrders}
-            signOut={signOut}
-          />
+          profileLoading ? (
+            <div className="text-center py-10 text-sm text-slate-500">A carregar perfil...</div>
+          ) : (
+            <CustomerProfile
+              user={user}
+              customerData={customerData}
+              profileData={customerProfile}
+              orders={customerOrders}
+              signOut={signOut}
+              onProfileUpdated={loadCustomerData}
+            />
+          )
         )}
         {activeTab === "notifications" && (
           <Notifications />

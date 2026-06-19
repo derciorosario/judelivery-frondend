@@ -207,7 +207,7 @@ const Header = ({ user, onLogout, title, onNotificationClick }) => {
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         /* Animated border that moves around */
         .animated-border {
           position: relative;
@@ -248,7 +248,7 @@ const Header = ({ user, onLogout, title, onNotificationClick }) => {
         }
         
         button {
-          position: relative;
+          /*position: relative*/;
           z-index: 1;
         }
         

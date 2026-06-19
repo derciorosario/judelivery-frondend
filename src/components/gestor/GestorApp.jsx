@@ -6,7 +6,6 @@ import BottomNav from "../common/BottomNav";
 import Header from "../common/Header";
 import OrdersList from "../common/OrdersList";
 import AdminDrivers from "../admin/AdminDrivers";
-import AdminProducts from "../admin/AdminProducts";
 import AdminCustomers from "../admin/AdminCustomers";
 import AdminIncidents from "../admin/AdminIncidents";
 import AdminManagers from "../admin/AdminManagers";
@@ -15,7 +14,6 @@ import AdminClientSelectModal from "../admin/AdminClientSelectModal";
 import { AdminOrderDetailModal } from "../admin/AdminOrderDetailModal";
 import GestorHome from "./GestorHome";
 import GestorMap from "./GestorMap";
-import GestorRequests from "./GestorRequests";
 import Notifications from "../common/Notifications";
 import L from "leaflet";
 import OrderDetailModal from "../modals/OrderDetailModal";
@@ -46,8 +44,6 @@ const GestorApp = () => {
     { id: "map", label: "Mapa", icon: "map", path: "/map" },
     { id: "drivers", label: "Equipa", icon: "users", path: "/drivers" },
     { id: "managers", label: "Gestores", icon: "users", path: "/managers" },
-    { id: "products", label: "Produtos", icon: "shopping", path: "/products" },
-    { id: "requests", label: "Requisições", icon: "clipboard", path: "/requests" },
     { id: "customers", label: "Clientes", icon: "user", path: "/customers" },
     { id: "incidents", label: "Incidentes", icon: "alertTriangle", path: "/incidents" },
     { id: "notifications", label: "Notificações", icon: "bell", path: "/notifications" },
@@ -145,10 +141,8 @@ const GestorApp = () => {
         {activeTab === "map" && <GestorMap initialDriverId={selectedDriverForNotification} />}
         {activeTab === "drivers" && <AdminDrivers />}
         {activeTab === "managers" && <AdminManagers />}
-        {activeTab === "products" && <AdminProducts />}
         {activeTab === "customers" && <AdminCustomers />}
         {activeTab === "incidents" && <AdminIncidents />}
-        {activeTab === "requests" && <GestorRequests />}
         {activeTab === "notifications" && <Notifications />}
       </div>
       <BottomNav tabs={tabs} active={activeTab} setActive={setTab} />

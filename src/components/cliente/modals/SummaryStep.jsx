@@ -209,7 +209,7 @@ const SummaryStep = ({
         <div className="mt-2 pt-2 border-t border-orange-200">
           <div className="flex justify-between text-xs">
             <span className="text-slate-600">Taxa base:</span>
-            <span className="font-medium">{Math.round(price / (form.urgencyLevel === "urgent" ? 1.3 : form.urgencyLevel === "very_urgent" ? 1.6 : 1))} MZN</span>
+            <span className="font-medium text-black">{Math.round(price / (form.urgencyLevel === "urgent" ? 1.3 : form.urgencyLevel === "very_urgent" ? 1.6 : 1))} MZN</span>
           </div>
           {form.urgencyLevel === "urgent" && (
             <div className="flex justify-between text-xs">

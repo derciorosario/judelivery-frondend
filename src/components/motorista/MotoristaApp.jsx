@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getOrder, updateOrder } from "../../api/client";
+import { getOrder, updateOrder, getDriverProfile } from "../../api/client";
 import BottomNav from "../common/BottomNav";
 import Header from "../common/Header";
 import OrdersList from "../common/OrdersList";
@@ -22,6 +22,8 @@ const MotoristaApp = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [orderRefreshKey, setOrderRefreshKey] = useState(0);
+  const [driverProfile, setDriverProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },
@@ -96,6 +98,23 @@ const MotoristaApp = () => {
     }
   };
 
+  const loadDriverProfile = useCallback(async () => {
+    if (!user?.id) return;
+    setProfileLoading(true);
+    try {
+      const response = await getDriverProfile();
+      setDriverProfile(response.data);
+    } catch (err) {
+      console.error("Failed to load driver profile", err);
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadDriverProfile();
+  }, [loadDriverProfile]);
+
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto">
@@ -121,7 +140,13 @@ const MotoristaApp = () => {
           />
         )}
         {activeTab === "history" && <MotoristaHistory />}
-        {activeTab === "profile" && <MotoristaProfile user={user} />}
+        {activeTab === "profile" && (
+          profileLoading ? (
+            <div className="text-center py-10 text-sm text-slate-500">A carregar perfil...</div>
+          ) : (
+            <MotoristaProfile user={user} profileData={driverProfile} onProfileUpdated={loadDriverProfile} />
+          )
+        )}
         {activeTab === "notifications" && <Notifications />}
       </div>
       <BottomNav tabs={tabs} active={activeTab} setActive={setTab} />

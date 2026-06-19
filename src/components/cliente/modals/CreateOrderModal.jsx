@@ -7,17 +7,18 @@ import LocationStep from "./LocationStep";
 import DetailsStep from "./DetailsStep";
 import SummaryStep from "./SummaryStep";
 import { toast } from "../../../lib/toast";
+import { useAuth } from "../../../contexts/AuthContext";
 
 const GOOGLE_MAPS_KEY = "AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak";
 const MAPUTO_CENTER = { lat: -25.9653, lng: 32.5778 };
 const libraries = ["places"];
 
 const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated, onOrderUpdated, repeatOrder, editOrder, serviceType, clientId, onClientSelectClick, selectedClient }) => {
+  const {user:authUser} = useAuth()
   const { isLoaded, loadError } = useJsApiLoader({ 
     googleMapsApiKey: GOOGLE_MAPS_KEY,
     libraries 
   });
-  
   const [mapOpen, setMapOpen] = useState(false);
   const [routeMapOpen, setRouteMapOpen] = useState(false);
   const [mapTarget, setMapTarget] = useState(null);
@@ -698,7 +699,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
         </div>
         
         <div className="p-4">
-          {selectedClient && (
+          {(selectedClient && authUser?.role!="customer") && (
             <div className="mb-4 flex items-center justify-between rounded-xl border border-orange-200 bg-orange-50 px-3 py-2">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100">

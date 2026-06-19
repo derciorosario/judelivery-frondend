@@ -147,14 +147,16 @@ const AddCustomerModal = ({ isOpen, onClose, onAdd }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.phone || !form.email) return;
+    if (!form.name || !form.phone) return;
     
     setIsSubmitting(true);
     
     const formData = new FormData();
     formData.append('name', form.name);
     formData.append('phone', form.phone);
-    formData.append('email', form.email);
+    if (form.email) {
+      formData.append('email', form.email);
+    }
     formData.append('address', form.address || '');
     if (!autoGeneratePassword && form.password) {
       formData.append('password', form.password);
@@ -226,7 +228,6 @@ const AddCustomerModal = ({ isOpen, onClose, onAdd }) => {
             onChange={e => setForm({ ...form, email: e.target.value })}
             placeholder="email@exemplo.com"
             className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-            required
           />
         </div>
         
@@ -342,7 +343,9 @@ const EditCustomerModal = ({ isOpen, onClose, onEdit, customer, setSelectedImage
     const formData = new FormData();
     formData.append('name', form.name);
     formData.append('phone', form.phone);
-    formData.append('email', form.email);
+    if (form.email) {
+      formData.append('email', form.email);
+    }
     formData.append('address', form.address || '');
     if (form.password) formData.append('password', form.password);
     

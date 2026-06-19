@@ -1,5 +1,5 @@
 import axios from "axios";
-export const env = "pro";
+export const env = "dev";
 let isNative=false
 export const API_URL = 
   env == "dev" ? isNative ? "http://10.24.0.78:5000/api" : "http://localhost:5001/api" :
@@ -264,6 +264,13 @@ export const updateDriver = (id, formData) => uploadClient.put(`/drivers/${id}`,
 // Delete driver
 export const deleteDriver = (id) => client.delete(`/drivers/${id}`);
 
+// Driver profile
+export const getDriverProfile = () => client.get('/profile/driver');
+export const updateDriverProfile = (data) => client.put('/profile/driver', data);
+export const changeProfilePassword = (data) => client.post('/profile/change-password', data);
+export const getDriverPerformance = () => client.get('/profile/driver/performance');
+export const getDriverReports = () => client.get('/profile/driver/reports');
+
 // ==================== CUSTOMERS API ====================
 
 // Get all customers
@@ -280,6 +287,23 @@ export const updateCustomer = (id, formData) => uploadClient.put(`/customers/${i
 
 // Delete customer
 export const deleteCustomer = (id) => client.delete(`/customers/${id}`);
+
+// Customer profile
+export const getCustomerProfile = () => client.get('/profile/customer');
+export const updateCustomerProfile = (data) => client.put('/profile/customer', data);
+export const changeCustomerPassword = (data) => client.post('/profile/change-password', data);
+export const getCustomerAddresses = () => client.get('/profile/customer/addresses');
+export const createCustomerAddress = (data) => client.post('/profile/customer/addresses', data);
+export const updateCustomerAddress = (id, data) => client.put(`/profile/customer/addresses/${id}`, data);
+export const deleteCustomerAddress = (id) => client.delete(`/profile/customer/addresses/${id}`);
+export const getCustomerPaymentMethods = () => client.get('/profile/customer/payment-methods');
+export const createCustomerPaymentMethod = (data) => client.post('/profile/customer/payment-methods', data);
+export const updateCustomerPaymentMethod = (id, data) => client.put(`/profile/customer/payment-methods/${id}`, data);
+export const deleteCustomerPaymentMethod = (id) => client.delete(`/profile/customer/payment-methods/${id}`);
+export const getProfilePreferences = () => client.get('/profile/preferences');
+export const updateProfilePreferences = (data) => client.put('/profile/preferences', data);
+export const createSupportTicket = (data) => client.post('/profile/support-ticket', data);
+export const getSupportTickets = () => client.get('/profile/support-tickets');
 
 // ==================== ORDERS API ====================
 
@@ -309,6 +333,16 @@ export const updateFeedback = (id, data) => client.patch(`/feedbacks/${id}`, dat
 export const deleteFeedback = (id) => client.delete(`/feedbacks/${id}`);
 export const getDriverFeedbackStats = (driverId) => client.get(`/feedbacks/driver/${driverId}/stats`);
 
+// ==================== INCIDENTS API ====================
+
+export const getIncidents = (params) => client.get('/incidents', { params });
+export const getIncident = (id) => client.get(`/incidents/${id}`);
+export const getOrderIncidents = (orderId) => client.get(`/incidents/order/${orderId}`);
+export const createIncident = (formData) => uploadClient.post('/incidents', formData);
+export const updateIncident = (id, data) => client.put(`/incidents/${id}`, data);
+export const updateIncidentWithFiles = (id, formData) => uploadClient.put(`/incidents/${id}`, formData);
+export const deleteIncident = (id) => client.delete(`/incidents/${id}`);
+
 // ==================== NOTIFICATIONS API ====================
 
 export const getNotifications = (params) => client.get('/notifications', { params });
@@ -317,3 +351,25 @@ export const markAllNotificationsRead = () => client.patch('/notifications/read-
 export const getUnreadNotificationCount = () => client.get('/notifications/unread-count');
 export const deleteNotification = (id) => client.delete(`/notifications/${id}`);
 export const deleteNotifications = (ids) => client.post('/notifications/delete-many', { ids });
+
+// ==================== PAYMENTS API ====================
+
+export const createPayment = (data) => client.post('/payments', data);
+export const getPayment = (id) => client.get(`/payments/${id}`);
+export const getOrderPayments = (orderId) => client.get(`/payments/order/${orderId}`);
+export const getPayments = (params) => client.get('/payments', { params });
+
+// ==================== FINANCIAL API ====================
+
+export const getFinancialCategories = (params) => client.get('/financial/categories', { params });
+export const createFinancialCategory = (data) => client.post('/financial/categories', data);
+export const updateFinancialCategory = (id, data) => client.put(`/financial/categories/${id}`, data);
+export const deleteFinancialCategory = (id) => client.delete(`/financial/categories/${id}`);
+
+export const getFinancialTransactions = (params) => client.get('/financial/transactions', { params });
+export const getFinancialTransaction = (id) => client.get(`/financial/transactions/${id}`);
+export const createFinancialTransaction = (data) => client.post('/financial/transactions', data);
+export const updateFinancialTransaction = (id, data) => client.put(`/financial/transactions/${id}`, data);
+export const deleteFinancialTransaction = (id) => client.delete(`/financial/transactions/${id}`);
+export const markTransactionAsPaid = (id) => client.patch(`/financial/transactions/${id}/mark-paid`);
+export const getFinancialStats = (params) => client.get('/financial/stats', { params });
