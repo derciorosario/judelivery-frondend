@@ -233,6 +233,10 @@ export default client;
 // Get admin dashboard
 export const getAdminDashboard = () => client.get('/admin/dashboard');
 
+// Get/update platform settings from the Admin Settings page only
+export const getPlatformSettings = () => client.get('/settings');
+export const updatePlatformSettings = (settings) => client.put('/settings', { settings });
+
 // ==================== MANAGERS API ====================
 
 // Get all managers

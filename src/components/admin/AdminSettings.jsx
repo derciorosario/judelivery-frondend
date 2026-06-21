@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Icon from "../common/Icon";
+import { getPlatformSettings, updatePlatformSettings } from "../../api/client";
 
 const orderStatuses = [
   { value: "pending_approval", label: "Pendente" },
@@ -83,7 +84,104 @@ const defaultSettings = {
   },
 };
 
-const cloneSettings = () => JSON.parse(JSON.stringify(defaultSettings));
+const cloneSettings = (value = defaultSettings) => JSON.parse(JSON.stringify(value));
+
+const mergeSettings = (base, override = {}) => {
+  const merged = cloneSettings(base);
+
+  Object.keys(override || {}).forEach((section) => {
+    const overrideSection = override[section];
+    if (!overrideSection || typeof overrideSection !== "object" || Array.isArray(overrideSection)) {
+      merged[section] = cloneSettings(overrideSection);
+      return;
+    }
+
+    if (!merged[section] || typeof merged[section] !== "object" || Array.isArray(merged[section])) {
+      merged[section] = {};
+    }
+
+    Object.keys(overrideSection).forEach((key) => {
+      const value = overrideSection[key];
+      if (Array.isArray(value)) {
+        merged[section][key] = value.map((item) => (item && typeof item === "object" ? { ...item } : item));
+      } else if (value && typeof value === "object") {
+        merged[section][key] = { ...value };
+      } else {
+        merged[section][key] = value;
+      }
+    });
+  });
+
+  return merged;
+};
+
+const numberFields = {
+  order: ["maxDistanceKm", "maxWaitingTimeMinutes"],
+  pricing: [
+    "deliveryBasePrice",
+    "deliveryPerKm",
+    "urgentMultiplier",
+    "veryUrgentMultiplier",
+    "taxiBasePrice",
+    "taxiPerKm",
+    "returnTripFee",
+    "waitingFeePerMinute",
+    "luggageFee",
+    "extraPassengerThreshold",
+    "extraPassengerFee",
+  ],
+  drivers: ["maxActiveOrdersPerDriver", "maxDistanceFromPickupKm"],
+};
+
+const toNumber = (value, fallback) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+};
+
+const normalizeSettingsForSave = (settings) => {
+  const normalized = cloneSettings(settings);
+
+  Object.keys(numberFields).forEach((section) => {
+    numberFields[section].forEach((field) => {
+      normalized[section][field] = toNumber(normalized[section][field], defaultSettings[section][field]);
+    });
+  });
+
+  normalized.payments.methods = normalized.payments.methods.map((method) => ({
+    id: String(method.id || method.code).trim(),
+    code: String(method.code || method.id).trim(),
+    name: String(method.name || "").trim(),
+    enabled: Boolean(method.enabled),
+    primary: Boolean(method.primary),
+    instructions: String(method.instructions || "").trim(),
+  }));
+
+  return normalized;
+};
+
+const validateSettings = (settings) => {
+  const errors = [];
+
+  Object.keys(numberFields).forEach((section) => {
+    numberFields[section].forEach((field) => {
+      const value = Number(settings[section]?.[field]);
+      if (!Number.isFinite(value) || String(settings[section]?.[field]).trim() === "") {
+        errors.push(`${section}.${field} deve ser um número válido`);
+      }
+    });
+  });
+
+  if (!settings.payments?.methods?.length) {
+    errors.push("Adicione pelo menos um método de pagamento");
+  }
+
+  settings.payments?.methods?.forEach((method) => {
+    if (!String(method.code || "").trim()) errors.push("Todos os métodos de pagamento precisam de código");
+    if (!String(method.name || "").trim()) errors.push("Todos os métodos de pagamento precisam de nome");
+  });
+
+  return errors;
+};
 
 const SectionCard = ({ icon, title, description, children }) => (
   <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
@@ -108,11 +206,14 @@ const Field = ({ label, hint, children }) => (
   </label>
 );
 
-const SwitchField = ({ checked, onChange, label, hint }) => (
+const SwitchField = ({ checked, onChange, label, hint, disabled }) => (
   <button
     type="button"
-    onClick={() => onChange(!checked)}
-    className="w-full flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-left hover:bg-slate-100"
+    onClick={() => !disabled && onChange(!checked)}
+    disabled={disabled}
+    className={`w-full flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-left transition ${
+      disabled ? "cursor-not-allowed opacity-60" : "hover:bg-slate-100"
+    }`}
   >
     <span>
       <span className="block text-xs font-semibold text-slate-700">{label}</span>
@@ -142,7 +243,10 @@ const AdminSettings = () => {
   const [activeTab, setActiveTab] = useState("orders");
   const [notice, setNotice] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [newPayment, setNewPayment] = useState({ code: "", name: "", instructions: "" });
+  const disabled = loading || saving;
 
   const tabs = [
     { id: "orders", label: "Pedidos", icon: "package" },
@@ -151,21 +255,50 @@ const AdminSettings = () => {
     { id: "app", label: "App", icon: "settings" },
   ];
 
-  const money = new Intl.NumberFormat("pt-MZ", {
-    style: "currency",
-    currency: settings.app.currency,
-  });
+  const formatMoney = (amount) => {
+    try {
+      return new Intl.NumberFormat("pt-MZ", {
+        style: "currency",
+        currency: settings.app.currency || "MZN",
+      }).format(Number(amount) || 0);
+    } catch {
+      return `${Number(amount) || 0} ${settings.app.currency || "MZN"}`;
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchSettings = async () => {
+      setLoading(true);
+      setNotice("");
+
+      try {
+        const { data } = await getPlatformSettings();
+        if (!mounted) return;
+
+        setSettings(mergeSettings(defaultSettings, data.settings));
+        setLastSavedAt(data.updatedAt ? new Date(data.updatedAt) : null);
+        setNotice(data.updatedAt ? "Configurações carregadas do backend." : "Configurações padrão carregadas do backend.");
+      } catch (error) {
+        if (mounted) {
+          setNotice(error?.response?.data?.message || "Não foi possível carregar as configurações do backend.");
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchSettings();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const update = (section, key, value) => {
     setSettings((previous) => ({ ...previous, [section]: { ...previous[section], [key]: value } }));
-    setNotice("");
-  };
-
-  const updateNested = (section, key, nestedKey, value) => {
-    setSettings((previous) => ({
-      ...previous,
-      [section]: { ...previous[section], [key]: { ...previous[section][key], [nestedKey]: value } },
-    }));
     setNotice("");
   };
 
@@ -181,6 +314,8 @@ const AdminSettings = () => {
   };
 
   const addPayment = () => {
+    if (disabled) return;
+
     const code = newPayment.code.trim().toLowerCase();
     const name = newPayment.name.trim();
 
@@ -212,10 +347,12 @@ const AdminSettings = () => {
       },
     }));
     setNewPayment({ code: "", name: "", instructions: "" });
-    setNotice("Método adicionado apenas no formulário frontend.");
+    setNotice("Método adicionado ao formulário. Clique em Guardar para persistir no backend.");
   };
 
   const removePayment = (id) => {
+    if (disabled) return;
+
     setSettings((previous) => ({
       ...previous,
       payments: { ...previous.payments, methods: previous.payments.methods.filter((method) => method.id !== id) },
@@ -223,20 +360,40 @@ const AdminSettings = () => {
     setNotice("");
   };
 
-  const saveFrontend = () => {
-    setLastSavedAt(new Date());
-    setNotice("Alterações guardadas no ecrã. Nenhuma chamada ao backend foi feita.");
+  const saveSettings = async () => {
+    if (saving) return;
+
+    const errors = validateSettings(settings);
+    if (errors.length) {
+      setNotice(errors[0]);
+      return;
+    }
+
+    setSaving(true);
+    setNotice("");
+
+    try {
+      const { data } = await updatePlatformSettings(normalizeSettingsForSave(settings));
+      setSettings(mergeSettings(defaultSettings, data.settings));
+      setLastSavedAt(data.updatedAt ? new Date(data.updatedAt) : new Date());
+      setNotice("Configurações guardadas com sucesso no backend.");
+    } catch (error) {
+      setNotice(error?.response?.data?.message || "Não foi possível guardar as configurações no backend.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const resetFrontend = () => {
+    if (disabled) return;
+
     setSettings(cloneSettings());
     setNewPayment({ code: "", name: "", instructions: "" });
-    setNotice("Configurações restauradas para o modelo frontend.");
-    setLastSavedAt(null);
+    setNotice("Predefinições carregadas. Clique em Guardar para substituir as configurações do backend.");
   };
 
-  const deliveryPreview = money.format(Number(settings.pricing.deliveryBasePrice) + 5 * Number(settings.pricing.deliveryPerKm));
-  const taxiPreview = money.format(Number(settings.pricing.taxiBasePrice) + 5 * Number(settings.pricing.taxiPerKm));
+  const deliveryPreview = formatMoney(Number(settings.pricing.deliveryBasePrice) + 5 * Number(settings.pricing.deliveryPerKm));
+  const taxiPreview = formatMoney(Number(settings.pricing.taxiBasePrice) + 5 * Number(settings.pricing.taxiPerKm));
   const enabledPayments = settings.payments.methods.filter((method) => method.enabled).length;
 
   return (
@@ -247,14 +404,14 @@ const AdminSettings = () => {
             <div>
               <p className="text-xs font-semibold opacity-80 uppercase tracking-wider">Admin · Configurações</p>
               <h1 className="mt-1 text-2xl font-black">Configurações da Plataforma</h1>
-              <p className="mt-2 text-sm opacity-90">Gestão frontend de pedidos, pagamentos, preços e preferências da aplicação.</p>
+              <p className="mt-2 text-sm opacity-90">Gestão de pedidos, pagamentos, preços e preferências da aplicação.</p>
             </div>
             <div className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center">
               <Icon name="settings" size={22} />
             </div>
           </div>
           <div className="mt-4 rounded-2xl bg-white/15 p-3 text-xs text-white/90">
-            Página standalone. Não está conectada a outras páginas, não chama API e não altera o backend.
+            Página standalone para actualizar preferências da plataforma. Ainda não é consumida por outras páginas.
           </div>
         </div>
 
@@ -277,7 +434,7 @@ const AdminSettings = () => {
         {notice && <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-xs font-medium text-orange-700">{notice}</div>}
         {lastSavedAt && (
           <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-xs text-green-700">
-            Última acção frontend: {lastSavedAt.toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
+            Última acção no backend: {lastSavedAt.toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
           </div>
         )}
 
@@ -285,8 +442,8 @@ const AdminSettings = () => {
           <div className="space-y-4">
             <SectionCard icon="package" title="Tipos e fluxo de pedidos" description="Controlo visual dos serviços e estados usados pelo CreateOrderModal.">
               <div className="grid grid-cols-2 gap-3">
-                <SwitchField checked={settings.order.allowDelivery} onChange={(value) => update("order", "allowDelivery", value)} label="Entregas" hint="Permitir pedidos de entrega" />
-                <SwitchField checked={settings.order.allowTaxi} onChange={(value) => update("order", "allowTaxi", value)} label="Táxis" hint="Permitir corridas" />
+                <SwitchField checked={settings.order.allowDelivery} onChange={(value) => update("order", "allowDelivery", value)} label="Entregas" hint="Permitir pedidos de entrega" disabled={disabled} />
+                <SwitchField checked={settings.order.allowTaxi} onChange={(value) => update("order", "allowTaxi", value)} label="Táxis" hint="Permitir corridas" disabled={disabled} />
               </div>
               <div className="grid grid-cols-2 gap-3 mt-4">
                 <Field label="Serviço padrão">
@@ -302,19 +459,19 @@ const AdminSettings = () => {
                 </Field>
               </div>
               <div className="grid grid-cols-2 gap-3 mt-4">
-                <SwitchField checked={settings.order.allowManualAddressInput} onChange={(value) => update("order", "allowManualAddressInput", value)} label="Endereço manual" hint="Permitir sem coordenadas" />
-                <SwitchField checked={settings.order.requireCoordinates} onChange={(value) => update("order", "requireCoordinates", value)} label="Exigir coordenadas" hint="Quando não for manual" />
-                <SwitchField checked={settings.order.allowScheduledOrders} onChange={(value) => update("order", "allowScheduledOrders", value)} label="Agendados" hint="Permitir hora futura" />
-                <SwitchField checked={settings.order.allowRepeatingOrders} onChange={(value) => update("order", "allowRepeatingOrders", value)} label="Repetir pedido" hint="Criar a partir do histórico" />
+                <SwitchField checked={settings.order.allowManualAddressInput} onChange={(value) => update("order", "allowManualAddressInput", value)} label="Endereço manual" hint="Permitir sem coordenadas" disabled={disabled} />
+                <SwitchField checked={settings.order.requireCoordinates} onChange={(value) => update("order", "requireCoordinates", value)} label="Exigir coordenadas" hint="Quando não for manual" disabled={disabled} />
+                <SwitchField checked={settings.order.allowScheduledOrders} onChange={(value) => update("order", "allowScheduledOrders", value)} label="Agendados" hint="Permitir hora futura" disabled={disabled} />
+                <SwitchField checked={settings.order.allowRepeatingOrders} onChange={(value) => update("order", "allowRepeatingOrders", value)} label="Repetir pedido" hint="Criar a partir do histórico" disabled={disabled} />
               </div>
             </SectionCard>
 
             <SectionCard icon="users" title="Motoristas e cancelamento" description="Preferências de atribuição e permissões do ciclo do pedido.">
               <div className="grid grid-cols-2 gap-3">
-                <SwitchField checked={settings.order.autoAssignDriver} onChange={(value) => update("order", "autoAssignDriver", value)} label="Auto atribuir" hint="Atribuir motorista automaticamente" />
-                <SwitchField checked={settings.order.requireDriverConfirmation} onChange={(value) => update("order", "requireDriverConfirmation", value)} label="Confirmação" hint="Exigir aceite do motorista" />
-                <SwitchField checked={settings.order.customerCanCancel} onChange={(value) => update("order", "customerCanCancel", value)} label="Cliente cancela" hint="Permitir cancelamento do cliente" />
-                <SwitchField checked={settings.order.adminCanCancel} onChange={(value) => update("order", "adminCanCancel", value)} label="Admin cancela" hint="Permitir cancelamento pelo admin" />
+                <SwitchField checked={settings.order.autoAssignDriver} onChange={(value) => update("order", "autoAssignDriver", value)} label="Auto atribuir" hint="Atribuir motorista automaticamente" disabled={disabled} />
+                <SwitchField checked={settings.order.requireDriverConfirmation} onChange={(value) => update("order", "requireDriverConfirmation", value)} label="Confirmação" hint="Exigir aceite do motorista" disabled={disabled} />
+                <SwitchField checked={settings.order.customerCanCancel} onChange={(value) => update("order", "customerCanCancel", value)} label="Cliente cancela" hint="Permitir cancelamento do cliente" disabled={disabled} />
+                <SwitchField checked={settings.order.adminCanCancel} onChange={(value) => update("order", "adminCanCancel", value)} label="Admin cancela" hint="Permitir cancelamento pelo admin" disabled={disabled} />
               </div>
               <div className="grid grid-cols-2 gap-3 mt-4">
                 <Field label="Distância máxima" hint="km">
@@ -403,14 +560,14 @@ const AdminSettings = () => {
           <div className="space-y-4">
             <SectionCard icon="creditCard" title="Regras de pagamento" description="Preferências gerais para pagamentos de pedidos e corridas.">
               <div className="grid grid-cols-2 gap-3">
-                <SwitchField checked={settings.payments.requirePaymentBeforeAssignment} onChange={(value) => update("payments", "requirePaymentBeforeAssignment", value)} label="Pagamento antes da atribuição" hint="Exigir confirmação inicial" />
-                <SwitchField checked={settings.payments.paymentConfirmationRequired} onChange={(value) => update("payments", "paymentConfirmationRequired", value)} label="Confirmar pagamento" hint="Admin/cliente confirma" />
-                <SwitchField checked={settings.payments.showPaymentDialog} onChange={(value) => update("payments", "showPaymentDialog", value)} label="Mostrar diálogo" hint="No resumo do pedido" />
-                <SwitchField checked={settings.payments.allowCashForScheduledOrders} onChange={(value) => update("payments", "allowCashForScheduledOrders", value)} label="Dinheiro em agendados" hint="Permitir cash" />
+                <SwitchField checked={settings.payments.requirePaymentBeforeAssignment} onChange={(value) => update("payments", "requirePaymentBeforeAssignment", value)} label="Pagamento antes da atribuição" hint="Exigir confirmação inicial" disabled={disabled} />
+                <SwitchField checked={settings.payments.paymentConfirmationRequired} onChange={(value) => update("payments", "paymentConfirmationRequired", value)} label="Confirmar pagamento" hint="Admin/cliente confirma" disabled={disabled} />
+                <SwitchField checked={settings.payments.showPaymentDialog} onChange={(value) => update("payments", "showPaymentDialog", value)} label="Mostrar diálogo" hint="No resumo do pedido" disabled={disabled} />
+                <SwitchField checked={settings.payments.allowCashForScheduledOrders} onChange={(value) => update("payments", "allowCashForScheduledOrders", value)} label="Dinheiro em agendados" hint="Permitir cash" disabled={disabled} />
               </div>
             </SectionCard>
 
-            <SectionCard icon="receipt" title="Métodos de pagamento" description={`${enabledPayments} método(s) activo(s) no formulário frontend.`}>
+            <SectionCard icon="receipt" title="Métodos de pagamento" description={`${enabledPayments} método(s) activo(s) nesta configuração.`}>
               <div className="space-y-2">
                 {settings.payments.methods.map((method) => (
                   <div key={method.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
@@ -422,13 +579,13 @@ const AdminSettings = () => {
                         </div>
                         <p className="text-[11px] text-slate-400 mt-0.5">{method.code}</p>
                       </div>
-                      <button type="button" onClick={() => removePayment(method.id)} className="w-8 h-8 rounded-xl bg-white text-red-500 border border-red-100 flex items-center justify-center">
+                      <button type="button" onClick={() => removePayment(method.id)} disabled={disabled} className={`w-8 h-8 rounded-xl border border-red-100 flex items-center justify-center ${disabled ? "bg-red-50 text-red-300 cursor-not-allowed" : "bg-white text-red-500"}`}>
                         <Icon name="trash" size={14} />
                       </button>
                     </div>
                     <div className="grid grid-cols-2 gap-3 mt-3">
-                      <SwitchField checked={method.enabled} onChange={(value) => updatePayment(method.id, "enabled", value)} label="Activo" hint="Mostrar no pedido" />
-                      <SwitchField checked={method.primary} onChange={(value) => updatePayment(method.id, "primary", value)} label="Principal" hint="Destaque no resumo" />
+                      <SwitchField checked={method.enabled} onChange={(value) => updatePayment(method.id, "enabled", value)} label="Activo" hint="Mostrar no pedido" disabled={disabled} />
+                      <SwitchField checked={method.primary} onChange={(value) => updatePayment(method.id, "primary", value)} label="Principal" hint="Destaque no resumo" disabled={disabled} />
                     </div>
                     <div className="mt-3">
                       <Field label="Instruções">
@@ -440,7 +597,7 @@ const AdminSettings = () => {
               </div>
             </SectionCard>
 
-            <SectionCard icon="plus" title="Adicionar método" description="Cria apenas um item local na lista frontend.">
+            <SectionCard icon="plus" title="Adicionar método" description="Adiciona um método à lista que será guardado quando clicar em Guardar.">
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Código">
@@ -453,7 +610,7 @@ const AdminSettings = () => {
                 <Field label="Instruções">
                   <input type="text" value={newPayment.instructions} onChange={(event) => setNewPayment((previous) => ({ ...previous, instructions: event.target.value }))} placeholder="Instruções para o cliente" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300" />
                 </Field>
-                <button type="button" onClick={addPayment} className="w-full py-2.5 rounded-xl bg-orange-500 text-white text-sm font-bold shadow-lg shadow-orange-300 hover:bg-orange-600">
+                <button type="button" onClick={addPayment} disabled={disabled} className={`w-full py-2.5 rounded-xl text-white text-sm font-bold shadow-lg shadow-orange-300 ${disabled ? "bg-orange-300 cursor-not-allowed" : "bg-orange-500 hover:bg-orange-600"}`}>
                   Adicionar ao formulário
                 </button>
               </div>
@@ -513,16 +670,16 @@ const AdminSettings = () => {
             <SectionCard icon="bell" title="Notificações" description="Preferências visuais para eventos importantes da app.">
               <div className="grid grid-cols-2 gap-3">
                 {Object.entries(settings.notifications).map(([key, value]) => (
-                  <SwitchField key={key} checked={value} onChange={(next) => updateNested("notifications", key, key, next)} label={key.replaceAll("_", " ")} hint={key === "promotions" ? "Opcional" : "Evento da app"} />
+                  <SwitchField key={key} checked={value} onChange={(next) => update("notifications", key, next)} label={key.replaceAll("_", " ")} hint={key === "promotions" ? "Opcional" : "Evento da app"} disabled={disabled} />
                 ))}
               </div>
             </SectionCard>
 
             <SectionCard icon="users" title="Motoristas" description="Preferências gerais para motoristas em toda a app.">
               <div className="grid grid-cols-2 gap-3">
-                <SwitchField checked={settings.drivers.requireDriverOnline} onChange={(value) => update("drivers", "requireDriverOnline", value)} label="Motorista online" hint="Exigir para atribuição" />
-                <SwitchField checked={settings.drivers.showDriverPhoneToCustomer} onChange={(value) => update("drivers", "showDriverPhoneToCustomer", value)} label="Mostrar telefone" hint="Para o cliente" />
-                <SwitchField checked={settings.drivers.allowDriverToAcceptScheduledOrders} onChange={(value) => update("drivers", "allowDriverToAcceptScheduledOrders", value)} label="Agendados" hint="Motoristas aceitam" />
+                <SwitchField checked={settings.drivers.requireDriverOnline} onChange={(value) => update("drivers", "requireDriverOnline", value)} label="Motorista online" hint="Exigir para atribuição" disabled={disabled} />
+                <SwitchField checked={settings.drivers.showDriverPhoneToCustomer} onChange={(value) => update("drivers", "showDriverPhoneToCustomer", value)} label="Mostrar telefone" hint="Para o cliente" disabled={disabled} />
+                <SwitchField checked={settings.drivers.allowDriverToAcceptScheduledOrders} onChange={(value) => update("drivers", "allowDriverToAcceptScheduledOrders", value)} label="Agendados" hint="Motoristas aceitam" disabled={disabled} />
                 <Field label="Pedidos máximos por motorista">
                   <NumberInput value={settings.drivers.maxActiveOrdersPerDriver} onChange={(value) => update("drivers", "maxActiveOrdersPerDriver", value)} />
                 </Field>
@@ -536,11 +693,11 @@ const AdminSettings = () => {
 
         <div className="sticky bottom-20 bg-slate-50 pt-2">
           <div className="flex gap-2">
-            <button type="button" onClick={resetFrontend} className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-bold hover:bg-slate-50">
+            <button type="button" onClick={resetFrontend} disabled={disabled} className={`flex-1 py-2.5 rounded-xl border text-sm font-bold ${disabled ? "border-slate-100 bg-slate-100 text-slate-400 cursor-not-allowed" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
               Restaurar
             </button>
-            <button type="button" onClick={saveFrontend} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white text-sm font-bold shadow-lg shadow-orange-300 hover:bg-orange-600">
-              Guardar no frontend
+            <button type="button" onClick={saveSettings} disabled={disabled} className={`flex-1 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg shadow-orange-300 ${disabled ? "bg-orange-300 cursor-not-allowed" : "bg-orange-500 hover:bg-orange-600"}`}>
+              {saving ? "A guardar..." : "Guardar no backend"}
             </button>
           </div>
         </div>
