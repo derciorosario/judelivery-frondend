@@ -15,6 +15,7 @@ import CustomerApp from './components/cliente/CustomerApp';
 import ProtectedRoute from './ProtectedRoute';
 import { SocketProvider } from './contexts/SocketContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { SettingsProvider } from './contexts/SettingsContext';
 
 const AppInner = () => {
   const { user, loading } = useAuth();
@@ -62,9 +63,11 @@ const AppInner = () => {
 function App() {
   return (
     <AuthProvider>
-      <SocketProvider>
-        <AppInner />
-      </SocketProvider>
+      <SettingsProvider>
+        <SocketProvider>
+          <AppInner />
+        </SocketProvider>
+      </SettingsProvider>
     </AuthProvider>
   );
 }

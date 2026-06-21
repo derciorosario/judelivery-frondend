@@ -14,8 +14,20 @@ const LocationStep = ({
   price,
   loadingRoute,
   loadingLocations,
-  onClearInput
+  onClearInput,
+  settings
 }) => {
+  const orderSettings = settings?.order || {};
+  const appSettings = settings?.app || {};
+  const pricing = settings?.pricing || {};
+  const allowManualAddressInput = orderSettings.allowManualAddressInput ?? true;
+  const requireCoordinates = orderSettings.requireCoordinates ?? false;
+  const countryRestriction = appSettings.countryRestriction || "mz";
+  const currency = appSettings.currency || "MZN";
+  const urgentPercent = Number(pricing.urgentPercentage ?? 30);
+  const veryUrgentPercent = Number(pricing.veryUrgentPercentage ?? 60);
+  const manualInputDisabled = !allowManualAddressInput;
+
   if (serviceType === "taxi") {
     const isAnyManual = form.manualPickup || form.manualDropoff;
     
@@ -33,7 +45,10 @@ const LocationStep = ({
                   manualPickup: !prev.manualPickup,
                   pickupCoords: !prev.manualPickup ? null : prev.pickupCoords
                 }))}
+                disabled={manualInputDisabled}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  manualInputDisabled ? 'cursor-not-allowed opacity-50' : ''
+                } ${
                   form.manualPickup ? 'bg-blue-600' : 'bg-gray-300'
                 }`}
               >
@@ -70,7 +85,7 @@ const LocationStep = ({
                     }
                   }
                 }}
-                options={{ componentRestrictions: { country: "mz" } }}
+                options={{ componentRestrictions: { country: countryRestriction } }}
               >
                 <input
                   type="text"
@@ -150,7 +165,10 @@ const LocationStep = ({
                   manualDropoff: !prev.manualDropoff,
                   dropoffCoords: !prev.manualDropoff ? null : prev.dropoffCoords
                 }))}
+                disabled={manualInputDisabled}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  manualInputDisabled ? 'cursor-not-allowed opacity-50' : ''
+                } ${
                   form.manualDropoff ? 'bg-blue-600' : 'bg-gray-300'
                 }`}
               >
@@ -187,7 +205,7 @@ const LocationStep = ({
                     }
                   }
                 }}
-                options={{ componentRestrictions: { country: "mz" } }}
+                options={{ componentRestrictions: { country: countryRestriction } }}
               >
                 <input
                   type="text"
@@ -277,7 +295,7 @@ const LocationStep = ({
                       <p className="text-xs text-blue-600">Duração</p>
                     </div>
                     <div>
-                      <p className="text-lg font-bold text-blue-700">{price} MZN</p>
+                      <p className="text-lg font-bold text-blue-700">{price} {currency}</p>
                       <p className="text-xs text-blue-600">Estimativa</p>
                     </div>
                   </div>
@@ -355,7 +373,10 @@ const LocationStep = ({
             manualOrigin: !prev.manualOrigin,
             originCoords: !prev.manualOrigin ? null : prev.originCoords
           }))}
+          disabled={manualInputDisabled}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${
+            manualInputDisabled ? 'cursor-not-allowed opacity-50' : ''
+          } ${
             form.manualOrigin ? 'bg-orange-600' : 'bg-gray-300'
           }`}
         >
@@ -393,7 +414,7 @@ const LocationStep = ({
               }
             }
           }}
-          options={{ componentRestrictions: { country: "mz" } }}
+          options={{ componentRestrictions: { country: countryRestriction } }}
         >
           <input
             type="text"
@@ -472,7 +493,10 @@ const LocationStep = ({
             manualDest: !prev.manualDest,
             destCoords: !prev.manualDest ? null : prev.destCoords
           }))}
+          disabled={manualInputDisabled}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${
+            manualInputDisabled ? 'cursor-not-allowed opacity-50' : ''
+          } ${
             form.manualDest ? 'bg-orange-600' : 'bg-gray-300'
           }`}
         >
@@ -509,7 +533,7 @@ const LocationStep = ({
               }
             }
           }}
-          options={{ componentRestrictions: { country: "mz" } }}
+          options={{ componentRestrictions: { country: countryRestriction } }}
         >
           <input
             type="text"
@@ -598,7 +622,7 @@ const LocationStep = ({
                 <p className="text-xs text-orange-600">Duração estimada</p>
               </div>
               <div>
-                <p className="text-lg font-bold text-orange-700">{price} MZN</p>
+                <p className="text-lg font-bold text-orange-700">{price} {currency}</p>
                 <p className="text-xs text-orange-600">Estimativa</p>
               </div>
             </div>
@@ -606,7 +630,7 @@ const LocationStep = ({
               <div className="mt-2 pt-2 border-t border-orange-200">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-orange-600">Prioridade {form.urgencyLevel === "urgent" ? "Urgente" : "Muito Urgente"}:</span>
-                  <span className="font-semibold text-orange-700">+{form.urgencyLevel === "urgent" ? "30%" : "60%"}</span>
+                  <span className="font-semibold text-orange-700">+{form.urgencyLevel === "urgent" ? `${urgentPercent}%` : `${veryUrgentPercent}%`}</span>
                 </div>
               </div>
             )}

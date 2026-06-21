@@ -1,5 +1,7 @@
 import { useState } from "react";
 import Icon from "../common/Icon";
+import { toast } from "../../lib/toast";
+import { usePlatformSettings } from "../../contexts/SettingsContext";
 import CreateOrderModal from "./modals/CreateOrderModal";
 
 const CustomerHome = ({
@@ -18,9 +20,13 @@ const CustomerHome = ({
   onGiveFeedback,
   onContactSupport
 }) => {
+  const { settings, loading: settingsLoading } = usePlatformSettings();
   const [showPromo, setShowPromo] = useState(true);
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
+  const canDelivery = !settingsLoading && settings.order.allowDelivery;
+  const canTaxi = !settingsLoading && settings.order.allowTaxi;
+  const hasAnyService = canDelivery || canTaxi;
 
   const formatOrderId = (id) => {
     if (!id) return "PEDIDO";
@@ -42,6 +48,26 @@ const CustomerHome = ({
   };
   
   const handleServiceSelect = (service) => {
+    if (settingsLoading) {
+      toast.info("A carregar configurações...");
+      return;
+    }
+
+    if (service === "delivery" && !canDelivery) {
+      toast.error("Pedidos de entrega estão temporariamente indisponíveis.");
+      return;
+    }
+
+    if (service === "taxi" && !canTaxi) {
+      toast.error("Corridas estão temporariamente indisponíveis.");
+      return;
+    }
+
+    if (!hasAnyService) {
+      toast.error("Nenhum serviço está disponível no momento.");
+      return;
+    }
+
     setSelectedService(service);
     setShowServiceModal(true);
   };
@@ -61,48 +87,58 @@ const CustomerHome = ({
           </div>
         </div>
       </div>
-      
-      {/* Quick Actions */}
-      <div className="grid grid-cols-3 gap-3">
-        <button 
-          onClick={() => handleServiceSelect('delivery')} 
-          className="bg-white rounded-xl p-3 text-center border border-slate-100 shadow-sm hover:shadow-md transition-shadow"
-        >
-          <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-            <Icon name="package" size={20} className="text-orange-500" />
-          </div>
-         
-
-           <div className="flex justify-center items-center gap-1">
-              <Icon name="PlusCircle" size={13} className="text-orange-500" />
-              <p className="text-xs font-medium text-slate-700">Delivery</p>
-          </div>
-
-        </button>
-        <button 
-          onClick={() => handleServiceSelect('taxi')} 
-          className="bg-white rounded-xl p-3 text-center border border-slate-100 shadow-sm hover:shadow-md transition-shadow"
-        >
-          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-              <svg className="text-blue-500"  xmlns="http://www.w3.org/2000/svg" width="24" height="24"  
-fill="currentColor" viewBox="0 0 24 24" >
-<path d="M20.26 14.47s-.06-.04-.1-.05c-.5-.27-1.07-.42-1.66-.42h-.06l-2.19-5.01h1.26c.28 0 .5-.22.5-.5v-1c0-.28-.22-.5-.5-.5h-2.13l-.09-.2a3.01 3.01 0 0 0-2.75-1.8h-1.53v2h1.53c.4 0 .76.24.92.6l1.05 2.4h-3.93c-.29 0-.56.12-.75.33L7.44 13l-2.72-2.72a1 1 0 0 0-.71-.29H1.84v2h1.75L5.6 14s-.06-.01-.1-.01c-1.11 0-2.13.51-2.79 1.38-.3.39-.53.87-.65 1.43-.04.22-.07.45-.07.68 0 1.93 1.57 3.5 3.5 3.5s3.5-1.57 3.5-3.5v-.1l1.3 1.3c.19.19.44.29.71.29h2c.25 0 .5-.1.68-.27L15 17.47c0 1.93 1.57 3.49 3.5 3.49s3.5-1.57 3.5-3.5c0-1.24-.67-2.4-1.74-3.03ZM5.5 19a1.498 1.498 0 0 1-1.47-1.79c.05-.23.14-.45.27-.61a1.506 1.506 0 0 1 1.94-.41l.06.03c.35.23.59.58.67.95.02.1.03.21.03.32 0 .83-.67 1.5-1.5 1.5Zm7.11-2h-1.19l-2.57-2.57L11.02 12h4.36l.76 1.73L12.62 17Zm5.89 2a1.498 1.498 0 0 1-1.2-2.4 1.506 1.506 0 0 1 1.94-.41 1.53 1.53 0 0 1 .77 1.31c0 .83-.67 1.5-1.5 1.5Z"></path>
-</svg>
-
-          </div>
-          <div className="flex justify-center items-center gap-1">
-              <Icon name="PlusCircle" size={13} className="text-blue-500" />
-               <p className="text-xs font-medium text-slate-700">Taxi/Ride</p>
-          </div>
-        </button>
-        <button className="bg-white rounded-xl p-3 text-center border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-          <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-            <Icon name="history" size={20} className="text-green-500" />
-       
-          </div>
-          <p className="text-xs font-medium text-slate-700">Histórico</p>
-        </button>
+   
+   
+   {/* Quick Actions */}
+<div className={`grid ${canDelivery && canTaxi ? 'grid-cols-3' : canDelivery || canTaxi ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
+  {canDelivery && (
+    <button
+      onClick={() => handleServiceSelect('delivery')}
+      className="bg-white rounded-xl p-3 text-center border border-slate-100 shadow-sm hover:shadow-md transition-shadow"
+    >
+      <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+        <Icon name="package" size={20} className="text-orange-500" />
       </div>
+      <div className="flex justify-center items-center gap-1">
+        <Icon name="PlusCircle" size={13} className="text-orange-500" />
+        <p className="text-xs font-medium text-slate-700">Delivery</p>
+      </div>
+    </button>
+  )}
+  
+  {canTaxi && (
+    <button
+      onClick={() => handleServiceSelect('taxi')}
+      className="bg-white rounded-xl p-3 text-center border border-slate-100 shadow-sm hover:shadow-md transition-shadow"
+    >
+      <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+        <svg className="text-blue-500" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M20.26 14.47s-.06-.04-.1-.05c-.5-.27-1.07-.42-1.66-.42h-.06l-2.19-5.01h1.26c.28 0 .5-.22.5-.5v-1c0-.28-.22-.5-.5-.5h-2.13l-.09-.2a3.01 3.01 0 0 0-2.75-1.8h-1.53v2h1.53c.4 0 .76.24.92.6l1.05 2.4h-3.93c-.29 0-.56.12-.75.33L7.44 13l-2.72-2.72a1 1 0 0 0-.71-.29H1.84v2h1.75L5.6 14s-.06-.01-.1-.01c-1.11 0-2.13.51-2.79 1.38-.3.39-.53.87-.65 1.43-.04.22-.07.45-.07.68 0 1.93 1.57 3.5 3.5 3.5s3.5-1.57 3.5-3.5v-.1l1.3 1.3c.19.19.44.29.71.29h2c.25 0 .5-.1.68-.27L15 17.47c0 1.93 1.57 3.49 3.5 3.49s3.5-1.57 3.5-3.5c0-1.24-.67-2.4-1.74-3.03ZM5.5 19a1.498 1.498 0 0 1-1.47-1.79c.05-.23.14-.45.27-.61a1.506 1.506 0 0 1 1.94-.41l.06.03c.35.23.59.58.67.95.02.1.03.21.03.32 0 .83-.67 1.5-1.5 1.5Zm7.11-2h-1.19l-2.57-2.57L11.02 12h4.36l.76 1.73L12.62 17Zm5.89 2a1.498 1.498 0 0 1-1.2-2.4 1.506 1.506 0 0 1 1.94-.41 1.53 1.53 0 0 1 .77 1.31c0 .83-.67 1.5-1.5 1.5Z"></path>
+        </svg>
+      </div>
+      <div className="flex justify-center items-center gap-1">
+        <Icon name="PlusCircle" size={13} className="text-blue-500" />
+        <p className="text-xs font-medium text-slate-700">Taxi/Ride</p>
+      </div>
+    </button>
+  )}
+  
+  <button className="bg-white rounded-xl p-3 text-center border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+    <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+      <Icon name="history" size={20} className="text-green-500" />
+    </div>
+    <p className="text-xs font-medium text-slate-700">Histórico</p>
+  </button>
+</div>
+
+
+
+      {!settingsLoading && !hasAnyService && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center">
+          <p className="text-sm font-bold text-amber-800">Serviços indisponíveis</p>
+          <p className="text-xs text-amber-700 mt-1">Tente novamente mais tarde ou contacte o suporte.</p>
+        </div>
+      )}
       
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2">
@@ -264,6 +300,7 @@ fill="currentColor" viewBox="0 0 24 24" >
           user={user}
           customerData={customerData}
           serviceType={selectedService}
+          settings={settings}
         />
       )}
     </div>

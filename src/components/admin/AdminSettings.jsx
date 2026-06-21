@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import Icon from "../common/Icon";
 import { getPlatformSettings, updatePlatformSettings } from "../../api/client";
+import { cloneSettings, defaultPlatformSettings, mergeSettings } from "../../utils/platformSettings";
+import { toast } from "../../lib/toast";
 
 const orderStatuses = [
   { value: "pending_approval", label: "Pendente" },
@@ -11,117 +13,13 @@ const orderStatuses = [
   { value: "cancelled", label: "Cancelado" },
   { value: "scheduled", label: "Agendado" },
 ];
-
-const defaultSettings = {
-  order: {
-    allowDelivery: true,
-    allowTaxi: true,
-    defaultServiceType: "delivery",
-    defaultStatus: "pending_approval",
-    allowManualAddressInput: true,
-    requireCoordinates: false,
-    allowScheduledOrders: true,
-    allowRepeatingOrders: true,
-    autoAssignDriver: false,
-    requireDriverConfirmation: true,
-    customerCanCancel: true,
-    adminCanCancel: true,
-    maxDistanceKm: 80,
-    maxWaitingTimeMinutes: 20,
-  },
-  pricing: {
-    deliveryBasePrice: 50,
-    deliveryPerKm: 12,
-    urgentMultiplier: 1.3,
-    veryUrgentMultiplier: 1.6,
-    taxiBasePrice: 80,
-    taxiPerKm: 20,
-    returnTripFee: 120,
-    waitingFeePerMinute: 4,
-    luggageFee: 40,
-    extraPassengerThreshold: 3,
-    extraPassengerFee: 30,
-  },
-  payments: {
-    requirePaymentBeforeAssignment: false,
-    paymentConfirmationRequired: true,
-    showPaymentDialog: true,
-    allowCashForScheduledOrders: true,
-    methods: [
-      { id: "bank_transfer", code: "bank_transfer", name: "Transferência", enabled: true, primary: false, instructions: "Confirmar comprovativo antes de atribuir motorista." },
-      { id: "mpesa", code: "mpesa", name: "M-Pesa", enabled: true, primary: true, instructions: "Pagamento móvel por número da plataforma." },
-      { id: "emola", code: "emola", name: "e-Mola", enabled: true, primary: false, instructions: "Confirmar referência ou número da carteira." },
-      { id: "cash", code: "cash", name: "Dinheiro", enabled: true, primary: false, instructions: "O cliente paga directamente ao motorista." },
-    ],
-  },
-  app: {
-    appName: "JuDelivery",
-    currency: "MZN",
-    countryRestriction: "mz",
-    defaultLanguage: "pt",
-    defaultTimezone: "Africa/Maputo",
-    supportName: "Plataforma/Suporte",
-    supportPhone: "+258 82 333 4455",
-    supportEmail: "suporte@judelivery.co.mz",
-    supportHours: "Segunda a Sexta: 8h às 18h | Sábado: 9h às 13h",
-    supportResponseTime: "Tempo médio de resposta: 2 horas",
-  },
-  notifications: {
-    orderCreated: true,
-    driverAssigned: true,
-    driverArrived: true,
-    orderCompleted: true,
-    paymentConfirmed: true,
-    cancellation: true,
-    promotions: false,
-  },
-  drivers: {
-    requireDriverOnline: true,
-    maxActiveOrdersPerDriver: 3,
-    showDriverPhoneToCustomer: true,
-    allowDriverToAcceptScheduledOrders: true,
-    maxDistanceFromPickupKm: 15,
-  },
-};
-
-const cloneSettings = (value = defaultSettings) => JSON.parse(JSON.stringify(value));
-
-const mergeSettings = (base, override = {}) => {
-  const merged = cloneSettings(base);
-
-  Object.keys(override || {}).forEach((section) => {
-    const overrideSection = override[section];
-    if (!overrideSection || typeof overrideSection !== "object" || Array.isArray(overrideSection)) {
-      merged[section] = cloneSettings(overrideSection);
-      return;
-    }
-
-    if (!merged[section] || typeof merged[section] !== "object" || Array.isArray(merged[section])) {
-      merged[section] = {};
-    }
-
-    Object.keys(overrideSection).forEach((key) => {
-      const value = overrideSection[key];
-      if (Array.isArray(value)) {
-        merged[section][key] = value.map((item) => (item && typeof item === "object" ? { ...item } : item));
-      } else if (value && typeof value === "object") {
-        merged[section][key] = { ...value };
-      } else {
-        merged[section][key] = value;
-      }
-    });
-  });
-
-  return merged;
-};
-
 const numberFields = {
   order: ["maxDistanceKm", "maxWaitingTimeMinutes"],
   pricing: [
     "deliveryBasePrice",
     "deliveryPerKm",
-    "urgentMultiplier",
-    "veryUrgentMultiplier",
+    "urgentPercentage",
+    "veryUrgentPercentage",
     "taxiBasePrice",
     "taxiPerKm",
     "returnTripFee",
@@ -143,7 +41,7 @@ const normalizeSettingsForSave = (settings) => {
 
   Object.keys(numberFields).forEach((section) => {
     numberFields[section].forEach((field) => {
-      normalized[section][field] = toNumber(normalized[section][field], defaultSettings[section][field]);
+      normalized[section][field] = toNumber(normalized[section][field], defaultPlatformSettings[section][field]);
     });
   });
 
@@ -239,7 +137,7 @@ const NumberInput = ({ value, onChange, suffix, ...props }) => (
 );
 
 const AdminSettings = () => {
-  const [settings, setSettings] = useState(cloneSettings());
+  const [settings, setSettings] = useState(() => cloneSettings(defaultPlatformSettings));
   const [activeTab, setActiveTab] = useState("orders");
   const [notice, setNotice] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState(null);
@@ -277,7 +175,7 @@ const AdminSettings = () => {
         const { data } = await getPlatformSettings();
         if (!mounted) return;
 
-        setSettings(mergeSettings(defaultSettings, data.settings));
+        setSettings(mergeSettings(defaultPlatformSettings, data.settings));
         setLastSavedAt(data.updatedAt ? new Date(data.updatedAt) : null);
         setNotice(data.updatedAt ? "Configurações carregadas do backend." : "Configurações padrão carregadas do backend.");
       } catch (error) {
@@ -374,11 +272,13 @@ const AdminSettings = () => {
 
     try {
       const { data } = await updatePlatformSettings(normalizeSettingsForSave(settings));
-      setSettings(mergeSettings(defaultSettings, data.settings));
+      setSettings(mergeSettings(defaultPlatformSettings, data.settings));
       setLastSavedAt(data.updatedAt ? new Date(data.updatedAt) : new Date());
-      setNotice("Configurações guardadas com sucesso no backend.");
+      setNotice("Configurações guardadas com sucesso.");
+
+      toast.success('Configurações guardadas com sucesso.')
     } catch (error) {
-      setNotice(error?.response?.data?.message || "Não foi possível guardar as configurações no backend.");
+      setNotice(error?.response?.data?.message || "Não foi possível guardar as configurações.");
     } finally {
       setSaving(false);
     }
@@ -389,7 +289,7 @@ const AdminSettings = () => {
 
     setSettings(cloneSettings());
     setNewPayment({ code: "", name: "", instructions: "" });
-    setNotice("Predefinições carregadas. Clique em Guardar para substituir as configurações do backend.");
+    setNotice("Predefinições carregadas. Clique em Guardar para substituir as configurações.");
   };
 
   const deliveryPreview = formatMoney(Number(settings.pricing.deliveryBasePrice) + 5 * Number(settings.pricing.deliveryPerKm));
@@ -411,7 +311,7 @@ const AdminSettings = () => {
             </div>
           </div>
           <div className="mt-4 rounded-2xl bg-white/15 p-3 text-xs text-white/90">
-            Página standalone para actualizar preferências da plataforma. Ainda não é consumida por outras páginas.
+            Página administrativa para actualizar preferências que são usadas no pedido, pagamentos, preços e contactos.
           </div>
         </div>
 
@@ -434,12 +334,12 @@ const AdminSettings = () => {
         {notice && <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-xs font-medium text-orange-700">{notice}</div>}
         {lastSavedAt && (
           <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-xs text-green-700">
-            Última acção no backend: {lastSavedAt.toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
+            Última acção: {lastSavedAt.toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}
           </div>
         )}
 
         {activeTab === "orders" && (
-          <div className="space-y-4">
+          <div className="space-y-4 pb-10">
             <SectionCard icon="package" title="Tipos e fluxo de pedidos" description="Controlo visual dos serviços e estados usados pelo CreateOrderModal.">
               <div className="grid grid-cols-2 gap-3">
                 <SwitchField checked={settings.order.allowDelivery} onChange={(value) => update("order", "allowDelivery", value)} label="Entregas" hint="Permitir pedidos de entrega" disabled={disabled} />
@@ -500,8 +400,8 @@ const AdminSettings = () => {
         )}
 
         {activeTab === "pricing" && (
-          <div className="space-y-4">
-            <SectionCard icon="dollar" title="Preços de entrega" description="Base e distância por km usadas no cálculo de pedidos de entrega.">
+          <div className="space-y-4 pb-10">
+            <SectionCard icon="dollar" title="Preços de entrega" description="Base, distância por km e percentagens de urgência usadas no cálculo de pedidos de entrega.">
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Preço base">
                   <NumberInput value={settings.pricing.deliveryBasePrice} onChange={(value) => update("pricing", "deliveryBasePrice", value)} suffix={settings.app.currency} />
@@ -509,11 +409,11 @@ const AdminSettings = () => {
                 <Field label="Preço por km">
                   <NumberInput value={settings.pricing.deliveryPerKm} onChange={(value) => update("pricing", "deliveryPerKm", value)} suffix={settings.app.currency} />
                 </Field>
-                <Field label="Urgente">
-                  <NumberInput value={settings.pricing.urgentMultiplier} onChange={(value) => update("pricing", "urgentMultiplier", value)} suffix="x" />
+                <Field label="Urgente" hint="Acréscimo percentual sobre o preço base">
+                  <NumberInput value={settings.pricing.urgentPercentage} onChange={(value) => update("pricing", "urgentPercentage", value)} suffix="%" />
                 </Field>
-                <Field label="Muito urgente">
-                  <NumberInput value={settings.pricing.veryUrgentMultiplier} onChange={(value) => update("pricing", "veryUrgentMultiplier", value)} suffix="x" />
+                <Field label="Muito urgente" hint="Acréscimo percentual sobre o preço base">
+                  <NumberInput value={settings.pricing.veryUrgentPercentage} onChange={(value) => update("pricing", "veryUrgentPercentage", value)} suffix="%" />
                 </Field>
               </div>
               <div className="mt-4 rounded-2xl bg-orange-50 border border-orange-100 p-3">
@@ -557,7 +457,7 @@ const AdminSettings = () => {
         )}
 
         {activeTab === "payments" && (
-          <div className="space-y-4">
+          <div className="space-y-4 pb-10">
             <SectionCard icon="creditCard" title="Regras de pagamento" description="Preferências gerais para pagamentos de pedidos e corridas.">
               <div className="grid grid-cols-2 gap-3">
                 <SwitchField checked={settings.payments.requirePaymentBeforeAssignment} onChange={(value) => update("payments", "requirePaymentBeforeAssignment", value)} label="Pagamento antes da atribuição" hint="Exigir confirmação inicial" disabled={disabled} />
@@ -619,7 +519,7 @@ const AdminSettings = () => {
         )}
 
         {activeTab === "app" && (
-          <div className="space-y-4">
+          <div className="space-y-4 pb-10">
             <SectionCard icon="settings" title="Perfil da aplicação" description="Informações principais usadas em toda a app.">
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Nome da app">
@@ -697,7 +597,7 @@ const AdminSettings = () => {
               Restaurar
             </button>
             <button type="button" onClick={saveSettings} disabled={disabled} className={`flex-1 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg shadow-orange-300 ${disabled ? "bg-orange-300 cursor-not-allowed" : "bg-orange-500 hover:bg-orange-600"}`}>
-              {saving ? "A guardar..." : "Guardar no backend"}
+              {saving ? "A guardar..." : "Guardar"}
             </button>
           </div>
         </div>

@@ -8,8 +8,28 @@ const SummaryStep = ({
   price, 
   onPaymentMethodChange,
   getUrgencyLabel,
-  getUrgencyColor
+  getUrgencyColor,
+  currency: currencyProp,
+  paymentMethods,
+  settings,
+  supportContact: supportContactProp
 }) => {
+  const appSettings = settings?.app || {};
+  const pricing = settings?.pricing || {};
+  const currency = currencyProp || appSettings.currency || "MZN";
+  const supportContact = supportContactProp || appSettings || {};
+  const methods = paymentMethods?.length ? paymentMethods : [{ name: "Transferência", code: "bank_transfer" }];
+  const deliveryBasePrice = Number(pricing.deliveryBasePrice ?? 50);
+  const urgentFactor = 1 + Number(pricing.urgentPercentage ?? 30) / 100;
+  const veryUrgentFactor = 1 + Number(pricing.veryUrgentPercentage ?? 60) / 100;
+  const urgentPercent = Number(pricing.urgentPercentage ?? 30);
+  const veryUrgentPercent = Number(pricing.veryUrgentPercentage ?? 60);
+  const luggageFee = Number(pricing.luggageFee ?? 40);
+  const returnTripFee = Number(pricing.returnTripFee ?? 120);
+  const waitingFeePerMinute = Number(pricing.waitingFeePerMinute ?? 4);
+
+  const formatAmount = (value) => `${Number(value) || 0} ${currency}`;
+
   if (serviceType === "taxi") {
     return (
       <div className="space-y-4">
@@ -50,19 +70,19 @@ const SummaryStep = ({
               {form.hasLuggage && (
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">Bagagem extra:</span>
-                  <span className="font-medium text-slate-800">+40 MZN</span>
+                  <span className="font-medium text-slate-800">+{formatAmount(luggageFee)}</span>
                 </div>
               )}
               {form.returnTrip && (
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">Viagem de volta:</span>
-                  <span className="font-medium text-slate-800">+120 MZN</span>
+                  <span className="font-medium text-slate-800">+{formatAmount(returnTripFee)}</span>
                 </div>
               )}
               {form.waitingTime > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">Tempo de espera:</span>
-                  <span className="font-medium text-slate-800">{form.waitingTime} min (+{form.waitingTime * 4} MZN)</span>
+                  <span className="font-medium text-slate-800">{form.waitingTime} min (+{formatAmount(form.waitingTime * waitingFeePerMinute)})</span>
                 </div>
               )}
               {form.isScheduledRide && (
@@ -84,28 +104,43 @@ const SummaryStep = ({
         <div>
           <label className="block text-xs font-semibold text-slate-500 mb-1">Método de Pagamento *</label>
           <div className="grid grid-cols-2 gap-2">
-            {["Transferência", "M-Pesa", "e-Mola"].map(method => (
-              <button
-                key={method}
-                type="button"
-                onClick={() => onPaymentMethodChange(method)}
-                className={`py-2 rounded-xl border text-sm font-semibold transition-all ${
-                  form.paymentMethod === method
-                    ? "bg-blue-500 text-white border-blue-500"
-                    : "bg-white text-slate-600 border-slate-200"
-                }`}
-              >
-                {method}
-              </button>
-            ))}
+            {methods.map((method) => {
+              const methodLabel = method.name || method.code;
+              const methodCode = method.code || method.name;
+              const active = form.paymentMethod === methodLabel || form.paymentMethod === methodCode;
+
+              return (
+                <button
+                  key={methodCode || methodLabel}
+                  type="button"
+                  onClick={() => onPaymentMethodChange(methodLabel)}
+                  className={`py-2 rounded-xl border text-sm font-semibold transition-all ${
+                    active
+                      ? "bg-blue-500 text-white border-blue-500"
+                      : "bg-white text-slate-600 border-slate-200"
+                  }`}
+                >
+                  {methodLabel}
+                </button>
+              );
+            })}
           </div>
         </div>
         
+        {(supportContact.supportName || supportContact.supportPhone || supportContact.supportEmail) && (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-semibold text-slate-500 mb-2">Contactos de apoio</p>
+            <p className="text-sm font-medium text-slate-800">{supportContact.supportName || "Plataforma/Suporte"}</p>
+            {supportContact.supportPhone && <p className="text-xs text-slate-500 mt-1">{supportContact.supportPhone}</p>}
+            {supportContact.supportEmail && <p className="text-xs text-slate-500 mt-1">{supportContact.supportEmail}</p>}
+          </div>
+        )}
+
         <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
           <div className="flex items-center justify-between">
             <span className="text-sm font-bold text-slate-700">Valor Total:</span>
             <span className="text-xl font-bold text-blue-500">
-              {price} MZN
+              {formatAmount(price)}
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">
@@ -182,50 +217,65 @@ const SummaryStep = ({
       <div>
         <label className="block text-xs font-semibold text-slate-500 mb-1">Método de Pagamento *</label>
         <div className="grid grid-cols-2 gap-2">
-          {["Transferência", "M-Pesa", "e-Mola"].map(method => (
-            <button
-              key={method}
-              type="button"
-              onClick={() => onPaymentMethodChange(method)}
-              className={`py-2 rounded-xl border text-sm font-semibold transition-all ${
-                form.paymentMethod === method
-                  ? "bg-orange-500 text-white border-orange-500"
-                  : "bg-white text-slate-600 border-slate-200"
-              }`}
-            >
-              {method}
-            </button>
-          ))}
+          {methods.map((method) => {
+            const methodLabel = method.name || method.code;
+            const methodCode = method.code || method.name;
+            const active = form.paymentMethod === methodLabel || form.paymentMethod === methodCode;
+
+            return (
+              <button
+                key={methodCode || methodLabel}
+                type="button"
+                onClick={() => onPaymentMethodChange(methodLabel)}
+                className={`py-2 rounded-xl border text-sm font-semibold transition-all ${
+                  active
+                    ? "bg-orange-500 text-white border-orange-500"
+                    : "bg-white text-slate-600 border-slate-200"
+                }`}
+              >
+                {methodLabel}
+              </button>
+            );
+          })}
         </div>
       </div>
       
+      {(supportContact.supportName || supportContact.supportPhone || supportContact.supportEmail) && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p className="text-xs font-semibold text-slate-500 mb-2">Contactos de apoio</p>
+          <p className="text-sm font-medium text-slate-800">{supportContact.supportName || "Plataforma/Suporte"}</p>
+          {supportContact.supportPhone && <p className="text-xs text-slate-500 mt-1">{supportContact.supportPhone}</p>}
+          {supportContact.supportEmail && <p className="text-xs text-slate-500 mt-1">{supportContact.supportEmail}</p>}
+        </div>
+      )}
+
       <div className="bg-orange-50 rounded-xl p-3 border border-orange-200">
         <div className="flex items-center justify-between">
           <span className="text-sm font-bold text-slate-700">Valor Total:</span>
           <span className="text-xl font-bold text-orange-500">
-            {price} MZN
+            {formatAmount(price)}
           </span>
         </div>
         <div className="mt-2 pt-2 border-t border-orange-200">
           <div className="flex justify-between text-xs">
             <span className="text-slate-600">Taxa base:</span>
-            <span className="font-medium text-black">{Math.round(price / (form.urgencyLevel === "urgent" ? 1.3 : form.urgencyLevel === "very_urgent" ? 1.6 : 1))} MZN</span>
+            <span className="font-medium text-black">{formatAmount(Math.round(price / (form.urgencyLevel === "urgent" ? urgentFactor : form.urgencyLevel === "very_urgent" ? veryUrgentFactor : 1)))}</span>
           </div>
           {form.urgencyLevel === "urgent" && (
             <div className="flex justify-between text-xs">
-              <span className="text-slate-600">Taxa urgente (10%):</span>
-              <span className="font-medium text-amber-600">+{Math.round(price - (price / 1.1))} MZN</span>
+              <span className="text-slate-600">Taxa urgente ({urgentPercent}%):</span>
+              <span className="font-medium text-amber-600">+{formatAmount(Math.round(price - (price / urgentFactor)))}</span>
             </div>
           )}
           {form.urgencyLevel === "very_urgent" && (
             <div className="flex justify-between text-xs">
-              <span className="text-slate-600">Taxa muito urgente (30%):</span>
-              <span className="font-medium text-red-600">+{Math.round(price - (price / 1.3))} MZN</span>
+              <span className="text-slate-600">Taxa muito urgente ({veryUrgentPercent}%):</span>
+              <span className="font-medium text-red-600">+{formatAmount(Math.round(price - (price / veryUrgentFactor)))}</span>
             </div>
           )}
           <div className="flex justify-between text-xs font-semibold mt-1 pt-1 border-t border-orange-200">
             <span className="text-slate-700">Total a pagar:</span>
-            <span className="text-orange-700">{price} MZN</span>
+            <span className="text-orange-700">{formatAmount(price)}</span>
           </div>
         </div>
         <p className="text-xs text-slate-400 mt-2">

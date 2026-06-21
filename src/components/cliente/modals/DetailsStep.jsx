@@ -4,8 +4,20 @@ import { getAvailableDrivers } from "../../../api/client";
 import { useSocket } from "../../../contexts/SocketContext";
 import { toast } from "../../../lib/toast";
 
-const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrgencyColor, onDriverAssigned, onOrderStatusChange }) => {
+const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrgencyColor, onDriverAssigned, onOrderStatusChange, settings }) => {
   const { socket } = useSocket();
+  const orderSettings = settings?.order || {};
+  const pricing = settings?.pricing || {};
+  const drivers = settings?.drivers || {};
+  const allowScheduledOrders = orderSettings.allowScheduledOrders ?? true;
+  const maxWaitingTime = Number(orderSettings.maxWaitingTimeMinutes ?? 20);
+  const waitingFeePerMinute = Number(pricing.waitingFeePerMinute ?? 4);
+  const luggageFee = Number(pricing.luggageFee ?? 40);
+  const returnTripFee = Number(pricing.returnTripFee ?? 120);
+  const extraPassengerFee = Number(pricing.extraPassengerFee ?? 30);
+  const extraPassengerThreshold = Number(pricing.extraPassengerThreshold ?? 3);
+  const urgentPercent = Number(pricing.urgentPercentage ?? 30);
+  const veryUrgentPercent = Number(pricing.veryUrgentPercentage ?? 60);
   const [searchingDriver, setSearchingDriver] = useState(false);
   const [availableDrivers, setAvailableDrivers] = useState([]);
   const [selectedDriver, setSelectedDriver] = useState(null);
@@ -83,16 +95,17 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
     try {
        // Map serviceType to what backend expects
        const apiServiceType = serviceType === "taxi" ? "taxi" : "delivery";
-       const params = {
-         serviceType: apiServiceType,
-         originCoords: getPickupCoords() ? `${getPickupCoords().lat},${getPickupCoords().lng}` : undefined,
-         destCoords: getDestCoords() ? `${getDestCoords().lat},${getDestCoords().lng}` : undefined,
-         pickupCoords: form.pickupCoords ? `${form.pickupCoords.lat},${form.pickupCoords.lng}` : undefined,
-         dropoffCoords: form.dropoffCoords ? `${form.dropoffCoords.lat},${form.dropoffCoords.lng}` : undefined,
-         scheduledTime:  form.scheduledTime ||  form.scheduledRideTime || undefined,
-         isScheduled: form.isScheduled || form.isScheduledRide,
-         estimatedDuration: getEstimatedDuration()
-       };
+         const params = {
+          serviceType: apiServiceType,
+          originCoords: getPickupCoords() ? `${getPickupCoords().lat},${getPickupCoords().lng}` : undefined,
+          destCoords: getDestCoords() ? `${getDestCoords().lat},${getDestCoords().lng}` : undefined,
+          pickupCoords: form.pickupCoords ? `${form.pickupCoords.lat},${form.pickupCoords.lng}` : undefined,
+          dropoffCoords: form.dropoffCoords ? `${form.dropoffCoords.lat},${form.dropoffCoords.lng}` : undefined,
+          scheduledTime:  form.scheduledTime ||  form.scheduledRideTime || undefined,
+          isScheduled: form.isScheduled || form.isScheduledRide,
+          estimatedDuration: getEstimatedDuration(),
+          maxActiveOrdersPerDriver: drivers.maxActiveOrdersPerDriver
+        };
 
       const response = await getAvailableDrivers(params);
       setAvailableDrivers(response.data.drivers || []);
@@ -142,6 +155,18 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
     };
   }, []);
 
+  useEffect(() => {
+    if (!allowScheduledOrders && (form.isScheduled || form.isScheduledRide)) {
+      onFormChange((previous) => ({
+        ...previous,
+        isScheduled: false,
+        isScheduledRide: false,
+        scheduledTime: "",
+        scheduledRideTime: ""
+      }));
+    }
+  }, [allowScheduledOrders, form.isScheduled, form.isScheduledRide, onFormChange]);
+
   // Auto-start search when component mounts for delivery details step
   useEffect(() => {
     if (serviceType === "deliveryDetails" && !orderCreated) {
@@ -150,7 +175,7 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [serviceType, form.originCoords, form.destCoords, form.pickupCoords, form.dropoffCoords, form.isScheduled, form.scheduledTime]);
+  }, [serviceType, form.originCoords, form.destCoords, form.pickupCoords, form.dropoffCoords, form.isScheduled, form.scheduledTime, allowScheduledOrders]);
 
   // Auto-start search for taxi details step
   useEffect(() => {
@@ -160,7 +185,7 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [serviceType, form.pickupCoords, form.dropoffCoords, form.isScheduledRide, form.scheduledRideTime]);
+  }, [serviceType, form.pickupCoords, form.dropoffCoords, form.isScheduledRide, form.scheduledRideTime, allowScheduledOrders]);
 
   // Socket listener for real-time driver updates
   useEffect(() => {
@@ -194,6 +219,20 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
   const renderDriverSearchUI = () => {
     
     // If scheduled but no valid time, don't show driver search
+  if (!allowScheduledOrders) {
+    return (
+      <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
+        <div className="flex items-center gap-3">
+          <Icon name="calendar" size={20} className="text-amber-600 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-amber-800">Agendamentos indisponíveis</p>
+            <p className="text-xs text-amber-700">O administrador desactivou pedidos e corridas agendados.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if ((form.isScheduled || form.isScheduledRide) && !hasValidScheduledTime()) {
     return (
       <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
@@ -392,10 +431,11 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
             value={form.waitingTime}
             onChange={e => onFormChange({ ...form, waitingTime: parseInt(e.target.value) || 0 })}
             min="0"
-            step="5"
+            step="1"
+            max={maxWaitingTime}
             className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
-          <p className="text-xs text-slate-400 mt-1">Taxa adicional de 4 MZN por minuto de espera</p>
+          <p className="text-xs text-slate-400 mt-1">Taxa adicional de {waitingFeePerMinute} MZN por minuto de espera</p>
         </div>
         
         <div className="border-t border-slate-100 pt-3">
@@ -406,8 +446,9 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
             </div>
             <button
               type="button"
-              onClick={() => onFormChange({ ...form, isScheduledRide: !form.isScheduledRide })}
-              className={`w-12 h-6 rounded-full transition-colors ${form.isScheduledRide ? "bg-blue-500" : "bg-slate-300"}`}
+              onClick={() => allowScheduledOrders && onFormChange({ ...form, isScheduledRide: !form.isScheduledRide })}
+              disabled={!allowScheduledOrders}
+              className={`w-12 h-6 rounded-full transition-colors ${form.isScheduledRide ? "bg-blue-500" : "bg-slate-300"} ${!allowScheduledOrders ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <div className={`w-5 h-5 bg-white rounded-full transition-transform ${form.isScheduledRide ? "translate-x-6" : "translate-x-0.5"} mt-0.5`} />
             </button>
@@ -428,7 +469,11 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
             </div>
           )}
           
-          {!form.isScheduledRide && (
+          {!allowScheduledOrders && (
+            <p className="text-xs text-amber-600 mt-1">Agendamentos desactivados pelo administrador.</p>
+          )}
+          
+          {!form.isScheduledRide && allowScheduledOrders && (
             <p className="text-xs text-blue-600">Corrida para agora mesmo</p>
           )}
         </div>
@@ -551,7 +596,7 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
           >
             <Icon name="zap" size={20} className={`mx-auto mb-1 ${form.urgencyLevel === "urgent" ? "text-amber-500" : "text-slate-400"}`} />
             <p className={`text-xs font-semibold ${form.urgencyLevel === "urgent" ? "text-amber-700" : "text-slate-600"}`}>Urgente</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">+10%</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">+{urgentPercent}%</p>
           </button>
           
           <button
@@ -565,7 +610,7 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
           >
             <Icon name="alertTriangle" size={20} className={`mx-auto mb-1 ${form.urgencyLevel === "very_urgent" ? "text-red-500" : "text-slate-400"}`} />
             <p className={`text-xs font-semibold ${form.urgencyLevel === "very_urgent" ? "text-red-700" : "text-slate-600"}`}>Muito Urgente</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">+30%</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">+{veryUrgentPercent}%</p>
           </button>
         </div>
       </div>
@@ -578,8 +623,9 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
           </div>
           <button
              type="button"
-             onClick={() => onFormChange({ ...form, isScheduled: !form.isScheduled })}
-             className={`w-12 h-6 rounded-full transition-colors ${form.isScheduled ? "bg-orange-500" : "bg-slate-300"}`}
+             onClick={() => allowScheduledOrders && onFormChange({ ...form, isScheduled: !form.isScheduled })}
+             disabled={!allowScheduledOrders}
+             className={`w-12 h-6 rounded-full transition-colors ${form.isScheduled ? "bg-orange-500" : "bg-slate-300"} ${!allowScheduledOrders ? "opacity-50 cursor-not-allowed" : ""}`}
            >
              <div className={`w-5 h-5 bg-white rounded-full transition-transform ${form.isScheduled ? "translate-x-6" : "translate-x-0.5"} mt-0.5`} />
            </button>
@@ -598,11 +644,14 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
              />
              <p className="text-xs text-green-600 mt-1">✓ Agendamento sem taxa adicional</p>
            </div>
-         )}
-         
-         {!form.isScheduled && (
-           <p className="text-xs text-blue-600">Entrega para agora mesmo</p>
-         )}
+         )}          
+          {!allowScheduledOrders && (
+            <p className="text-xs text-amber-600 mt-1">Agendamentos desactivados pelo administrador.</p>
+          )}
+          
+          {!form.isScheduled && allowScheduledOrders && (
+            <p className="text-xs text-blue-600">Entrega para agora mesmo</p>
+          )}
        </div>
        
        {/* Driver Search UI - shown for delivery details service type */}

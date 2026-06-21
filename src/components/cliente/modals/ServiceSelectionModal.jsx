@@ -1,9 +1,31 @@
+import { useEffect } from "react";
 import Icon from "../../common/Icon";
 
-const ServiceSelectionModal = ({ isOpen, onClose, onSelectService }) => {
+const ServiceSelectionModal = ({ isOpen, onClose, onSelectService, settings, settingsLoading }) => {
   if (!isOpen) return null;
 
+
+  const canDelivery = !settingsLoading && settings?.order?.allowDelivery;
+  const canTaxi = !settingsLoading && settings?.order?.allowTaxi;
+
+
+   // Auto-select if only one service is available
+  useEffect(() => {
+    if (!isOpen || settingsLoading) return;
+    
+    if (canDelivery && !canTaxi) {
+      onSelectService("delivery");
+      onClose();
+    } else if (!canDelivery && canTaxi) {
+      onSelectService("taxi");
+      onClose();
+    }
+  }, [isOpen, settingsLoading, canDelivery, canTaxi, onSelectService, onClose]);
+
+
+
   const handleServiceSelect = (serviceType) => {
+    if (settingsLoading) return;
     onSelectService(serviceType);
     onClose();
   };
@@ -22,10 +44,12 @@ const ServiceSelectionModal = ({ isOpen, onClose, onSelectService }) => {
         </div>
         
         <div className="p-4 space-y-3">
-          {/* Delivery Option */}
           <button
             onClick={() => handleServiceSelect("delivery")}
-            className="w-full p-4 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl text-white flex items-center gap-3 hover:shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+            disabled={settingsLoading || !canDelivery}
+            className={`w-full  p-4 rounded-xl text-white flex items-center gap-3 transition-all active:scale-[0.98] ${
+              settingsLoading || !canDelivery ? "bg-slate-300 hidden cursor-not-allowed" : "bg-gradient-to-r from-orange-500 to-amber-500 hover:shadow-lg hover:scale-[1.02]"
+            }`}
           >
             <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
               <Icon name="package" size={24} className="text-white" />
@@ -37,10 +61,12 @@ const ServiceSelectionModal = ({ isOpen, onClose, onSelectService }) => {
             <Icon name="chevronRight" size={20} className="text-white" />
           </button>
           
-          {/* Taxi/Ride Option */}
           <button
             onClick={() => handleServiceSelect("taxi")}
-            className="w-full p-4 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl text-white flex items-center gap-3 hover:shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+            disabled={settingsLoading || !canTaxi}
+            className={`w-full p-4 rounded-xl text-white flex items-center gap-3 transition-all active:scale-[0.98] ${
+              settingsLoading || !canTaxi ? "bg-slate-300 hidden cursor-not-allowed" : "bg-gradient-to-r from-blue-500 to-indigo-500 hover:shadow-lg hover:scale-[1.02]"
+            }`}
           >
             <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
               <Icon name="car" size={24} className="text-white" />

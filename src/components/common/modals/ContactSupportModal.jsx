@@ -1,5 +1,6 @@
 import { Phone, HelpCircle, ChevronRight } from "lucide-react";
 import Icon from "../Icon";
+import { usePlatformSettings } from "../../../contexts/SettingsContext";
 
 const DEFAULT_SUPPORT = {
   name: "Plataforma/Suporte",
@@ -35,8 +36,16 @@ const ContactSupportModal = ({
   isOpen, 
   onClose, 
   order,
-  supportContact = DEFAULT_SUPPORT
+  supportContact
 }) => {
+  const { settings } = usePlatformSettings();
+  const resolvedSupportContact = supportContact || {
+    name: settings.app?.supportName || DEFAULT_SUPPORT.name,
+    phone: settings.app?.supportPhone || DEFAULT_SUPPORT.phone,
+    hours: settings.app?.supportHours || DEFAULT_SUPPORT.hours,
+    responseTime: settings.app?.supportResponseTime || DEFAULT_SUPPORT.responseTime
+  };
+
   if (!isOpen) return null;
 
   const handleCall = (phone) => {
@@ -85,21 +94,21 @@ const ContactSupportModal = ({
             <div className="bg-slate-50 rounded-xl p-3">
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <p className="text-sm font-semibold text-slate-800">{supportContact.name}</p>
-                  <p className="text-xs text-slate-500">{supportContact.phone}</p>
+                  <p className="text-sm font-semibold text-slate-800">{resolvedSupportContact.name}</p>
+                  <p className="text-xs text-slate-500">{resolvedSupportContact.phone}</p>
                 </div>
                 <button
-                  onClick={() => handleCall(supportContact.phone)}
+                  onClick={() => handleCall(resolvedSupportContact.phone)}
                   className="px-3 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-semibold hover:bg-orange-600 transition-colors flex items-center gap-1"
                 >
                   <Phone size={14} /> Ligar
                 </button>
               </div>
-              {supportContact.hours && (
+              {resolvedSupportContact.hours && (
                 <div className="mt-2 pt-2 border-t border-slate-200">
-                  <p className="text-xs text-slate-500">{supportContact.hours}</p>
-                  {supportContact.responseTime && (
-                    <p className="text-xs text-orange-500 mt-1">{supportContact.responseTime}</p>
+                  <p className="text-xs text-slate-500">{resolvedSupportContact.hours}</p>
+                  {resolvedSupportContact.responseTime && (
+                    <p className="text-xs text-orange-500 mt-1">{resolvedSupportContact.responseTime}</p>
                   )}
                 </div>
               )}

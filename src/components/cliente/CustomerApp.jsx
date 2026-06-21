@@ -19,6 +19,7 @@ import {
   getCustomerDashboard
 } from "../../api/client";
 import { toast } from "../../lib/toast";
+import { usePlatformSettings } from "../../contexts/SettingsContext";
 import Icon from "../common/Icon";
 import OrderDetailModal from "../modals/OrderDetailModal";
 
@@ -43,6 +44,7 @@ const CustomerApp = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const { user, signOut } = useAuth();
+  const { settings, loading: settingsLoading } = usePlatformSettings();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -147,16 +149,53 @@ const CustomerApp = () => {
   const completedCount = customerProfile?.stats?.completedCount || dashboardData?.stats?.completedCount || completedOrders.length;
   const averageRating = customerData.rating || 4.5;
 
+  const getAvailableServiceType = () => {
+    if (settingsLoading) return null;
+    if (settings.order.allowDelivery) return "delivery";
+    if (settings.order.allowTaxi) return "taxi";
+    return null;
+  };
+ 
   const handleCreateOrder = (serviceType = null) => {
-    setSelectedServiceType(serviceType);
+    if (settingsLoading) {
+      toast.info("A carregar configurações...");
+      return;
+    }
+
+    const resolvedServiceType = serviceType || getAvailableServiceType();
+    if (!resolvedServiceType) {
+      toast.error("Nenhum serviço está disponível no momento.");
+      return;
+    }
+
+    setSelectedServiceType(resolvedServiceType);
     setShowCreateOrder(true);
   };
-
+ 
   const handleOpenCreateOrder = () => {
+    if (settingsLoading) {
+      toast.info("A carregar configurações...");
+      return;
+    }
+
+    if (!settings.order.allowDelivery && !settings.order.allowTaxi) {
+      toast.error("Nenhum serviço está disponível no momento.");
+      return;
+    }
+
     setShowServiceSelection(true);
   };
 
   const handleServiceSelect = (serviceType) => {
+    if (serviceType === "delivery" && !settings.order.allowDelivery) {
+      toast.error("Pedidos de entrega estão temporariamente indisponíveis.");
+      return;
+    }
+    if (serviceType === "taxi" && !settings.order.allowTaxi) {
+      toast.error("Corridas estão temporariamente indisponíveis.");
+      return;
+    }
+
     setSelectedServiceType(serviceType);
     setShowServiceSelection(false);
     setShowCreateOrder(true);
@@ -238,6 +277,8 @@ const CustomerApp = () => {
             onTrackOrder={handleTrackOrder}
             onGiveFeedback={handleGiveFeedback}
             onContactSupport={() => setShowSupport(true)}
+            settings={settings}
+            settingsLoading={settingsLoading}
           />
         )}
         {activeTab === "orders" && (
@@ -298,13 +339,17 @@ const CustomerApp = () => {
         repeatOrder={selectedOrder}
         serviceType={selectedServiceType}
         onRefreshOrders={handleOpenCreateOrder}
+        settings={settings}
+        settingsLoading={settingsLoading}
       />
 
-      <ServiceSelectionModal
-        isOpen={showServiceSelection}
-        onClose={() => setShowServiceSelection(false)}
-        onSelectService={handleServiceSelect}
-      />
+     <ServiceSelectionModal
+       isOpen={showServiceSelection}
+       onClose={() => setShowServiceSelection(false)}
+       onSelectService={handleServiceSelect}
+       settings={settings}
+       settingsLoading={settingsLoading}
+     />
 
       <FeedbackModal
         isOpen={showFeedback}
