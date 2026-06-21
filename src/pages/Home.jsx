@@ -217,7 +217,7 @@ const NOTIFICATIONS = [
   { id: 8, type: "incident", title: "Avaria Resolvida", message: "Quebra de amortecedor - Américo Cossa - Resolvido", time: "Ontem", read: true, icon: "wrench", userId: null },
   // Customer notifications
   { id: 9, type: "customer_order", title: "Pedido Confirmado", message: "Seu pedido #006 foi confirmado e está sendo processado", time: "10 min atrás", read: false, icon: "checkCircle", userId: 5 },
-  { id: 10, type: "customer_driver", title: "Motorista a caminho", message: "João Motorista está a caminho para coleta do seu pedido #001", time: "20 min atrás", read: false, icon: "truck", userId: 5 },
+  { id: 10, type: "customer_driver", title: "Motorista confirmado", message: "João Motorista foi confirmado para a coleta do seu pedido #001", time: "20 min atrás", read: false, icon: "truck", userId: 5 },
   { id: 11, type: "customer_promo", title: "Desconto Especial", message: "Ganhe 20% de desconto na sua próxima entrega!", time: "1 dia atrás", read: true, icon: "gift", userId: 5 },
 ];
 

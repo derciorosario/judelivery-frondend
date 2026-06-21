@@ -174,7 +174,7 @@ const OrderDetailModal = ({ isOpen, onClose, order, orderId, onGiveFeedback }) =
           <div className="sticky top-0 bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between rounded-t-2xl z-10">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-base font-bold text-slate-800">
-                Pedido #{localOrder.id ? localOrder.id.slice(-8).toUpperCase() : "PEDIDO"}
+                Pedido #{localOrder.id ? localOrder.id.slice(0, 8).toUpperCase() : "PEDIDO"}
               </h2>
               <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${statusConfig.badgeClass}`}>
                 <StatusIcon size={10} />

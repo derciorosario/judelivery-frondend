@@ -8,13 +8,15 @@ import CustomerHome from "./CustomerHome";
 import CustomerProfile from "./CustomerProfile";
 import CreateOrderModal from "./modals/CreateOrderModal";
 import FeedbackModal from "./modals/FeedbackModal";
-import SupportModal from "./modals/SupportModal";
 import ServiceSelectionModal from "./modals/ServiceSelectionModal";
+import ContactSupportModal from "../common/modals/ContactSupportModal";
+import TrackOrderModal from "./modals/TrackOrderModal";
 import Notifications from "../common/Notifications";
 import {
   createFeedback,
   getCustomerProfile,
-  getCustomerOrders
+  getCustomerOrders,
+  getCustomerDashboard
 } from "../../api/client";
 import { toast } from "../../lib/toast";
 import Icon from "../common/Icon";
@@ -27,6 +29,8 @@ const CustomerApp = () => {
   const [showFeedback, setShowFeedback] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [showTrackOrder, setShowTrackOrder] = useState(false);
+  const [selectedTrackOrder, setSelectedTrackOrder] = useState(null);
   const [shouldRefreshOrders, setShouldRefreshOrders] = useState(false);
   const [feedbackOrder, setFeedbackOrder] = useState(null);
   const [showFeedbackSuccess, setShowFeedbackSuccess] = useState(false);
@@ -36,48 +40,11 @@ const CustomerApp = () => {
   const [refreshData, setRefreshData] = useState(false);
   const [customerProfile, setCustomerProfile] = useState(null);
   const [customerOrders, setCustomerOrders] = useState([]);
+  const [dashboardData, setDashboardData] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (refreshData) setRefreshData(false);
-  }, [refreshData]);
-
-  const loadCustomerData = async () => {
-    if (!user?.id) return;
-    setProfileLoading(true);
-    try {
-      const [profileResponse, ordersResponse] = await Promise.all([
-        getCustomerProfile(),
-        getCustomerOrders({ limit: 50 })
-      ]);
-      setCustomerProfile(profileResponse.data);
-      setCustomerOrders(ordersResponse.data?.orders || ordersResponse.data || []);
-    } catch (error) {
-      console.error("Failed to load customer profile", error);
-    } finally {
-      setProfileLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadCustomerData();
-  }, [user, refreshData, shouldRefreshOrders]);
-
-  useEffect(() => {
-    const handleOpenOrder = (e) => {
-      const orderId = e.detail?.orderId;
-      if (orderId) {
-        setSelectedOrderId(orderId);
-        setShowOrderDetails(true);
-        setShouldRefreshOrders(prev => !prev);
-      }
-    };
-    window.addEventListener("notification:openOrder", handleOpenOrder);
-    return () => window.removeEventListener("notification:openOrder", handleOpenOrder);
-  }, []);
 
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },
@@ -105,9 +72,59 @@ const CustomerApp = () => {
     }
   };
 
-  const activeOrder = customerOrders.find(o => ["in_transit", "assigned", "scheduled", "approved", "pending_approval"].includes(o.status));
-  const pendingOrders = customerOrders.filter(o => ["pending_approval", "approved", "scheduled"].includes(o.status));
-  const completedOrders = customerOrders.filter(o => o.status === "completed");
+  useEffect(() => {
+    if (refreshData) setRefreshData(false);
+  }, [refreshData]);
+
+  const loadCustomerData = async () => {
+    if (!user?.id) return;
+    setProfileLoading(true);
+    try {
+      const [profileResponse, ordersResponse, dashboardResponse] = await Promise.all([
+        getCustomerProfile(),
+        getCustomerOrders({ limit: 50 }),
+        getCustomerDashboard()
+      ]);
+      setCustomerProfile(profileResponse.data);
+      setCustomerOrders(ordersResponse.data?.orders || ordersResponse.data || []);
+      setDashboardData(dashboardResponse.data);
+    } catch (error) {
+      console.error("Failed to load customer profile", error);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCustomerData();
+  }, [user, refreshData, shouldRefreshOrders]);
+
+  useEffect(() => {
+    if (activeTab === "home") {
+      loadCustomerData();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const handleOpenOrder = (e) => {
+      const orderId = e.detail?.orderId;
+      if (orderId) {
+        setSelectedOrderId(orderId);
+        setShowOrderDetails(true);
+        setShouldRefreshOrders(prev => !prev);
+      }
+    };
+    window.addEventListener("notification:openOrder", handleOpenOrder);
+    return () => window.removeEventListener("notification:openOrder", handleOpenOrder);
+  }, []);
+
+  const dashboardActiveOrder = dashboardData?.activeOrder || null;
+  const dashboardPendingOrders = dashboardData?.pendingOrders || [];
+  const dashboardCompletedOrders = dashboardData?.completedOrders || [];
+
+  const activeOrder = dashboardActiveOrder;
+  const pendingOrders = dashboardPendingOrders;
+  const completedOrders = dashboardCompletedOrders;
 
   const customerData = {
     id: customerProfile?.customer?.id || user?.id,
@@ -125,9 +142,9 @@ const CustomerApp = () => {
     preference: customerProfile?.preference || null
   };
 
-  const totalSpent = customerProfile?.stats?.totalSpent || customerOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
-  const deliveryCount = customerProfile?.stats?.deliveryCount || customerOrders.length;
-  const completedCount = customerProfile?.stats?.completedCount || completedOrders.length;
+  const totalSpent = customerProfile?.stats?.totalSpent || dashboardData?.stats?.totalSpent || customerOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+  const deliveryCount = customerProfile?.stats?.deliveryCount || dashboardData?.stats?.deliveryCount || customerOrders.length;
+  const completedCount = customerProfile?.stats?.completedCount || dashboardData?.stats?.completedCount || completedOrders.length;
   const averageRating = customerData.rating || 4.5;
 
   const handleCreateOrder = (serviceType = null) => {
@@ -147,6 +164,7 @@ const CustomerApp = () => {
 
   const handleViewOrderDetails = (order) => {
     setSelectedOrder(order);
+    setShowOrderDetails(true);
   };
 
   const handleGiveFeedback = (order) => {
@@ -175,11 +193,16 @@ const CustomerApp = () => {
     }
   };
 
-  const handleTrackOrder = () => {
-    if (activeOrder) {
-      setSelectedOrder(activeOrder);
+  const handleTrackOrder = (order) => {
+    if (order) {
+      setSelectedTrackOrder(order);
+      setShowTrackOrder(true);
+      return;
     }
-    setTab("tracking");
+    if (activeOrder) {
+      setSelectedTrackOrder(activeOrder);
+      setShowTrackOrder(true);
+    }
   };
 
   const handleOrderUpdate = (updatedOrder) => {
@@ -214,6 +237,7 @@ const CustomerApp = () => {
             onViewOrderDetails={handleViewOrderDetails}
             onTrackOrder={handleTrackOrder}
             onGiveFeedback={handleGiveFeedback}
+            onContactSupport={() => setShowSupport(true)}
           />
         )}
         {activeTab === "orders" && (
@@ -327,11 +351,21 @@ const CustomerApp = () => {
         onGiveFeedback={handleGiveFeedback}
       />
 
-      <SupportModal
+      <TrackOrderModal
+        isOpen={showTrackOrder}
+        onClose={() => {
+          setShowTrackOrder(false);
+          setSelectedTrackOrder(null);
+        }}
+        order={selectedTrackOrder || activeOrder}
+      />
+
+      <ContactSupportModal
         isOpen={showSupport}
         onClose={() => {
           setShowSupport(false);
         }}
+        order={activeOrder}
       />
     </div>
   );

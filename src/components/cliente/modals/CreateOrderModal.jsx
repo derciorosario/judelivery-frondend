@@ -12,6 +12,12 @@ import { useAuth } from "../../../contexts/AuthContext";
 const GOOGLE_MAPS_KEY = "AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak";
 const MAPUTO_CENTER = { lat: -25.9653, lng: 32.5778 };
 const libraries = ["places"];
+const DEFAULT_PLATFORM_CONTACT = {
+  name: "Plataforma/Suporte",
+  phone: "+258 82 333 4455",
+  hours: "Segunda a Sexta: 8h às 18h | Sábado: 9h às 13h",
+  responseTime: "Tempo médio de resposta: 2 horas"
+};
 
 const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated, onOrderUpdated, repeatOrder, editOrder, serviceType, clientId, onClientSelectClick, selectedClient }) => {
   const {user:authUser} = useAuth()
@@ -39,6 +45,61 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
   
   // Map ref for controlling the map
   const mapRef = useRef(null);
+
+  const resetForm = useCallback(() => {
+    setStep(1);
+    setMapOpen(false);
+    setRouteMapOpen(false);
+    setMapTarget(null);
+    setMapMarker(null);
+    setDirections(null);
+    setRouteInfo(null);
+    setLoadingRoute(false);
+    setLoadingLocations({
+      origin: false,
+      dest: false,
+      pickupLocation: false,
+      dropoffLocation: false
+    });
+    setSaving(false);
+    setSubmitStatus('idle');
+    setSearchValue("");
+    setForm({
+      origin: "",
+      originCoords: null,
+      dest: "",
+      destCoords: null,
+      productName: "",
+      quantity: 1,
+      weight: "",
+      observations: "",
+      instructions: "",
+      scheduledTime: "",
+      isScheduled: false,
+      urgencyLevel: "normal",
+      paymentMethod: "Transferência",
+      contactOrigin: customerData?.phone || "",
+      contactDest: customerData?.phone || "",
+      pickupLocation: "",
+      pickupCoords: null,
+      dropoffLocation: "",
+      dropoffCoords: null,
+      passengerCount: 1,
+      isScheduledRide: false,
+      scheduledRideTime: "",
+      rideInstructions: "",
+      hasLuggage: false,
+      returnTrip: false,
+      waitingTime: 0,
+      manualOrigin: false,
+      manualDest: false,
+      manualPickup: false,
+      manualDropoff: false,
+      driverId: null,
+      driverName: null,
+      driverPhone: null
+    });
+  }, [customerData]);
   
   const onMapLoad = (map) => {
     mapRef.current = map;
@@ -82,7 +143,8 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     manualDropoff: false,
     // Driver assignment
     driverId: null,
-    driverName: null
+    driverName: null,
+    driverPhone: null
   });
   
   const calculateRealDistance = useCallback((coords1, coords2) => {
@@ -577,9 +639,16 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
   const handleDriverAssigned = (driver) => {
     setForm(prev => ({
       ...prev,
-      driverId: driver.id,
-      driverName: driver.name
+      driverId: driver?.id || null,
+      driverName: driver?.name || null,
+      driverPhone: driver?.phone || null
     }));
+  };
+
+  const handleCall = (phone) => {
+    if (!phone) return;
+    const normalizedPhone = phone.replace(/[^\d+]/g, "");
+    window.open(`tel:${normalizedPhone}`, "_self");
   };
 
   const handleSubmit = async (e) => {
@@ -712,7 +781,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
             </div>
             <p className="text-xs text-slate-400 mt-1">{getStepTitle()}</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+          <button onClick={() => { resetForm(); onClose(); }} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
             <Icon name="x" size={18} />
           </button>
         </div>
@@ -1095,65 +1164,84 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
 
       {submitStatus === 'success' && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-xs text-center shadow-2xl">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md text-center shadow-2xl">
             <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
             </div>
             <h3 className="text-base font-bold text-slate-800 mb-1">
-              {editOrder ? "Pedido atualizado com sucesso!" : "Pedido enviado com sucesso!"}
+              {editOrder ? "Pedido atualizado com sucesso!" : (form.driverId ? "Motorista atribuído!" : "Pedido enviado com sucesso!")}
             </h3>
-            <p className="text-xs text-slate-500 mb-5">
-              {editOrder 
+            <p className="text-xs text-slate-500 mb-4">
+              {editOrder
                 ? "O seu pedido foi atualizado com sucesso."
-                : "O seu pedido foi recebido e está a ser processado. Em breve receberá confirmação."
+                : form.driverId
+                  ? `${form.driverName} foi atribuído ao seu pedido. Use os contactos abaixo para acompanhamento.`
+                  : "O seu pedido foi recebido e está a ser processado. Um motorista será atribuído em breve e você será notificado."
               }
             </p>
+
+            <div className="text-left space-y-3">
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-2">
+                <Icon name="phone" size={14} className="text-orange-500" /> Contactos para acompanhamento
+              </h4>
+
+              <div className="space-y-2">
+                {form.driverId && form.driverName && (
+                  <div className="bg-slate-50 rounded-xl p-3">
+                    <div className="flex items-center justify-between gap-3 mb-1">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 truncate">{form.driverName}</p>
+                        <p className="text-xs text-slate-500 truncate">
+                          {form.driverPhone || "Contacto indisponível"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!form.driverPhone}
+                        onClick={() => handleCall(form.driverPhone)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${
+                          form.driverPhone
+                            ? "bg-blue-500 text-white hover:bg-blue-600"
+                            : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                        }`}
+                      >
+                        <Icon name="phone" size={14} /> Ligar
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-400">Motorista</p>
+                  </div>
+                )}
+
+                <div className="bg-slate-50 rounded-xl p-3">
+                  <div className="flex items-center justify-between gap-3 mb-1">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 truncate">{DEFAULT_PLATFORM_CONTACT.name}</p>
+                      <p className="text-xs text-slate-500 truncate">{DEFAULT_PLATFORM_CONTACT.phone}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCall(DEFAULT_PLATFORM_CONTACT.phone)}
+                      className="px-3 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-semibold hover:bg-orange-600 transition-colors flex items-center gap-1"
+                    >
+                      <Icon name="phone" size={14} /> Ligar
+                    </button>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-slate-200">
+                    <p className="text-xs text-slate-500">{DEFAULT_PLATFORM_CONTACT.hours}</p>
+                    <p className="text-xs text-orange-500 mt-1">{DEFAULT_PLATFORM_CONTACT.responseTime}</p>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">Plataforma/Suporte</p>
+                </div>
+              </div>
+            </div>
+
             <button
               onClick={() => {
                 setSubmitStatus('idle');
+                resetForm();
                 onClose(true);
-                setStep(1);
-                setMapOpen(false);
-                setRouteMapOpen(false);
-                setMapTarget(null);
-                setMapMarker(null);
-                setDirections(null);
-                setRouteInfo(null);
-                setSaving(false);
-                setForm({
-                  origin: "",
-                  originCoords: null,
-                  dest: "",
-                  destCoords: null,
-                  productName: "",
-                  quantity: 1,
-                  weight: "",
-                  observations: "",
-                  instructions: "",
-                  scheduledTime: "",
-                  isScheduled: false,
-                  urgencyLevel: "normal",
-                  paymentMethod: "Transferência",
-                  contactOrigin: customerData?.phone || "",
-                  contactDest: customerData?.phone || "",
-                  pickupLocation: "",
-                  pickupCoords: null,
-                  dropoffLocation: "",
-                  dropoffCoords: null,
-                  passengerCount: 1,
-                  isScheduledRide: false,
-                  scheduledRideTime: "",
-                  rideInstructions: "",
-                  hasLuggage: false,
-                  returnTrip: false,
-                  waitingTime: 0,
-                  manualOrigin: false,
-                  manualDest: false,
-                  manualPickup: false,
-                  manualDropoff: false
-                });
               }}
               className="w-full py-2.5 rounded-xl bg-green-500 text-white font-bold text-sm shadow-lg shadow-green-500/30 hover:bg-green-600 transition-colors"
             >

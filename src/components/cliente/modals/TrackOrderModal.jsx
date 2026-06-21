@@ -494,7 +494,7 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
             <div>
               <h2 className="text-base font-bold text-slate-800">Acompanhar Pedido</h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                #{order.id ? order.id.slice(-8).toUpperCase() : "PEDIDO"}
+                #{order.id ? order.id.slice(0, 8).toUpperCase() : "PEDIDO"}
               </p>
             </div>
           </div>

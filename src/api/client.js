@@ -291,6 +291,9 @@ export const updateCustomer = (id, formData) => uploadClient.put(`/customers/${i
 // Delete customer
 export const deleteCustomer = (id) => client.delete(`/customers/${id}`);
 
+// Customer dashboard
+export const getCustomerDashboard = () => client.get('/profile/customer/dashboard');
+
 // Customer profile
 export const getCustomerProfile = () => client.get('/profile/customer');
 export const updateCustomerProfile = (data) => client.put('/profile/customer', data);

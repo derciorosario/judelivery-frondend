@@ -14,6 +14,25 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
   const [orderCreated, setOrderCreated] = useState(false);
   const [searchError, setSearchError] = useState(null);
 
+  // Check if scheduled time is more than 1 hour from now
+  const isScheduledFarFuture = () => {
+    if (!form.isScheduled && !form.isScheduledRide) return false;
+    const scheduledTime = form.scheduledTime || form.scheduledRideTime;
+    if (!scheduledTime) return false;
+    const scheduledDate = new Date(scheduledTime);
+    const now = new Date();
+    const diffMs = scheduledDate.getTime() - now.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+    return diffHours > 1;
+  };
+
+  // Check if scheduled time is valid
+  const hasValidScheduledTime = () => {
+    if (!form.isScheduled && !form.isScheduledRide) return true; // Not scheduled, so valid
+    const scheduledTime = form.scheduledTime || form.scheduledRideTime;
+    return scheduledTime && new Date(scheduledTime).getTime() > Date.now();
+  };
+
   // Calculate estimated duration based on distance and urgency
   const getEstimatedDuration = () => {
     if (serviceType === "taxi") {
@@ -70,7 +89,7 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
          destCoords: getDestCoords() ? `${getDestCoords().lat},${getDestCoords().lng}` : undefined,
          pickupCoords: form.pickupCoords ? `${form.pickupCoords.lat},${form.pickupCoords.lng}` : undefined,
          dropoffCoords: form.dropoffCoords ? `${form.dropoffCoords.lat},${form.dropoffCoords.lng}` : undefined,
-         scheduledTime: form.isScheduled ? form.scheduledTime : form.isScheduledRide ? form.scheduledRideTime : undefined,
+         scheduledTime:  form.scheduledTime ||  form.scheduledRideTime || undefined,
          isScheduled: form.isScheduled || form.isScheduledRide,
          estimatedDuration: getEstimatedDuration()
        };
@@ -85,6 +104,9 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
         if (onDriverAssigned) {
           onDriverAssigned(closestDriver);
         }
+      }else{
+        setSelectedDriver(null)
+        onDriverAssigned(null)
       }
     } catch (error) {
       console.error("Error searching for drivers:", error);
@@ -159,10 +181,49 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
     };
   }, [socket, searchingDriver]);
 
+
+
+  useEffect(()=>{
+    if(availableDrivers.length==0){
+      if(selectedDriver) setSelectedDriver(null)
+      if(onDriverAssigned)  onDriverAssigned(null)
+    }
+  },[availableDrivers])
+ 
   // Render driver search UI
   const renderDriverSearchUI = () => {
+    
+    // If scheduled but no valid time, don't show driver search
+  if ((form.isScheduled || form.isScheduledRide) && !hasValidScheduledTime()) {
+    return (
+      <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
+        <div className="flex items-center gap-3">
+          <Icon name="clock" size={20} className="text-amber-600 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-amber-800">Preencha a data e hora</p>
+            <p className="text-xs text-amber-700">Selecione um horário futuro válido para continuar</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+    // If scheduled more than 1 hour in future, don't show distance/ETA
+    const showDistance = !isScheduledFarFuture();
+
     if (!searchingDriver && availableDrivers.length === 0 && !selectedDriver && !searchError) {
-      return null;
+     
+      return (
+           <div className="text-center py-4">
+            <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-2">
+              <Icon name="alertTriangle" size={24} className="text-amber-500" />
+            </div>
+            <p className="text-sm font-semibold text-slate-800">Nenhum motorista disponível</p>
+            <p className="text-xs text-slate-500 mt-1">
+              Não há motoristas disponíveis no momento. Pode escolher outro horário ou continuar - um motorista será atribuído mais tarde e você será notificado.
+            </p>
+          </div>
+      );
     }
 
     return (
@@ -218,14 +279,16 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
                         <p className="text-xs text-slate-500">{driver.vehicle} • {driver.licensePlate}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      {driver.distance !== null && (
-                        <p className="text-xs font-semibold text-blue-600">{driver.distance} km</p>
-                      )}
-                      {driver.eta && (
-                        <p className="text-[10px] text-slate-400">~{driver.eta} min</p>
-                      )}
-                    </div>
+                    {showDistance && (
+                      <div className="text-right">
+                        {driver.distance !== null && (
+                          <p className="text-xs font-semibold text-blue-600">{driver.distance} km</p>
+                        )}
+                        {driver.eta && (
+                          <p className="text-[10px] text-slate-400">~{driver.eta} min</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                   {driver.rating && (
                     <div className="flex items-center gap-1 mt-1">
@@ -251,18 +314,7 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
           </div>
         )}
 
-        {!searchingDriver && availableDrivers.length === 0 && !selectedDriver && !searchError && (
-          <div className="text-center py-4">
-            <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-2">
-              <Icon name="alertTriangle" size={24} className="text-amber-500" />
-            </div>
-            <p className="text-sm font-semibold text-slate-800">Nenhum motorista disponível</p>
-            <p className="text-xs text-slate-500 mt-1">
-              O seu pedido ficará pendente e será atribuído assim que um motorista estiver disponível.
-            </p>
-          </div>
-        )}
-
+        
         {selectedDriver && !searchingDriver && (
           <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
             <div className="flex items-center gap-2">
@@ -271,7 +323,7 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
               </div>
               <div>
                 <p className="text-xs font-semibold text-green-700">Motorista atribuído!</p>
-                <p className="text-xs text-green-600">{selectedDriver.name} está a caminho</p>
+                <p className="text-xs text-green-600 hidden">Motorista confirmado</p>
               </div>
             </div>
           </div>
@@ -370,6 +422,7 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
                 onChange={e => onFormChange({ ...form, scheduledRideTime: e.target.value })}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                 required={form.isScheduledRide}
+                min={new Date().toISOString().slice(0, 16)} 
               />
               <p className="text-xs text-green-600 mt-1">✓ Agendamento sem taxa adicional</p>
             </div>
@@ -541,6 +594,7 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
                onChange={e => onFormChange({ ...form, scheduledTime: e.target.value })}
                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                required={form.isScheduled}
+               min={new Date().toISOString().slice(0, 16)} 
              />
              <p className="text-xs text-green-600 mt-1">✓ Agendamento sem taxa adicional</p>
            </div>

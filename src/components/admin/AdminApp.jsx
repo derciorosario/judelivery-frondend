@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import BottomNav from "../common/BottomNav";
@@ -12,6 +12,7 @@ import AdminReports from "./AdminReports";
 import AdminFinance from "./AdminFinance";
 import AdminRequests from "./AdminRequests";
 import AdminManagers from "./AdminManagers";
+import AdminSettings from "./AdminSettings";
 import CreateOrderModal from "../cliente/modals/CreateOrderModal";
 import AdminClientSelectModal from "./AdminClientSelectModal";
 import { getOrder } from "../../api/client";
@@ -19,7 +20,7 @@ import Notifications from "../common/Notifications";
 import OrderDetailModal from "../modals/OrderDetailModal";
 
 const AdminApp = () => {
-  const [customerRequests, setCustomerRequests] = useState([]);
+  const [customerRequests] = useState([]);
   const [orderRefreshKey, setOrderRefreshKey] = useState(0);
   const [showAdminCreateOrder, setShowAdminCreateOrder] = useState(false);
   const [showClientSelect, setShowClientSelect] = useState(false);
@@ -30,7 +31,7 @@ const AdminApp = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const tabs = [
+  const tabs = useMemo(() => [
     { id: "home", label: "Início", icon: "home", path: "/" },
     { id: "orders", label: "Pedidos", icon: "package", path: "/orders" },
     { id: "drivers", label: "Motoristas", icon: "users", path: "/drivers" },
@@ -40,7 +41,8 @@ const AdminApp = () => {
     { id: "finance", label: "Finanças", icon: "dollar", path: "/finance" },
     { id: "reports", label: "Relatórios", icon: "chart", path: "/reports" },
     { id: "notifications", label: "Notificações", icon: "bell", path: "/notifications" },
-  ];
+    { id: "settings", label: "Configurações", icon: "settings", path: "/settings" },
+  ], []);
 
   const getTabFromPath = () => {
     const path = location.pathname;
@@ -147,6 +149,7 @@ const AdminApp = () => {
         {activeTab === "finance" && <AdminFinance />}
         {activeTab === "reports" && <AdminReports />}
         {activeTab === "notifications" && <Notifications />}
+        {activeTab === "settings" && <AdminSettings />}
       </div>
       <BottomNav tabs={tabs} active={activeTab} setActive={setTab} />
 

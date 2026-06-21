@@ -15,11 +15,31 @@ const CustomerHome = ({
   onCreateOrder,
   onViewOrderDetails,
   onTrackOrder,
-  onGiveFeedback
+  onGiveFeedback,
+  onContactSupport
 }) => {
   const [showPromo, setShowPromo] = useState(true);
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
+
+  const formatOrderId = (id) => {
+    if (!id) return "PEDIDO";
+    if (id.startsWith("#")) return id;
+    return id.slice(0, 8).toUpperCase();
+  };
+
+  const translateStatus = (status) => {
+    const statusMap = {
+      pending_approval: "Aguardando Aprovação",
+      approved: "Aprovado",
+      scheduled: "Agendado",
+      assigned: "Atribuído",
+      in_transit: "Em Trânsito",
+      completed: "Concluído",
+      cancelled: "Cancelado"
+    };
+    return statusMap[status] || status;
+  };
   
   const handleServiceSelect = (service) => {
     setSelectedService(service);
@@ -109,8 +129,8 @@ fill="currentColor" viewBox="0 0 24 24" >
           </div>
           <div className="bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl p-4 text-white">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-bold">{activeOrder.id}</span>
-              <span className="text-xs bg-white/20 px-2 py-1 rounded-full">{activeOrder.status}</span>
+              <span className="text-sm font-bold">{formatOrderId(activeOrder.id)}</span>
+              <span className="text-xs bg-white/20 px-2 py-1 rounded-full">{translateStatus(activeOrder.status)}</span>
             </div>
             <p className="text-base font-semibold">{activeOrder.productName}</p>
             <p className="text-xs opacity-80 mt-0.5">{activeOrder.dest}</p>
@@ -119,7 +139,7 @@ fill="currentColor" viewBox="0 0 24 24" >
               <span>Estimativa: {activeOrder.duration || "45 min"}</span>
             </div>
             <div className="flex gap-2 mt-4">
-              <button onClick={() => onTrackOrder()} className="flex-1 bg-white text-blue-600 font-bold text-sm py-2.5 rounded-xl">
+              <button onClick={() => onTrackOrder(activeOrder)} className="flex-1 bg-white text-blue-600 font-bold text-sm py-2.5 rounded-xl">
                 Acompanhar
               </button>
               <button onClick={() => onViewOrderDetails(activeOrder)} className="flex-1 bg-blue-400 text-white font-bold text-sm py-2.5 rounded-xl">
@@ -140,9 +160,9 @@ fill="currentColor" viewBox="0 0 24 24" >
           {pendingOrders.slice(0, 2).map(order => (
             <div key={order.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm mb-3">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-bold text-slate-800">{order.id}</span>
+                <span className="text-sm font-bold text-slate-800">{formatOrderId(order.id)}</span>
                 <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full">
-                  {order.status === "Aprovado" ? "Aprovado" : "Aguardando"}
+                  {translateStatus(order.status)}
                 </span>
               </div>
               <p className="text-sm text-slate-700">{order.productName}</p>
@@ -171,7 +191,7 @@ fill="currentColor" viewBox="0 0 24 24" >
                     <Icon name="checkCircle" size={16} className="text-green-500" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">{order.id}</p>
+                    <p className="text-sm font-semibold text-slate-800">{formatOrderId(order.id)}</p>
                     <p className="text-xs text-slate-500">{order.productName}</p>
                   </div>
                 </div>
@@ -193,9 +213,9 @@ fill="currentColor" viewBox="0 0 24 24" >
         </div>
       )}
       
-      {/* Promo Banner */}
-      {showPromo && (
-        <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-4 text-white relative overflow-hidden">
+      {/* Promo Banner - LEAVE IT HIDDEN */}
+      {showPromo && ( 
+        <div className="bg-gradient-to-r hidden from-purple-500 to-pink-500 rounded-2xl p-4 text-white relative overflow-hidden">
           <button onClick={() => setShowPromo(false)} className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
             <Icon name="x" size={14} className="text-white" />
           </button>
@@ -224,7 +244,10 @@ fill="currentColor" viewBox="0 0 24 24" >
             <p className="text-sm font-semibold text-slate-800">Precisa de ajuda?</p>
             <p className="text-xs text-slate-400">Estamos aqui para ajudar com suas entregas</p>
           </div>
-          <button className="text-xs bg-orange-500 text-white font-semibold px-4 py-2 rounded-lg">
+          <button
+            onClick={() => onContactSupport(activeOrder)}
+            className="text-xs bg-orange-500 text-white font-semibold px-4 py-2 rounded-lg"
+          >
             Contactar
           </button>
         </div>
