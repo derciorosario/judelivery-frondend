@@ -341,11 +341,11 @@ const AdminSettings = () => {
         {activeTab === "orders" && (
           <div className="space-y-4 pb-10">
             <SectionCard icon="package" title="Tipos e fluxo de pedidos" description="Controlo visual dos serviços e estados usados pelo CreateOrderModal.">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <SwitchField checked={settings.order.allowDelivery} onChange={(value) => update("order", "allowDelivery", value)} label="Entregas" hint="Permitir pedidos de entrega" disabled={disabled} />
                 <SwitchField checked={settings.order.allowTaxi} onChange={(value) => update("order", "allowTaxi", value)} label="Táxis" hint="Permitir corridas" disabled={disabled} />
               </div>
-              <div className="grid grid-cols-2 gap-3 mt-4">
+              <div className="grid grid-cols-1 gap-3 mt-4">
                 <Field label="Serviço padrão">
                   <select value={settings.order.defaultServiceType} onChange={(event) => update("order", "defaultServiceType", event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300">
                     <option value="delivery">Entrega</option>
@@ -358,7 +358,7 @@ const AdminSettings = () => {
                   </select>
                 </Field>
               </div>
-              <div className="grid grid-cols-2 gap-3 mt-4">
+              <div className="grid grid-cols-1 gap-3 mt-4">
                 <SwitchField checked={settings.order.allowManualAddressInput} onChange={(value) => update("order", "allowManualAddressInput", value)} label="Endereço manual" hint="Permitir sem coordenadas" disabled={disabled} />
                 <SwitchField checked={settings.order.requireCoordinates} onChange={(value) => update("order", "requireCoordinates", value)} label="Exigir coordenadas" hint="Quando não for manual" disabled={disabled} />
                 <SwitchField checked={settings.order.allowScheduledOrders} onChange={(value) => update("order", "allowScheduledOrders", value)} label="Agendados" hint="Permitir hora futura" disabled={disabled} />
@@ -367,13 +367,13 @@ const AdminSettings = () => {
             </SectionCard>
 
             <SectionCard icon="users" title="Motoristas e cancelamento" description="Preferências de atribuição e permissões do ciclo do pedido.">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <SwitchField checked={settings.order.autoAssignDriver} onChange={(value) => update("order", "autoAssignDriver", value)} label="Auto atribuir" hint="Atribuir motorista automaticamente" disabled={disabled} />
                 <SwitchField checked={settings.order.requireDriverConfirmation} onChange={(value) => update("order", "requireDriverConfirmation", value)} label="Confirmação" hint="Exigir aceite do motorista" disabled={disabled} />
                 <SwitchField checked={settings.order.customerCanCancel} onChange={(value) => update("order", "customerCanCancel", value)} label="Cliente cancela" hint="Permitir cancelamento do cliente" disabled={disabled} />
                 <SwitchField checked={settings.order.adminCanCancel} onChange={(value) => update("order", "adminCanCancel", value)} label="Admin cancela" hint="Permitir cancelamento pelo admin" disabled={disabled} />
               </div>
-              <div className="grid grid-cols-2 gap-3 mt-4">
+              <div className="grid grid-cols-1 gap-3 mt-4">
                 <Field label="Distância máxima" hint="km">
                   <NumberInput value={settings.order.maxDistanceKm} onChange={(value) => update("order", "maxDistanceKm", value)} suffix="km" />
                 </Field>
@@ -402,7 +402,7 @@ const AdminSettings = () => {
         {activeTab === "pricing" && (
           <div className="space-y-4 pb-10">
             <SectionCard icon="dollar" title="Preços de entrega" description="Base, distância por km e percentagens de urgência usadas no cálculo de pedidos de entrega.">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <Field label="Preço base">
                   <NumberInput value={settings.pricing.deliveryBasePrice} onChange={(value) => update("pricing", "deliveryBasePrice", value)} suffix={settings.app.currency} />
                 </Field>
@@ -424,7 +424,7 @@ const AdminSettings = () => {
             </SectionCard>
 
             <SectionCard icon="car" title="Preços de táxi" description="Base, distância e extras usados no cálculo de corridas.">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <Field label="Preço base">
                   <NumberInput value={settings.pricing.taxiBasePrice} onChange={(value) => update("pricing", "taxiBasePrice", value)} suffix={settings.app.currency} />
                 </Field>
@@ -459,7 +459,7 @@ const AdminSettings = () => {
         {activeTab === "payments" && (
           <div className="space-y-4 pb-10">
             <SectionCard icon="creditCard" title="Regras de pagamento" description="Preferências gerais para pagamentos de pedidos e corridas.">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <SwitchField checked={settings.payments.requirePaymentBeforeAssignment} onChange={(value) => update("payments", "requirePaymentBeforeAssignment", value)} label="Pagamento antes da atribuição" hint="Exigir confirmação inicial" disabled={disabled} />
                 <SwitchField checked={settings.payments.paymentConfirmationRequired} onChange={(value) => update("payments", "paymentConfirmationRequired", value)} label="Confirmar pagamento" hint="Admin/cliente confirma" disabled={disabled} />
                 <SwitchField checked={settings.payments.showPaymentDialog} onChange={(value) => update("payments", "showPaymentDialog", value)} label="Mostrar diálogo" hint="No resumo do pedido" disabled={disabled} />
@@ -483,7 +483,7 @@ const AdminSettings = () => {
                         <Icon name="trash" size={14} />
                       </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div className="grid grid-cols-1 gap-3 mt-3">
                       <SwitchField checked={method.enabled} onChange={(value) => updatePayment(method.id, "enabled", value)} label="Activo" hint="Mostrar no pedido" disabled={disabled} />
                       <SwitchField checked={method.primary} onChange={(value) => updatePayment(method.id, "primary", value)} label="Principal" hint="Destaque no resumo" disabled={disabled} />
                     </div>
@@ -499,7 +499,7 @@ const AdminSettings = () => {
 
             <SectionCard icon="plus" title="Adicionar método" description="Adiciona um método à lista que será guardado quando clicar em Guardar.">
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   <Field label="Código">
                     <input type="text" value={newPayment.code} onChange={(event) => setNewPayment((previous) => ({ ...previous, code: event.target.value }))} placeholder="ex: mola" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300" />
                   </Field>
@@ -521,7 +521,7 @@ const AdminSettings = () => {
         {activeTab === "app" && (
           <div className="space-y-4 pb-10">
             <SectionCard icon="settings" title="Perfil da aplicação" description="Informações principais usadas em toda a app.">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <Field label="Nome da app">
                   <input type="text" value={settings.app.appName} onChange={(event) => update("app", "appName", event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300" />
                 </Field>
@@ -550,7 +550,7 @@ const AdminSettings = () => {
                 <Field label="Nome do suporte">
                   <input type="text" value={settings.app.supportName} onChange={(event) => update("app", "supportName", event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300" />
                 </Field>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   <Field label="Telefone">
                     <input type="tel" value={settings.app.supportPhone} onChange={(event) => update("app", "supportPhone", event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300" />
                   </Field>
@@ -568,7 +568,7 @@ const AdminSettings = () => {
             </SectionCard>
 
             <SectionCard icon="bell" title="Notificações" description="Preferências visuais para eventos importantes da app.">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 {Object.entries(settings.notifications).map(([key, value]) => (
                   <SwitchField key={key} checked={value} onChange={(next) => update("notifications", key, next)} label={key.replaceAll("_", " ")} hint={key === "promotions" ? "Opcional" : "Evento da app"} disabled={disabled} />
                 ))}
@@ -576,7 +576,7 @@ const AdminSettings = () => {
             </SectionCard>
 
             <SectionCard icon="users" title="Motoristas" description="Preferências gerais para motoristas em toda a app.">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <SwitchField checked={settings.drivers.requireDriverOnline} onChange={(value) => update("drivers", "requireDriverOnline", value)} label="Motorista online" hint="Exigir para atribuição" disabled={disabled} />
                 <SwitchField checked={settings.drivers.showDriverPhoneToCustomer} onChange={(value) => update("drivers", "showDriverPhoneToCustomer", value)} label="Mostrar telefone" hint="Para o cliente" disabled={disabled} />
                 <SwitchField checked={settings.drivers.allowDriverToAcceptScheduledOrders} onChange={(value) => update("drivers", "allowDriverToAcceptScheduledOrders", value)} label="Agendados" hint="Motoristas aceitam" disabled={disabled} />

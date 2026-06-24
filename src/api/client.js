@@ -231,7 +231,7 @@ export default client;
 // ==================== ADMIN API ====================
 
 // Get admin dashboard
-export const getAdminDashboard = () => client.get('/admin/dashboard');
+export const getAdminDashboard = () => client.get('/profile/admin/dashboard');
 
 // Get/update platform settings from the Admin Settings page only
 export const getPlatformSettings = () => client.get('/settings');
@@ -274,6 +274,7 @@ export const updateDriverProfile = (data) => client.put('/profile/driver', data)
 export const changeProfilePassword = (data) => client.post('/profile/change-password', data);
 export const getDriverPerformance = () => client.get('/profile/driver/performance');
 export const getDriverReports = () => client.get('/profile/driver/reports');
+export const getDriverDashboard = () => client.get('/profile/driver/dashboard');
 
 // Find available drivers for order assignment
 export const getAvailableDrivers = (params) => client.get('/drivers/available', { params });

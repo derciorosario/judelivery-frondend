@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Icon from "../../common/Icon";
 
 const FeedbackModal = ({ isOpen, onClose, order, onSubmit }) => {
@@ -22,6 +22,10 @@ const FeedbackModal = ({ isOpen, onClose, order, onSubmit }) => {
       setLoading(false);
     }
   };
+
+  useEffect(()=>{
+    setComment('')
+  },[isOpen])
 
   if (!isOpen || !order) return null;
 

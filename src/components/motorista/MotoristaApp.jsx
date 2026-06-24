@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getOrder, updateOrder, getDriverProfile } from "../../api/client";
+import { getOrder, updateOrder, getDriverProfile, getDriverDashboard } from "../../api/client";
 import BottomNav from "../common/BottomNav";
 import Header from "../common/Header";
 import OrdersList from "../common/OrdersList";
@@ -22,6 +22,8 @@ const MotoristaApp = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [orderRefreshKey, setOrderRefreshKey] = useState(0);
+  const [homeRefreshKey, setHomeRefreshKey] = useState(0);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [driverProfile, setDriverProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
 
@@ -76,11 +78,13 @@ const MotoristaApp = () => {
   const location = useDriverLocation({ autoStart: true });
 
   const handleOrderUpdate = (updatedOrder) => {
-    
-    setOrderRefreshKey(prev => prev + 1);
-    setSelectedOrder(prev => ({...prev,status:updatedOrder.status}))
+      
+     setOrderRefreshKey(prev => prev + 1);
+     setHomeRefreshKey(prev => prev + 1);
+     setHistoryRefreshKey(prev => prev + 1);
+     setSelectedOrder(prev => ({...prev,status:updatedOrder.status}))
 
-  };
+   };
 
 
   const handleStatusChange = (newStatus) => {
@@ -126,8 +130,14 @@ const MotoristaApp = () => {
       />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
         {activeTab === "home" && (
-          <MotoristaHome online={online} setOnline={setOnline} location={location} />
-        )}
+           <MotoristaHome 
+             online={online} 
+             setOnline={setOnline} 
+             location={location} 
+             onOrderUpdate={handleOrderUpdate}
+             refreshKey={homeRefreshKey}
+           />
+         )}
         {activeTab === "map" && (
           <MotoristaMap online={online} onToggleOnline={setOnline} location={location} />
         )}
@@ -139,7 +149,7 @@ const MotoristaApp = () => {
             onOrderUpdate={handleOrderUpdate}
           />
         )}
-        {activeTab === "history" && <MotoristaHistory />}
+        {activeTab === "history" && <MotoristaHistory refreshKey={historyRefreshKey} />}
         {activeTab === "profile" && (
           profileLoading ? (
             <div className="text-center py-10 text-sm text-slate-500">A carregar perfil...</div>
@@ -152,17 +162,19 @@ const MotoristaApp = () => {
       <BottomNav tabs={tabs} active={activeTab} setActive={setTab} />
 
        <OrderDetailModal
-        isOpen={showOrderDetails}
-        onClose={() => {
-          setShowOrderDetails(false);
-          setSelectedOrder(null);
-          setOrderRefreshKey(k => k + 1);
-        }}
-        order={selectedOrder}
-        onUpdate={handleOrderUpdate}
-        onStatusChange={handleStatusChange}
-        role="driver"
-      />
+          isOpen={showOrderDetails}
+          onClose={() => {
+            setShowOrderDetails(false);
+            setSelectedOrder(null);
+            setOrderRefreshKey(k => k + 1);
+            setHomeRefreshKey(k => k + 1);
+            setHistoryRefreshKey(k => k + 1);
+          }}
+          order={selectedOrder}
+          onUpdate={handleOrderUpdate}
+          onStatusChange={handleStatusChange}
+          role="driver"
+        />
     </div>
   );
 };

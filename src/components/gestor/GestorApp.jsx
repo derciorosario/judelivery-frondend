@@ -128,7 +128,7 @@ const GestorApp = () => {
         onNotificationClick={() => setTab("notifications")} 
       />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
-        {activeTab === "home" && <GestorHome />}
+        {activeTab === "home" && <GestorHome refreshKey={orderRefreshKey} onOrderUpdate={handleOrderUpdate} />}
         {activeTab === "orders" && (
           <OrdersList
             refreshKey={orderRefreshKey}

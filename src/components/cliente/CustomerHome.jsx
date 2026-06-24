@@ -18,7 +18,9 @@ const CustomerHome = ({
   onViewOrderDetails,
   onTrackOrder,
   onGiveFeedback,
-  onContactSupport
+  onContactSupport,
+  onNavigateToHistory,
+  ratedOrderIds = new Set()
 }) => {
   const { settings, loading: settingsLoading } = usePlatformSettings();
   const [showPromo, setShowPromo] = useState(true);
@@ -123,7 +125,10 @@ const CustomerHome = ({
     </button>
   )}
   
-  <button className="bg-white rounded-xl p-3 text-center border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+  <button 
+    onClick={onNavigateToHistory}
+    className="bg-white rounded-xl p-3 text-center border border-slate-100 shadow-sm hover:shadow-md transition-shadow"
+  >
     <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-2">
       <Icon name="history" size={20} className="text-green-500" />
     </div>
@@ -237,9 +242,11 @@ const CustomerHome = ({
                 <button onClick={() => onViewOrderDetails(order)} className="flex-1 text-xs bg-slate-100 text-slate-600 font-semibold py-2 rounded-lg">
                   Detalhes
                 </button>
-                <button onClick={() => onGiveFeedback(order)} className="flex-1 text-xs bg-amber-100 text-amber-600 font-semibold py-2 rounded-lg">
-                  Avaliar
-                </button>
+                {!order.hasFeedback && !ratedOrderIds.has(order.id) && (
+                  <button onClick={() => onGiveFeedback(order)} className="flex-1 text-xs bg-amber-100 text-amber-600 font-semibold py-2 rounded-lg">
+                    Avaliar
+                  </button>
+                )}
                 <button onClick={() => onViewOrderDetails(order)} className="flex-1 text-xs bg-orange-50 text-orange-600 font-semibold py-2 rounded-lg">
                   Repetir
                 </button>

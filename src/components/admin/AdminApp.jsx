@@ -131,7 +131,7 @@ const AdminApp = () => {
     <div className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto">
       <Header user={user} onLogout={signOut} title="Painel Admin" onNotificationClick={() => setTab("notifications")} />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
-        {activeTab === "home" && <AdminHome customerRequests={customerRequests.filter(r => r.status === "pending")} />}
+        {activeTab === "home" && <AdminHome refreshKey={orderRefreshKey} onOrderUpdate={handleOrderUpdate} />}
         {activeTab === "orders" && (
           <OrdersList
             refreshKey={orderRefreshKey}

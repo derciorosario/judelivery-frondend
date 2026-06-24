@@ -6,6 +6,7 @@ import Header from "../common/Header";
 import OrdersList from "../common/OrdersList";
 import CustomerHome from "./CustomerHome";
 import CustomerProfile from "./CustomerProfile";
+import CustomerHistory from "./CustomerHistory";
 import CreateOrderModal from "./modals/CreateOrderModal";
 import FeedbackModal from "./modals/FeedbackModal";
 import ServiceSelectionModal from "./modals/ServiceSelectionModal";
@@ -39,6 +40,7 @@ const CustomerApp = () => {
   const [showSupport, setShowSupport] = useState(false);
   const [selectedServiceType, setSelectedServiceType] = useState(null);
   const [refreshData, setRefreshData] = useState(false);
+  const [ratedOrderIds, setRatedOrderIds] = useState(new Set());
   const [customerProfile, setCustomerProfile] = useState(null);
   const [customerOrders, setCustomerOrders] = useState([]);
   const [dashboardData, setDashboardData] = useState(null);
@@ -52,6 +54,7 @@ const CustomerApp = () => {
     { id: "home", label: "Início", icon: "home", path: "/" },
     { id: "orders", label: "Pedidos", icon: "package", path: "/my-orders" },
     { id: "tracking", label: "Rastrear", icon: "map", path: "/tracking" },
+    { id: "history", label: "Histórico", icon: "history", path: "/history" },
     { id: "profile", label: "Perfil", icon: "user", path: "/profile" },
     { id: "notifications", label: "Notificações", icon: "bell", path: "/my-notifications" }
   ];
@@ -222,10 +225,12 @@ const CustomerApp = () => {
         category: "service",
         driverId: feedbackOrder.driverId || (typeof feedbackOrder.driver === "object" ? feedbackOrder.driver?.id : null)
       });
+      setRatedOrderIds(prev => new Set(prev).add(feedbackOrder.id));
       setFeedbackSuccessMessage(`A sua avaliação para o pedido #${feedbackOrder.id ? feedbackOrder.id.slice(-6).toUpperCase() : ""} foi registada com sucesso!`);
       setShowFeedbackSuccess(true);
       setShowFeedback(false);
       setFeedbackOrder(null);
+      setRefreshData(true);
     } catch (error) {
       const message = error?.response?.data?.message || "Erro ao enviar avaliação";
       toast.error(message);
@@ -262,25 +267,27 @@ const CustomerApp = () => {
       />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
         {activeTab === "home" && (
-          <CustomerHome
-            user={user}
-            customerData={customerData}
-            activeOrder={activeOrder}
-            pendingOrders={pendingOrders}
-            completedOrders={completedOrders}
-            totalSpent={totalSpent}
-            deliveryCount={deliveryCount}
-            completedCount={completedCount}
-            averageRating={averageRating}
-            onCreateOrder={handleCreateOrder}
-            onViewOrderDetails={handleViewOrderDetails}
-            onTrackOrder={handleTrackOrder}
-            onGiveFeedback={handleGiveFeedback}
-            onContactSupport={() => setShowSupport(true)}
-            settings={settings}
-            settingsLoading={settingsLoading}
-          />
-        )}
+           <CustomerHome
+             user={user}
+             customerData={customerData}
+             activeOrder={activeOrder}
+             pendingOrders={pendingOrders}
+             completedOrders={completedOrders}
+             totalSpent={totalSpent}
+             deliveryCount={deliveryCount}
+             completedCount={completedCount}
+             averageRating={averageRating}
+             onCreateOrder={handleCreateOrder}
+             onViewOrderDetails={handleViewOrderDetails}
+             onTrackOrder={handleTrackOrder}
+             onGiveFeedback={handleGiveFeedback}
+             onContactSupport={() => setShowSupport(true)}
+             onNavigateToHistory={() => setTab("history")}
+             settings={settings}
+             settingsLoading={settingsLoading}
+             ratedOrderIds={ratedOrderIds}
+           />
+         )}
         {activeTab === "orders" && (
           <OrdersList
             refreshKey={shouldRefreshOrders || refreshData}
@@ -292,17 +299,20 @@ const CustomerApp = () => {
           />
         )}
         {activeTab === "tracking" && (
-          <OrdersList
-            refreshKey={shouldRefreshOrders || refreshData}
-            onNewOrderClick={handleOpenCreateOrder}
-            showNewOrderButton={true}
-            title="Rastrear Pedido"
-            statusFilter="in_transit"
-            onOrderUpdate={handleOrderUpdate}
-           onGiveFeedback={handleGiveFeedback}
-          />
-        )}
-        {activeTab === "profile" && (
+           <OrdersList
+             refreshKey={shouldRefreshOrders || refreshData}
+             onNewOrderClick={handleOpenCreateOrder}
+             showNewOrderButton={true}
+             title="Rastrear Pedido"
+             statusFilter="in_transit"
+             onOrderUpdate={handleOrderUpdate}
+            onGiveFeedback={handleGiveFeedback}
+           />
+         )}
+         {activeTab === "history" && (
+           <CustomerHistory />
+         )}
+         {activeTab === "profile" && (
           profileLoading ? (
             <div className="text-center py-10 text-sm text-slate-500">A carregar perfil...</div>
           ) : (

@@ -98,7 +98,6 @@ const useDriverLocation = ({ autoStart = true, orderId = null } = {}) => {
       // Only emit if socket is connected
       if (socket && connected) {
         socket.emit("driver:location", coords);
-        socket.emit("driver:status", "online");
         if (orderId) {
           socket.emit("order:location", { orderId, coords });
         }

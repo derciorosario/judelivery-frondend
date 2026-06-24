@@ -1,42 +1,114 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import StatCard from "../common/StatCard";
 import Icon from "../common/Icon";
-import { ORDERS, DRIVERS, CUSTOMERS, FINANCIAL_SUMMARY } from "../../data/mockData";
+import { toast } from "../../lib/toast";
+import {
+  getOrders,
+  getDrivers,
+  getCustomers,
+  getFinancialStats
+} from "../../api/client";
 
 const AdminReports = () => {
   const [reportType, setReportType] = useState("operacional");
   const [period, setPeriod] = useState("semanal");
   const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]);
   const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [financialStats, setFinancialStats] = useState(null);
 
-  const filteredOrders = ORDERS.filter(o => {
-    const orderDate = new Date(o.time.split(' ')[0]);
+  const fetchOrders = async () => {
+    try {
+      const response = await getOrders({
+        startDate: dateFrom,
+        endDate: dateTo
+      });
+      setOrders(response.data?.orders || []);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      toast.error("Erro ao carregar pedidos");
+    }
+  };
+
+  const fetchDrivers = async () => {
+    try {
+      const response = await getDrivers();
+      setDrivers(response.data || []);
+    } catch (error) {
+      console.error("Error fetching drivers:", error);
+    }
+  };
+
+  const fetchCustomers = async () => {
+    try {
+      const response = await getCustomers();
+      setCustomers(response.data || []);
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+    }
+  };
+
+  const fetchFinancialStats = async () => {
+    try {
+      const response = await getFinancialStats({
+        startDate: dateFrom,
+        endDate: dateTo
+      });
+      setFinancialStats(response.data);
+    } catch (error) {
+      console.error("Error fetching financial stats:", error);
+    }
+  };
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchOrders(), fetchDrivers(), fetchCustomers(), fetchFinancialStats()]);
+      setLoading(false);
+    };
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    fetchOrders();
+    fetchFinancialStats();
+  }, [dateFrom, dateTo]);
+
+  const filteredOrders = orders.filter(o => {
+    const orderDate = o.createdAt ? o.createdAt.split('T')[0] : o.date;
     const from = new Date(dateFrom);
     const to = new Date(dateTo);
-    return true;
+    const toDate = new Date(to);
+    toDate.setDate(toDate.getDate() + 1); // Include end date
+    return new Date(orderDate) >= from && new Date(orderDate) <= toDate;
   });
 
   const metrics = {
     totalOrders: filteredOrders.length,
-    completedOrders: filteredOrders.filter(o => o.status === "Concluído").length,
-    cancelledOrders: filteredOrders.filter(o => o.status === "Cancelado").length,
-    pendingOrders: filteredOrders.filter(o => o.status === "Pendente").length,
-    inProgressOrders: filteredOrders.filter(o => o.status === "Em entrega").length,
-    cancellationRate: (filteredOrders.filter(o => o.status === "Cancelado").length / Math.max(filteredOrders.length, 1)) * 100,
+    completedOrders: filteredOrders.filter(o => o.status === "completed" || o.status === "Concluído").length,
+    cancelledOrders: filteredOrders.filter(o => o.status === "cancelled" || o.status === "Cancelado").length,
+    pendingOrders: filteredOrders.filter(o => o.status === "pending" || o.status === "Pendente" || o.status === "pending_approval").length,
+    inProgressOrders: filteredOrders.filter(o => o.status === "in_transit" || o.status === "Em entrega" || o.status === "assigned" || o.status === "Atribuído").length,
+    cancellationRate: filteredOrders.length > 0 ? (filteredOrders.filter(o => o.status === "cancelled" || o.status === "Cancelado").length / filteredOrders.length) * 100 : 0,
     avgDeliveryTime: 28,
     ordersByHour: Array(24).fill(0).map((_, i) => (i + 1) * Math.floor(Math.random() * 10)),
     ordersByWeekday: [10, 14, 8, 22, 7, 7, 11],
-    totalRevenue: filteredOrders.filter(o => o.status === "Concluído").reduce((sum, o) => sum + parseFloat(o.total), 0),
-    totalDistance: filteredOrders.reduce((sum, o) => sum + parseFloat(o.dist), 0),
-    estimatedFuelConsumption: filteredOrders.reduce((sum, o) => sum + (parseFloat(o.dist) * 0.15), 0),
-    topDrivers: [...DRIVERS].sort((a, b) => b.orders - a.orders),
-    topCustomers: [...CUSTOMERS].sort((a, b) => b.orders - a.orders).slice(0, 5),
-    avgRating: DRIVERS.reduce((sum, d) => sum + d.rating, 0) / DRIVERS.length,
+    totalRevenue: filteredOrders.filter(o => o.status === "completed" || o.status === "Concluído").reduce((sum, o) => sum + parseFloat(o.total || o.totalValue || 0), 0),
+    totalDistance: filteredOrders.reduce((sum, o) => sum + parseFloat(o.dist?.replace(' km', '') || 0), 0),
+    estimatedFuelConsumption: filteredOrders.reduce((sum, o) => sum + (parseFloat(o.dist?.replace(' km', '') || 0) * 0.15), 0),
+    topDrivers: [...drivers].sort((a, b) => (b.orders || b.rating || 0) - (a.orders || a.rating || 0)),
+    topCustomers: [...customers].sort((a, b) => (b.orders || 0) - (a.orders || 0)).slice(0, 5),
+    avgRating: drivers.length > 0 ? drivers.reduce((sum, d) => sum + (d.rating || 0), 0) / drivers.length : 0,
     customerSatisfaction: 94,
   };
 
-  const netProfit = metrics.totalRevenue - FINANCIAL_SUMMARY.totalExpenses;
-  const operationalCosts = FINANCIAL_SUMMARY.fuelExpenses + FINANCIAL_SUMMARY.maintenanceExpenses + FINANCIAL_SUMMARY.salaryExpenses;
+  const totalRevenue = financialStats?.totalRevenue || metrics.totalRevenue;
+  const totalExpenses = financialStats?.totalExpenses || 0;
+  const netProfit = totalRevenue - totalExpenses;
+  const operationalCosts = (financialStats?.fuelExpenses || 0) + (financialStats?.maintenanceExpenses || 0) + (financialStats?.salaryExpenses || 0);
 
   const exportToExcel = () => {
     const reportData = {
@@ -52,11 +124,11 @@ const AdminReports = () => {
       ],
       financeiro: [
         ["Métrica", "Valor"],
-        ["Receita Total", `${metrics.totalRevenue} MZN`],
-        ["Despesas Totais", `${FINANCIAL_SUMMARY.totalExpenses} MZN`],
-        ["Lucro Líquido", `${netProfit} MZN`],
-        ["Custos Operacionais", `${operationalCosts} MZN`],
-        ["Comissões Motoristas", `${metrics.totalRevenue * 0.2} MZN`]
+        ["Receita Total", `${totalRevenue.toLocaleString()} MZN`],
+        ["Despesas Totais", `${totalExpenses.toLocaleString()} MZN`],
+        ["Lucro Líquido", `${netProfit.toLocaleString()} MZN`],
+        ["Custos Operacionais", `${operationalCosts.toLocaleString()} MZN`],
+        ["Comissões Motoristas", `${(totalRevenue * 0.2).toLocaleString()} MZN`]
       ],
       desempenho: [
         ["Métrica", "Valor"],
@@ -85,6 +157,14 @@ const AdminReports = () => {
   const exportToPDF = () => {
     window.print();
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-10">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -144,10 +224,10 @@ const AdminReports = () => {
         )}
         {reportType === "financeiro" && (
           <>
-            <StatCard label="Receita Total" value={`${metrics.totalRevenue.toLocaleString()} MZN`} color="green" />
-            <StatCard label="Despesas" value={`${FINANCIAL_SUMMARY.totalExpenses.toLocaleString()} MZN`} color="red" />
+            <StatCard label="Receita Total" value={`${totalRevenue.toLocaleString()} MZN`} color="green" />
+            <StatCard label="Despesas" value={`${totalExpenses.toLocaleString()} MZN`} color="red" />
             <StatCard label={`${netProfit >= 0 ? "Lucro" : "Prejuízo"}`} value={`${Math.abs(netProfit).toLocaleString()} MZN`} color={netProfit >= 0 ? "green" : "red"} />
-            <StatCard label="Combustível" value={`${FINANCIAL_SUMMARY.fuelExpenses} MZN`} color="blue" />
+            <StatCard label="Combustível" value={`${(financialStats?.fuelExpenses || 0).toLocaleString()} MZN`} color="blue" />
           </>
         )}
         {reportType === "desempenho" && (
@@ -166,10 +246,10 @@ const AdminReports = () => {
             <p className="text-xs font-semibold text-slate-500 mb-3">Pedidos por Status</p>
             <div className="space-y-2">
               {[
-                { label: "Concluídos", value: metrics.completedOrders, color: "bg-green-500", pct: (metrics.completedOrders / metrics.totalOrders) * 100 },
-                { label: "Em entrega", value: metrics.inProgressOrders, color: "bg-blue-500", pct: (metrics.inProgressOrders / metrics.totalOrders) * 100 },
-                { label: "Pendentes", value: metrics.pendingOrders, color: "bg-amber-500", pct: (metrics.pendingOrders / metrics.totalOrders) * 100 },
-                { label: "Cancelados", value: metrics.cancelledOrders, color: "bg-red-500", pct: (metrics.cancelledOrders / metrics.totalOrders) * 100 },
+                { label: "Concluídos", value: metrics.completedOrders, color: "bg-green-500", pct: (metrics.completedOrders / Math.max(metrics.totalOrders, 1)) * 100 },
+                { label: "Em entrega", value: metrics.inProgressOrders, color: "bg-blue-500", pct: (metrics.inProgressOrders / Math.max(metrics.totalOrders, 1)) * 100 },
+                { label: "Pendentes", value: metrics.pendingOrders, color: "bg-amber-500", pct: (metrics.pendingOrders / Math.max(metrics.totalOrders, 1)) * 100 },
+                { label: "Cancelados", value: metrics.cancelledOrders, color: "bg-red-500", pct: (metrics.cancelledOrders / Math.max(metrics.totalOrders, 1)) * 100 },
               ].filter(s => s.value > 0).map(s => (
                 <div key={s.label}>
                   <div className="flex justify-between text-xs mb-1">
@@ -219,19 +299,19 @@ const AdminReports = () => {
               <div>
                 <div className="flex justify-between text-xs mb-1">
                   <span className="text-gray-700">Receitas</span>
-                  <span className="font-semibold text-green-600">{metrics.totalRevenue} MZN</span>
+                  <span className="font-semibold text-green-600">{totalRevenue.toLocaleString()} MZN</span>
                 </div>
                 <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-green-500 rounded-full" style={{ width: `${(metrics.totalRevenue / (metrics.totalRevenue + FINANCIAL_SUMMARY.totalExpenses)) * 100}%` }} />
+                  <div className="h-full bg-green-500 rounded-full" style={{ width: `${(totalRevenue / Math.max(totalRevenue + totalExpenses, 1)) * 100}%` }} />
                 </div>
               </div>
               <div>
                 <div className="flex justify-between text-xs mb-1">
                   <span className="text-gray-700">Despesas</span>
-                  <span className="font-semibold text-red-600">{FINANCIAL_SUMMARY.totalExpenses} MZN</span>
+                  <span className="font-semibold text-red-600">{totalExpenses.toLocaleString()} MZN</span>
                 </div>
                 <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-red-500 rounded-full" style={{ width: `${(FINANCIAL_SUMMARY.totalExpenses / (metrics.totalRevenue + FINANCIAL_SUMMARY.totalExpenses)) * 100}%` }} />
+                  <div className="h-full bg-red-500 rounded-full" style={{ width: `${(totalExpenses / Math.max(totalRevenue + totalExpenses, 1)) * 100}%` }} />
                 </div>
               </div>
             </div>
@@ -243,7 +323,7 @@ const AdminReports = () => {
               <div className="relative w-32 h-32 mx-auto">
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
-                    <p className="text-xl font-bold text-slate-800">{Math.round((FINANCIAL_SUMMARY.fuelExpenses / FINANCIAL_SUMMARY.totalExpenses) * 100)}%</p>
+                    <p className="text-xl font-bold text-slate-800">{totalExpenses > 0 ? Math.round((financialStats?.fuelExpenses / totalExpenses) * 100) : 0}%</p>
                     <p className="text-[10px] text-slate-400">Combustível</p>
                   </div>
                 </div>
@@ -252,19 +332,19 @@ const AdminReports = () => {
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1 text-gray-700"><div className="w-2 h-2 rounded-full bg-orange-400" /> Combustível</div>
-                  <span className="font-semibold text-gray-700">{FINANCIAL_SUMMARY.fuelExpenses} MZN</span>
+                  <span className="font-semibold text-gray-700">{(financialStats?.fuelExpenses || 0).toLocaleString()} MZN</span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1 text-gray-700"><div className="w-2 h-2 rounded-full bg-blue-400" /> Salários</div>
-                  <span className="font-semibold text-gray-700">{FINANCIAL_SUMMARY.salaryExpenses} MZN</span>
+                  <span className="font-semibold text-gray-700">{(financialStats?.salaryExpenses || 0).toLocaleString()} MZN</span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1 text-gray-700"><div className="w-2 h-2 rounded-full bg-green-400" /> Manutenção</div>
-                  <span className="font-semibold text-gray-700">{FINANCIAL_SUMMARY.maintenanceExpenses} MZN</span>
+                  <span className="font-semibold text-gray-700">{(financialStats?.maintenanceExpenses || 0).toLocaleString()} MZN</span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1 text-gray-700"><div className="w-2 h-2 rounded-full bg-purple-400" /> Outros</div>
-                  <span className="font-semibold text-gray-700">{FINANCIAL_SUMMARY.operationalExpenses + FINANCIAL_SUMMARY.foodExpenses} MZN</span>
+                  <span className="font-semibold text-gray-700">{(operationalCosts - (financialStats?.fuelExpenses || 0) - (financialStats?.salaryExpenses || 0) - (financialStats?.maintenanceExpenses || 0)).toLocaleString()} MZN</span>
                 </div>
               </div>
             </div>
@@ -300,10 +380,10 @@ const AdminReports = () => {
                 </span>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-slate-700">{d.name}</p>
-                  <p className="text-xs text-slate-400">{d.orders} entregas</p>
+                  <p className="text-xs text-slate-400">{d.orders || 0} entregas</p>
                 </div>
                 <div className="flex items-center gap-0.5">
-                  <span className="text-sm font-bold text-gray-700">{d.rating}</span>
+                  <span className="text-sm font-bold text-gray-700">{d.rating || 0}</span>
                   <Icon name="star" size={12} className="text-amber-400" />
                 </div>
               </div>
@@ -315,11 +395,11 @@ const AdminReports = () => {
             {metrics.topCustomers.map((c, i) => (
               <div key={c.id} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-slate-700">{c.name.split(" ")[0]}</span>
-                  <span className="text-xs text-slate-400">{c.orders} pedidos</span>
+                  <span className="text-sm font-medium text-slate-700">{c.name?.split(" ")[0]}</span>
+                  <span className="text-xs text-slate-400">{c.orders || 0} pedidos</span>
                 </div>
                 <div className="flex items-center gap-0.5">
-                  <span className="text-xs text-gray-700">{c.rating}</span>
+                  <span className="text-xs text-gray-700">{c.rating || 0}</span>
                   <Icon name="star" size={10} className="text-amber-400" />
                 </div>
               </div>
