@@ -268,14 +268,14 @@ const AddDriverModal = ({ isOpen, onClose, onAdd }) => {
 };
 
 const EditDriverModal = ({ isOpen, onClose, onEdit, driver, setSelectedImage, setViewerOpen }) => {
- const [form, setForm] = useState({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "", zone: "", admissionDate: "" });
+ const [form, setForm] = useState({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "", zone: "", admissionDate: "", accountStatus: "active" });
  const [files, setFiles] = useState({ profilePhoto: null, biCopy: null, driverLicenseCopy: null, vehicleRegistration: null, insuranceDocument: null, trainingCertificateCopy: null });
  const [filesToRemove, setFilesToRemove] = useState({ profilePhoto: false, biCopy: false, driverLicenseCopy: false, vehicleRegistration: false, insuranceDocument: false, trainingCertificateCopy: false });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
-     setForm({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "", zone: "", admissionDate: "" });
+     setForm({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "", zone: "", admissionDate: "", accountStatus: "active" });
      setFiles({ profilePhoto: null, biCopy: null, driverLicenseCopy: null, vehicleRegistration: null, insuranceDocument: null, trainingCertificateCopy: null });
      setFilesToRemove({ profilePhoto: false, biCopy: false, driverLicenseCopy: false, vehicleRegistration: false, insuranceDocument: false, trainingCertificateCopy: false });
     }
@@ -295,6 +295,7 @@ const EditDriverModal = ({ isOpen, onClose, onEdit, driver, setSelectedImage, se
        emergencyContact: driver.emergencyContact || "",
        zone: driver.zone || "",
        admissionDate: driver.admissionDate || "",
+       accountStatus: driver.accountStatus || "active",
        password: "",
       });
     }
@@ -330,6 +331,7 @@ const EditDriverModal = ({ isOpen, onClose, onEdit, driver, setSelectedImage, se
     formData.append("emergencyContact", form.emergencyContact || "");
     formData.append("zone", form.zone || "");
     formData.append("admissionDate", form.admissionDate || "");
+    formData.append("accountStatus", form.accountStatus || "active");
     if (form.password) formData.append("password", form.password);
 
     Object.entries(files).forEach(([key, value]) => {
@@ -399,6 +401,29 @@ const EditDriverModal = ({ isOpen, onClose, onEdit, driver, setSelectedImage, se
          <label className="block text-xs font-semibold text-slate-500 mb-1">Endereço</label>
          <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Bairro, Rua, Nº" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
        </div>
+       <div>
+         <label className="block text-xs font-semibold text-slate-500 mb-1">Status da Conta</label>
+         <select
+           value={form.accountStatus}
+           onChange={(e) => setForm({ ...form, accountStatus: e.target.value })}
+           className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+         >
+           <option value="active">Ativo</option>
+           <option value="inactive">Inativo</option>
+           <option value="suspended">Suspenso</option>
+         </select>
+         <p className="text-xs text-slate-400 mt-1">
+           Status atual: <span className={`font-semibold ${
+             form.accountStatus === 'active' ? 'text-green-600' : 
+             form.accountStatus === 'inactive' ? 'text-yellow-600' : 
+             'text-red-600'
+           }`}>
+             {form.accountStatus === 'active' ? 'Ativo' : 
+              form.accountStatus === 'inactive' ? 'Inativo' : 
+              'Suspenso'}
+           </span>
+         </p>
+       </div>
        <div className="grid grid-cols-2 gap-2">
          <div>
            <label className="block text-xs font-semibold text-slate-500 mb-1">Zona</label>
@@ -431,6 +456,34 @@ const EditDriverModal = ({ isOpen, onClose, onEdit, driver, setSelectedImage, se
       </form>
     </Modal>
   );
+};
+
+// Account status color helper
+const accountStatusColor = (status) => {
+  if (status === "active") return "bg-green-100 text-green-700";
+  if (status === "inactive") return "bg-yellow-100 text-yellow-700";
+  if (status === "suspended") return "bg-red-100 text-red-700";
+  return "bg-slate-100 text-slate-500";
+};
+
+const accountStatusLabel = (status) => {
+  if (status === "active") return "Ativo";
+  if (status === "inactive") return "Inativo";
+  if (status === "suspended") return "Suspenso";
+  return "Desconhecido";
+};
+
+// Driver status (for display only)
+const statusColor = (status) => {
+  if (status === "online") return "bg-green-100 text-green-700";
+  if (status === "working") return "bg-blue-100 text-blue-700";
+  return "bg-slate-100 text-slate-500";
+};
+
+const statusLabel = (status) => {
+  if (status === "online") return "Online";
+  if (status === "working") return "Em viagem";
+  return "Offline";
 };
 
 const AdminDrivers = () => {
@@ -512,18 +565,6 @@ const AdminDrivers = () => {
       }
     });
   }, [drivers, isGeocoderLoaded]);
-
-  const statusColor = (status) => {
-    if (status === "online") return "bg-green-100 text-green-700";
-    if (status === "working") return "bg-blue-100 text-blue-700";
-    return "bg-slate-100 text-slate-500";
-  };
-
-  const statusLabel = (status) => {
-    if (status === "online") return "Online";
-    if (status === "working") return "Em viagem";
-    return "Offline";
-  };
 
   useEffect(() => {
     let isActive = true;
@@ -637,15 +678,15 @@ const AdminDrivers = () => {
     }
   };
 
-  const handleToggleStatus = async (driver) => {
+  const handleUpdateAccountStatus = async (driver, newStatus) => {
     try {
       const formData = new FormData();
-      formData.append("status", driver.status === "online" ? "offline" : "online");
-      await api.updateDriver(driver.id, formData);
-      setDrivers((prev) => prev.map((d) => (d.id === driver.id ? { ...d, status: driver.status === "online" ? "offline" : "online" } : d)));
-      toast.success("Status atualizado com sucesso");
+      formData.append("accountStatus", newStatus);
+      const response = await api.updateDriver(driver.id, formData);
+      setDrivers((prev) => prev.map((d) => (d.id === driver.id ? { ...d, accountStatus: newStatus } : d)));
+      toast.success(`Status da conta atualizado para ${accountStatusLabel(newStatus)}`);
     } catch (error) {
-      const message = error?.response?.data?.message || "Erro ao atualizar status";
+      const message = error?.response?.data?.message || "Erro ao atualizar status da conta";
       toast.error(message);
     }
   };
@@ -729,7 +770,14 @@ const AdminDrivers = () => {
                   <p className="text-xs text-slate-400">{d.phone}</p>
                 </div>
               </div>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColor(d.status)}`}>{statusLabel(d.status)}</span>
+              <div className="flex items-end gap-1">
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColor(d.status)}`}>
+                  {statusLabel(d.status)}
+                </span>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${accountStatusColor(d.accountStatus)}`}>
+                  {accountStatusLabel(d.accountStatus)}
+                </span>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 mb-3">
@@ -779,12 +827,22 @@ const AdminDrivers = () => {
               >
                 Editar
               </button>
-              <button
-                onClick={() => handleToggleStatus(d)}
-                className={`flex-1 text-xs font-semibold py-2 rounded-lg transition-colors ${d.status === "online" ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-green-50 text-green-600 hover:bg-green-100"}`}
-              >
-                {d.status === "online" ? "Desativar" : "Ativar"}
-              </button>
+              <div className="flex-1 relative">
+                <select
+                  value={d.accountStatus || "active"}
+                  onChange={(e) => handleUpdateAccountStatus(d, e.target.value)}
+                  className={`w-full text-center text-xs font-semibold py-2 rounded-lg px-2 transition-colors cursor-pointer appearance-none ${
+                    d.accountStatus === 'active' ? 'bg-green-50 text-green-600 hover:bg-green-100' :
+                    d.accountStatus === 'inactive' ? 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100' :
+                    'bg-red-50 text-red-600 hover:bg-red-100'
+                  }`}
+                >
+                  <option value="active">Ativar</option>
+                  <option value="inactive">Inativar</option>
+                  <option value="suspended">Suspender</option>
+                </select>
+                <Icon name="chevronDown" size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
               <button
                 onClick={() => setDeleteTarget(d)}
                 className="flex-1 text-xs bg-slate-100 text-slate-600 font-semibold py-2 rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors"

@@ -147,7 +147,7 @@ const CustomerApp = () => {
     preference: customerProfile?.preference || null
   };
 
-  const totalSpent = customerProfile?.stats?.totalSpent || dashboardData?.stats?.totalSpent || customerOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+  const totalSpent = customerProfile?.stats?.weeklySpent || dashboardData?.stats?.weeklySpent || 0;
   const deliveryCount = customerProfile?.stats?.deliveryCount || dashboardData?.stats?.deliveryCount || customerOrders.length;
   const completedCount = customerProfile?.stats?.completedCount || dashboardData?.stats?.completedCount || completedOrders.length;
   const averageRating = customerData.rating || 4.5;

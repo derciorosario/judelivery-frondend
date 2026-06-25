@@ -177,7 +177,7 @@ const AdminSettings = () => {
 
         setSettings(mergeSettings(defaultPlatformSettings, data.settings));
         setLastSavedAt(data.updatedAt ? new Date(data.updatedAt) : null);
-        setNotice(data.updatedAt ? "Configurações carregadas do backend." : "Configurações padrão carregadas do backend.");
+        setNotice(data.updatedAt ? "Configurações carregadas." : "Configurações padrão carregadas.");
       } catch (error) {
         if (mounted) {
           setNotice(error?.response?.data?.message || "Não foi possível carregar as configurações do backend.");
@@ -417,13 +417,13 @@ const AdminSettings = () => {
                 </Field>
               </div>
               <div className="mt-4 rounded-2xl bg-orange-50 border border-orange-100 p-3">
-                <p className="text-xs font-semibold text-orange-700">Exemplo frontend</p>
+                <p className="text-xs font-semibold text-orange-700">Exemplo</p>
                 <p className="text-sm font-bold text-orange-800 mt-1">Entrega estimada: {deliveryPreview}</p>
                 <p className="text-[11px] text-orange-600 mt-0.5">5 km · sem urgência · cálculo local apenas.</p>
               </div>
             </SectionCard>
 
-            <SectionCard icon="car" title="Preços de táxi" description="Base, distância e extras usados no cálculo de corridas.">
+            <SectionCard icon="dollar" title="Preços de táxi" description="Base, distância e extras usados no cálculo de corridas.">
               <div className="grid grid-cols-1 gap-3">
                 <Field label="Preço base">
                   <NumberInput value={settings.pricing.taxiBasePrice} onChange={(value) => update("pricing", "taxiBasePrice", value)} suffix={settings.app.currency} />
@@ -448,7 +448,7 @@ const AdminSettings = () => {
                 </Field>
               </div>
               <div className="mt-4 rounded-2xl bg-blue-50 border border-blue-100 p-3">
-                <p className="text-xs font-semibold text-blue-700">Exemplo frontend</p>
+                <p className="text-xs font-semibold text-blue-700">Exemplo</p>
                 <p className="text-sm font-bold text-blue-800 mt-1">Corrida estimada: {taxiPreview}</p>
                 <p className="text-[11px] text-blue-600 mt-0.5">5 km · sem extras · cálculo local apenas.</p>
               </div>
@@ -569,9 +569,22 @@ const AdminSettings = () => {
 
             <SectionCard icon="bell" title="Notificações" description="Preferências visuais para eventos importantes da app.">
               <div className="grid grid-cols-1 gap-3">
-                {Object.entries(settings.notifications).map(([key, value]) => (
-                  <SwitchField key={key} checked={value} onChange={(next) => update("notifications", key, next)} label={key.replaceAll("_", " ")} hint={key === "promotions" ? "Opcional" : "Evento da app"} disabled={disabled} />
-                ))}
+                {Object.entries(settings.notifications).map(([key, value]) => {
+                  const labelMap = {
+                    orderCreated: "Pedido criado",
+                    driverAssigned: "Motorista atribuído",
+                    driverArrived: "Motorista chegou",
+                    orderCompleted: "Pedido concluído",
+                    paymentConfirmed: "Pagamento confirmado",
+                    cancellation: "Cancelamento",
+                    promotions: "Promoções",
+                    driverStatus: "Status do motorista",
+                    orderPriceUpdated: "Preço atualizado",
+                  };
+                  return (
+                    <SwitchField key={key} checked={value} onChange={(next) => update("notifications", key, next)} label={labelMap[key] || key.replaceAll("_", " ")} hint={key === "promotions" ? "Opcional" : "Evento da app"} disabled={disabled} />
+                  );
+                })}
               </div>
             </SectionCard>
 

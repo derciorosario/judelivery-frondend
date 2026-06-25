@@ -8,6 +8,7 @@ import OrderDetailModal from "../modals/OrderDetailModal";
 import TrackOrderModal from "../cliente/modals/TrackOrderModal";
 import CancelOrderDialog from "../common/CancelOrderDialog";
 import ContactSupportModal from "../common/modals/ContactSupportModal";
+import { useNavigate } from "react-router-dom";
 
 const GestorHome = ({ onOrderUpdate, refreshKey }) => {
   const [dashboard, setDashboard] = useState(null);
@@ -20,6 +21,8 @@ const GestorHome = ({ onOrderUpdate, refreshKey }) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [updating, setUpdating] = useState(false);
+
+  const navigate=useNavigate()
 
   const handleViewDetails = async (order) => {
     try {
@@ -147,7 +150,7 @@ const GestorHome = ({ onOrderUpdate, refreshKey }) => {
       <div>
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm font-bold text-slate-700">Pedidos Activos</p>
-          <span className="text-xs text-teal-500 font-medium">ver todos →</span>
+          <span onClick={()=>navigate('/orders')} className="text-xs cursor-pointer text-teal-500 font-medium">ver todos →</span>
         </div>
         {activeOrders.length > 0 ? (
           activeOrders.map(o => (

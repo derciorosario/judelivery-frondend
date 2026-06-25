@@ -89,6 +89,7 @@ const OrderDetailModal = ({
      driverId: ""
    });
    const [isSubmitting, setIsSubmitting] = useState(false);
+   const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
    const [drivers, setDrivers] = useState([]);
    const [loadingDrivers, setLoadingDrivers] = useState(false);
    const [showDriverInfo, setShowDriverInfo] = useState(false);
@@ -511,6 +512,30 @@ const OrderDetailModal = ({
     setShowConfirmDialog(true);
   };
 
+  const handleUpdatePrice = async () => {
+    if (!localOrder) return;
+    const newTotal = parseFloat(form.total);
+    if (isNaN(newTotal) || newTotal < 0) {
+      toast.error("Insira um valor válido");
+      return;
+    }
+    if (newTotal === localOrder.total) {
+      toast.error("O valor é igual ao atual");
+      return;
+    }
+    setIsUpdatingPrice(true);
+    try {
+      const response = await updateOrder(localOrder.id, { total: newTotal });
+      setLocalOrder(response.data);
+      if (onUpdate) onUpdate(response.data);
+      toast.success("Valor atualizado com sucesso");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Erro ao atualizar valor");
+    } finally {
+      setIsUpdatingPrice(false);
+    }
+  };
+
   const handleCancelOrder = async (cancelData) => {
     if (!localOrder) return;
     setIsSubmitting(true);
@@ -926,13 +951,27 @@ const OrderDetailModal = ({
         <label className="block text-xs font-semibold text-slate-500 mb-1 flex items-center gap-1">
           <DollarSign size={12} /> Valor Total (MZN)
         </label>
-        <input
-          type="number"
-          value={form.total}
-          onChange={e => setForm({ ...form, total: e.target.value })}
-          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
-          placeholder="0.00"
-        />
+        <div className="flex gap-2">
+          <input
+            type="number"
+            value={form.total}
+            onChange={e => setForm({ ...form, total: e.target.value })}
+            className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+            placeholder="0.00"
+          />
+          <button
+            onClick={handleUpdatePrice}
+            disabled={isUpdatingPrice || !form.total || parseFloat(form.total) === localOrder?.total}
+            className="px-4 py-2.5 rounded-xl bg-emerald-500 text-white font-semibold text-sm hover:bg-emerald-600 disabled:opacity-50 transition-colors flex items-center gap-1.5 whitespace-nowrap"
+          >
+            {isUpdatingPrice ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+            ) : (
+              <DollarSign size={14} />
+            )}
+            {isUpdatingPrice ? "A atualizar..." : "Atualizar"}
+          </button>
+        </div>
       </div>
 
       <div>

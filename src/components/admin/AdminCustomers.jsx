@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import Icon from "../common/Icon";
 import Modal from "../common/Modal";
-import { getCustomers, createCustomer, updateCustomer, deleteCustomer } from "../../api/client";
+import { getCustomers, createCustomer, updateCustomer, deleteCustomer, getCustomerOrdersByAdmin } from "../../api/client";
 import { toast } from "../../lib/toast";
 import ImageViewer from "../common/ImageViewer";
+import OrderDetailModal from "../modals/OrderDetailModal";
 
 
 const FileUploadInput = ({ label, setViewerOpen, setSelectedImage, fieldName, file, onFileChange, onRemove, existingUrl, accept = "image/*,.pdf", isProfile = false, isRemoved = false }) => {
@@ -471,6 +472,11 @@ const AdminCustomers = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [historyCustomer, setHistoryCustomer] = useState(null);
+  const [historyOrders, setHistoryOrders] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showOrderDetails, setShowOrderDetails] = useState(false);
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -502,6 +508,30 @@ const AdminCustomers = () => {
 
   const handleDeleteClick = (customer) => {
     setDeleteTarget(customer);
+  };
+
+  const openHistory = async (customer) => {
+    setHistoryCustomer(customer);
+    setHistoryLoading(true);
+    setHistoryOrders([]);
+    try {
+      const response = await getCustomerOrdersByAdmin(customer.id, { limit: 50 });
+      setHistoryOrders(response.data?.orders || response.data || []);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Erro ao carregar histórico");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const closeHistory = () => {
+    setHistoryCustomer(null);
+    setHistoryOrders([]);
+  };
+
+  const handleViewOrderDetails = (order) => {
+    setSelectedOrder(order);
+    setShowOrderDetails(true);
   };
 
   const confirmDelete = async () => {
@@ -548,6 +578,73 @@ const AdminCustomers = () => {
         customer={editCustomer} 
       />
       
+      {showOrderDetails && selectedOrder && (
+        <div style={{zIndex:9999,position:'relative'}}>
+           <OrderDetailModal
+          isOpen={showOrderDetails}
+          onClose={() => {
+            setShowOrderDetails(false);
+            setSelectedOrder(null);
+          }}
+          order={selectedOrder}
+          orderId={selectedOrder.id}
+        />
+        </div>
+      )}
+
+      {historyCustomer && (
+        <Modal isOpen={!!historyCustomer} onClose={closeHistory} title={`Histórico - ${historyCustomer.name}`}>
+          <div className="max-h-[60vh] overflow-y-auto px-1">
+            {historyLoading ? (
+              <div className="text-center py-10">
+                <div className="animate-spin w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+                <p className="text-sm text-slate-500">A carregar histórico...</p>
+              </div>
+            ) : historyOrders.length === 0 ? (
+              <div className="text-center py-10">
+                <Icon name="package" size={40} className="text-slate-300 mx-auto mb-2" />
+                <p className="text-sm text-slate-500">Nenhum pedido encontrado</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {historyOrders.map(order => (
+                  <div key={order.id} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-slate-700">#{order.id.substring(0, 8)}</span>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        order.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                        order.status === 'in_transit' ? 'bg-blue-100 text-blue-700' :
+                        'bg-amber-100 text-amber-700'
+                      }`}>
+                        {order.status === 'pending_approval' ? 'Pendente' :
+                         order.status === 'approved' ? 'Aprovado' :
+                         order.status === 'scheduled' ? 'Agendado' :
+                         order.status === 'assigned' ? 'Atribuído' :
+                         order.status === 'in_transit' ? 'Em entrega' :
+                         order.status === 'completed' ? 'Concluído' :
+                         order.status === 'cancelled' ? 'Cancelado' : order.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500">{order.productName || (order.serviceType === 'taxi' ? 'Corrida' : 'Entrega')}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{order.total} MZN</p>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      {new Date(order.createdAt).toLocaleDateString("pt-MZ", { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    <button
+                      onClick={() => handleViewOrderDetails(order)}
+                      className="w-full mt-2 text-xs bg-white text-slate-600 font-semibold py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+                    >
+                      Ver Detalhes
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
+
       {loading ? (
         <div className="text-center py-10">
           <div className="animate-spin w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full mx-auto mb-3"></div>
@@ -605,11 +702,15 @@ const AdminCustomers = () => {
                   <p className="text-sm font-bold text-slate-800">{c.ordersCount ?? 0}</p>
                   <p className="text-[11px] text-slate-400">Pedidos</p>
                 </div>
-                <div className="flex items-center gap-0.5 text-sm font-bold text-slate-700">
-                  {c.rating ?? "—"}<Icon name="star" size={12} className="text-amber-400" />
-                </div>
               </div>
               <div className="flex gap-1">
+                <button
+                  onClick={() => openHistory(c)}
+                  className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-green-100 hover:text-green-700 transition-colors"
+                  title="Histórico"
+                >
+                  <Icon name="clock" size={14} />
+                </button>
                 <button
                   onClick={() => { setEditCustomer(c); setShowEditModal(true); }}
                   className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 transition-colors"

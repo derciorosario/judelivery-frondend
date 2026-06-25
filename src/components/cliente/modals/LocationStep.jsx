@@ -28,6 +28,43 @@ const LocationStep = ({
   const veryUrgentPercent = Number(pricing.veryUrgentPercentage ?? 60);
   const manualInputDisabled = !allowManualAddressInput;
 
+
+
+  const formatDuration = (minutes) => {
+
+      if(isNaN(minutes)) {
+        return minutes
+      }
+
+      if (!minutes || minutes < 0) return "0 min";
+      
+      // Round to nearest integer
+      const totalMinutes = Math.round(minutes);
+      
+      if (totalMinutes === 0) return "0 min";
+      
+      const hours = Math.floor(totalMinutes / 60);
+      const remainingMinutes = totalMinutes % 60;
+      
+      if (hours === 0) {
+        return `${remainingMinutes} min`;
+      }
+      
+      if (hours === 1 && remainingMinutes === 0) {
+        return "1 hora";
+      }
+      
+      if (hours === 1 && remainingMinutes > 0) {
+        return `1h:${remainingMinutes.toString().padStart(2, '0')}min`;
+      }
+      
+      if (remainingMinutes === 0) {
+        return `${hours} horas`;
+      }
+      
+      return `${hours}h:${remainingMinutes.toString().padStart(2, '0')}min`;
+};
+
   if (serviceType === "taxi") {
     const isAnyManual = form.manualPickup || form.manualDropoff;
     
@@ -618,13 +655,14 @@ const LocationStep = ({
                 <p className="text-xs text-orange-600">Distância</p>
               </div>
               <div>
-                <p className="text-lg font-bold text-orange-700">{duration} min</p>
+                <p className="text-lg font-bold text-orange-700">{formatDuration(duration)}</p>
                 <p className="text-xs text-orange-600">Duração estimada</p>
               </div>
               <div>
                 <p className="text-lg font-bold text-orange-700">{price} {currency}</p>
                 <p className="text-xs text-orange-600">Estimativa</p>
               </div>
+
             </div>
             {form.urgencyLevel !== "normal" && (
               <div className="mt-2 pt-2 border-t border-orange-200">

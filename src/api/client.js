@@ -1,5 +1,5 @@
 import axios from "axios";
-export const env = "dev";
+export const env = "pro";
 let isNative=false
 export const API_URL = 
   env == "dev" ? isNative ? "http://10.24.0.78:5000/api" : "http://localhost:5001/api" :
@@ -276,6 +276,16 @@ export const getDriverPerformance = () => client.get('/profile/driver/performanc
 export const getDriverReports = () => client.get('/profile/driver/reports');
 export const getDriverDashboard = () => client.get('/profile/driver/dashboard');
 
+// Get operational report
+export const getOperationalReport = (params) => {
+  return client.get('/financial/operational', { params });
+};
+
+// Get performance report
+export const getPerformanceReport = (params) => {
+  return client.get('/financial/performance', { params });
+};
+
 // Find available drivers for order assignment
 export const getAvailableDrivers = (params) => client.get('/drivers/available', { params });
 
@@ -286,6 +296,9 @@ export const getCustomers = () => client.get('/customers');
 
 // Get customer by ID
 export const getCustomer = (id) => client.get(`/customers/${id}`);
+
+// Get orders for a specific customer (admin)
+export const getCustomerOrdersByAdmin = (customerId, params) => client.get(`/customers/${customerId}/orders`, { params });
 
 // Create customer
 export const createCustomer = (formData) => uploadClient.post('/customers', formData);

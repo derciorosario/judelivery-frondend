@@ -14,6 +14,12 @@ import { getEnabledPaymentMethods, getPrimaryPaymentMethod, normalizePaymentMeth
 const GOOGLE_MAPS_KEY = "AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak";
 const MAPUTO_CENTER = { lat: -25.9653, lng: 32.5778 };
 const libraries = ["places"];
+
+// Flag to switch between Haversine and Directions API
+// Set to true to use Directions API (road distance & actual duration)
+// Set to false to use Haversine (straight-line distance & estimated duration)
+const USE_DIRECTIONS_DISTANCE = true;
+
 const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated, onOrderUpdated, repeatOrder, editOrder, serviceType, clientId, onClientSelectClick, selectedClient, settings, settingsLoading }) => {
   const {user:authUser} = useAuth()
   const { settings: contextSettings, loading: contextSettingsLoading } = usePlatformSettings();
@@ -40,6 +46,10 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
   });
   const [saving, setSaving] = useState(false);
   const [submitStatus, setSubmitStatus] = useState('idle');
+  const [accurateDistance, setAccurateDistance] = useState(null);
+  const [accurateDuration, setAccurateDuration] = useState(null);
+  const [isFetchingData, setIsFetchingData] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState(null);
   
   // Map ref for controlling the map
   const mapRef = useRef(null);
@@ -73,6 +83,10 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     setSaving(false);
     setSubmitStatus('idle');
     setSearchValue("");
+    setAccurateDistance(null);
+    setAccurateDuration(null);
+    setIsFetchingData(false);
+    setCreatedOrder(null);
     setForm({
       origin: "",
       originCoords: null,
@@ -170,33 +184,181 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     const distance = R * c;
     return Math.round(distance * 10) / 10;
   }, []);
-  
-  const calculateDistance = useCallback(() => {
-    if (resolvedServiceType === "taxi") {
-      if (form.pickupCoords && form.dropoffCoords) {
-        return calculateRealDistance(form.pickupCoords, form.dropoffCoords);
+
+  // Function to fetch directions data (distance and duration) from Directions API
+  const fetchDirectionsData = useCallback(async (originCoords, destCoords) => {
+    if (!isLoaded || !window.google || !originCoords || !destCoords) {
+      return null;
+    }
+
+    return new Promise((resolve) => {
+      const directionsService = new window.google.maps.DirectionsService();
+      const origin = new window.google.maps.LatLng(originCoords.lat, originCoords.lng);
+      const destination = new window.google.maps.LatLng(destCoords.lat, destCoords.lng);
+      
+      directionsService.route(
+        {
+          origin: origin,
+          destination: destination,
+          travelMode: window.google.maps.TravelMode.DRIVING,
+        },
+        (result, status) => {
+          if (status === "OK" && result.routes[0]?.legs[0]) {
+            const leg = result.routes[0].legs[0];
+            resolve({
+              distanceInKm: Math.round((leg.distance.value / 1000) * 10) / 10,
+              durationInMinutes: Math.round(leg.duration.value / 60),
+              durationText: leg.duration.text,
+              distanceText: leg.distance.text
+            });
+          } else {
+            resolve(null);
+          }
+        }
+      );
+    });
+  }, [isLoaded]);
+
+  // Auto-fetch accurate distance and duration when coordinates change
+  useEffect(() => {
+    const updateAccurateData = async () => {
+      if (!USE_DIRECTIONS_DISTANCE) {
+        setAccurateDistance(null);
+        setAccurateDuration(null);
+        return;
       }
+
+      let originCoords, destCoords;
+      
+      if (resolvedServiceType === "taxi") {
+        originCoords = form.pickupCoords;
+        destCoords = form.dropoffCoords;
+      } else {
+        originCoords = form.originCoords;
+        destCoords = form.destCoords;
+      }
+
+      if (originCoords && destCoords && isLoaded && window.google) {
+        setIsFetchingData(true);
+        try {
+          const data = await fetchDirectionsData(originCoords, destCoords);
+          if (data !== null) {
+            setAccurateDistance(data.distanceInKm);
+            setAccurateDuration(data.durationInMinutes);
+          } else {
+            // Fallback to Haversine calculation
+            const fallbackDistance = calculateRealDistance(originCoords, destCoords);
+            setAccurateDistance(fallbackDistance);
+            setAccurateDuration(null);
+          }
+        } catch (error) {
+          console.error("Failed to fetch directions data:", error);
+          const fallbackDistance = calculateRealDistance(originCoords, destCoords);
+          setAccurateDistance(fallbackDistance);
+          setAccurateDuration(null);
+        } finally {
+          setIsFetchingData(false);
+        }
+      } else {
+        setAccurateDistance(null);
+        setAccurateDuration(null);
+      }
+    };
+
+    updateAccurateData();
+  }, [
+    resolvedServiceType,
+    form.pickupCoords,
+    form.dropoffCoords,
+    form.originCoords,
+    form.destCoords,
+    isLoaded,
+    fetchDirectionsData,
+    calculateRealDistance
+  ]);
+
+  const formatDuration = useCallback((minutes) => {
+    if (!minutes || minutes < 0) return "0 min";
+    
+    const totalMinutes = Math.round(minutes);
+    
+    if (totalMinutes === 0) return "0 min";
+    
+    const hours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = totalMinutes % 60;
+    
+    if (hours === 0) {
+      return `${remainingMinutes} min`;
+    }
+    
+    if (hours === 1 && remainingMinutes === 0) {
+      return "1 hora";
+    }
+    
+    if (hours === 1 && remainingMinutes > 0) {
+      return `1h:${remainingMinutes.toString().padStart(2, '0')}min`;
+    }
+    
+    if (remainingMinutes === 0) {
+      return `${hours} horas`;
+    }
+    
+    return `${hours}h:${remainingMinutes.toString().padStart(2, '0')}min`;
+  }, []);
+
+  const calculateDistance = useCallback(() => {
+    let originCoords, destCoords;
+    
+    if (resolvedServiceType === "taxi") {
+      originCoords = form.pickupCoords;
+      destCoords = form.dropoffCoords;
+    } else {
+      originCoords = form.originCoords;
+      destCoords = form.destCoords;
+    }
+
+    // If USE_DIRECTIONS_DISTANCE is true and we have accurate distance, use it
+    if (USE_DIRECTIONS_DISTANCE && accurateDistance !== null) {
+      return accurateDistance;
+    }
+
+    // Fallback to Haversine calculation
+    if (originCoords && destCoords) {
+      return calculateRealDistance(originCoords, destCoords);
+    }
+
+    // Random fallback if no coordinates
+    if (resolvedServiceType === "taxi") {
       const baseDistance = 3;
       const randomFactor = Math.random() * 4;
       return Math.round((baseDistance + randomFactor) * 10) / 10;
     } else {
-      if (form.originCoords && form.destCoords) {
-        return calculateRealDistance(form.originCoords, form.destCoords);
-      }
       const baseDistance = 2;
       const randomFactor = Math.random() * 6;
       return Math.round((baseDistance + randomFactor) * 10) / 10;
     }
-  }, [resolvedServiceType, form.pickupCoords, form.dropoffCoords, form.originCoords, form.destCoords, calculateRealDistance]);
-  
+  }, [resolvedServiceType, form.pickupCoords, form.dropoffCoords, form.originCoords, form.destCoords, accurateDistance, calculateRealDistance]);
+
   const calculateDuration = useCallback(() => {
+    // If using Directions API and we have accurate duration, use it
+    if (USE_DIRECTIONS_DISTANCE && accurateDuration !== null) {
+      return formatDuration(accurateDuration);
+    }
+    
+    // Fallback to estimated duration based on distance
     const distance = calculateDistance();
-    const avgSpeed = 30;
-    const minutes = Math.round((distance / avgSpeed) * 60);
-    return minutes;
-  }, [calculateDistance]);
+    const avgSpeed = 30; // Average speed in km/h for taxi
+    const minutes = (distance / avgSpeed) * 60;
+    return formatDuration(minutes);
+  }, [calculateDistance, formatDuration, accurateDuration]);
   
   const calculateDeliveryDuration = useCallback(() => {
+    // If using Directions API and we have accurate duration, use it
+    if (USE_DIRECTIONS_DISTANCE && accurateDuration !== null) {
+      return formatDuration(accurateDuration);
+    }
+    
+    // Fallback to estimated duration based on distance and urgency
     const distance = calculateDistance();
     let avgSpeed = 25;
     if (form.urgencyLevel === "urgent") {
@@ -204,9 +366,9 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     } else if (form.urgencyLevel === "very_urgent") {
       avgSpeed = 45;
     }
-    const minutes = Math.round((distance / avgSpeed) * 60);
-    return minutes;
-  }, [calculateDistance, form.urgencyLevel]);
+    const minutes = (distance / avgSpeed) * 60;
+    return formatDuration(minutes);
+  }, [calculateDistance, form.urgencyLevel, formatDuration, accurateDuration]);
   
   const calculateRidePrice = useCallback(() => {
     const distance = calculateDistance();
@@ -262,17 +424,45 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
         origin: origin,
         destination: destination,
         travelMode: window.google.maps.TravelMode.DRIVING,
+        language: 'pt'
       },
       (result, status) => {
         if (status === "OK") {
           setDirections(result);
           const route = result.routes[0];
           const leg = route.legs[0];
+          
+          // Get the real distance and duration from directions
+          const realDistanceKm = leg.distance.value / 1000;
+          const realDurationMinutes = leg.duration.value / 60;
+          
+          // Update accurate data if using directions
+          if (USE_DIRECTIONS_DISTANCE) {
+            setAccurateDistance(Math.round(realDistanceKm * 10) / 10);
+            setAccurateDuration(Math.round(realDurationMinutes));
+          }
+          
           setRouteInfo({
             distance: leg.distance.text,
             duration: leg.duration.text,
             startAddress: leg.start_address,
             endAddress: leg.end_address,
+            distanceInKm: Math.round(realDistanceKm * 10) / 10,
+            durationInMinutes: Math.round(realDurationMinutes),
+            steps: leg.steps.map(step => ({
+              instruction: step.instructions,
+              distance: step.distance.text,
+              duration: step.duration.text
+            }))
+          });
+
+          console.log({
+            distance: leg.distance.text,
+            duration: leg.duration.text,
+            startAddress: leg.start_address,
+            endAddress: leg.end_address,
+            distanceInKm: Math.round(realDistanceKm * 10) / 10,
+            durationInMinutes: Math.round(realDurationMinutes),
             steps: leg.steps.map(step => ({
               instruction: step.instructions,
               distance: step.distance.text,
@@ -673,6 +863,24 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     window.open(`tel:${normalizedPhone}`, "_self");
   };
 
+  const formatOrderId = (id) => {
+    if (!id) return "PEDIDO";
+    if (id.startsWith("#")) return id;
+    return id.slice(0, 8).toUpperCase();
+  };
+
+  const handleViewOrderDetails = (order) => {
+    if (onOrderCreated) {
+      onOrderCreated(order);
+    }
+
+    window.dispatchEvent(new CustomEvent('notification:openOrder', { detail: { orderId:order.id } }));
+
+    setSubmitStatus('idle');
+    resetForm();
+    onClose(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -761,10 +969,12 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
         contactDest: form.contactDest,
         total,
         dist: `${distance} km`,
+        duration: duration,
         time: new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }),
         paymentMethod: paymentMethodCode,
         paymentStatus: "pending",
-        isManualInput: form.manualPickup || form.manualDropoff
+        isManualInput: form.manualPickup || form.manualDropoff,
+        distanceSource: USE_DIRECTIONS_DISTANCE ? "directions_api" : "haversine"
       } : {
         companyId,
         clientId: resolvedClientId,
@@ -786,19 +996,24 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
         contactDest: form.contactDest,
         total,
         dist: `${distance} km`,
+        duration: duration,
         time: new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }),
         paymentMethod: paymentMethodCode,
         paymentStatus: "pending",
-        isManualInput: form.manualOrigin || form.manualDest
+        isManualInput: form.manualOrigin || form.manualDest,
+        distanceSource: USE_DIRECTIONS_DISTANCE ? "directions_api" : "haversine"
       };
       
+      let response;
       if (editOrder) {
-        const response = await updateOrder(editOrder.id, orderPayload);
+        response = await updateOrder(editOrder.id, orderPayload);
         setSubmitStatus('success');
         if (onOrderUpdated) onOrderUpdated(response.data);
       } else {
-        await apiCreateOrder(orderPayload);
+        response = await apiCreateOrder(orderPayload);
         setSubmitStatus('success');
+        setCreatedOrder(response.data);
+        if (onOrderCreated) onOrderCreated(response.data);
       }
     } catch (error) {
       console.error("Failed to save order:", error);
@@ -1009,14 +1224,14 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
               )}
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || isFetchingData}
                 className={`flex-1 py-2.5 rounded-xl text-white font-bold text-sm shadow-lg ${
                   resolvedServiceType === "taxi"
                     ? "bg-blue-500 shadow-blue-500/30 hover:bg-blue-600"
                     : "bg-orange-500 shadow-orange-500/30 hover:bg-orange-600"
-                } ${((resolvedServiceType === "taxi" && step === 1) || (resolvedServiceType === "delivery" && step === 2)) && !isCurrentStepValid ? "opacity-50 cursor-not-allowed" : ""} ${saving ? "opacity-50 cursor-not-allowed" : ""}`}
+                } ${((resolvedServiceType === "taxi" && step === 1) || (resolvedServiceType === "delivery" && step === 2)) && !isCurrentStepValid ? "opacity-50 cursor-not-allowed" : ""} ${saving || isFetchingData ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                {saving ? "A criar..." : step < 4 ? "Continuar" : "Confirmar"}
+                {saving ? "A criar..." : isFetchingData ? "A calcular distância..." : step < 4 ? "Continuar" : "Confirmar"}
               </button>
             </div>
           </form>
@@ -1239,7 +1454,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
 
       {submitStatus === 'success' && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md text-center shadow-2xl">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md text-center shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -1252,67 +1467,126 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
               {editOrder
                 ? "O seu pedido foi atualizado com sucesso."
                 : form.driverId
-                  ? `${form.driverName} foi atribuído ao seu pedido. Use os contactos abaixo para acompanhamento.`
-                  : "O seu pedido foi recebido e está a ser processado. Um motorista será atribuído em breve e você será notificado."
+                  ? `${form.driverName} foi atribuído ao seu pedido.`
+                  : "O seu pedido foi recebido e está a ser processado. Um motorista será atribuído em breve."
               }
             </p>
 
-            <div className="text-left space-y-3">
-              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-2">
-                <Icon name="phone" size={14} className="text-orange-500" /> Contactos para acompanhamento
-              </h4>
+            {/* Show order ID if available */}
+            {createdOrder && (
+              <div className="bg-slate-50 rounded-xl p-3 mb-4">
+                <p className="text-xs text-slate-500">Número do Pedido</p>
+                <p className="text-lg font-bold text-orange-500">{formatOrderId(createdOrder.id)}</p>
+              </div>
+            )}
 
-              <div className="space-y-2">
-                {form.driverId && form.driverName && (
-                  <div className="bg-slate-50 rounded-xl p-3">
-                    <div className="flex items-center justify-between gap-3 mb-1">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-800 truncate">{form.driverName}</p>
-                        <p className="text-xs text-slate-500 truncate">
-                          {form.driverPhone || "Contacto indisponível"}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={!form.driverPhone}
-                        onClick={() => handleCall(form.driverPhone)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${
-                          form.driverPhone
-                            ? "bg-blue-500 text-white hover:bg-blue-600"
-                            : "bg-slate-200 text-slate-400 cursor-not-allowed"
-                        }`}
-                      >
-                        <Icon name="phone" size={14} /> Ligar
-                      </button>
-                    </div>
-                    <p className="text-xs text-slate-400">Motorista</p>
+            {/* View Order Details Button */}
+            {createdOrder && (
+              <button
+                onClick={() => handleViewOrderDetails(createdOrder)}
+                className="w-full py-2.5 rounded-xl bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-500/30 hover:bg-blue-600 transition-colors mb-4 flex items-center justify-center gap-2"
+              >
+                <Icon name="eye" size={18} />
+                Ver Detalhes do Pedido
+              </button>
+            )}
+
+            {/* Driver Contact - Always Visible */}
+            {form.driverId && form.driverName && (
+              <div className="bg-blue-50 rounded-xl p-4 mb-4 text-left">
+                <h4 className="text-xs font-semibold text-blue-700 uppercase tracking-wide flex items-center gap-2 mb-3">
+                  <Icon name="user" size={14} className="text-blue-500" /> Motorista Atribuído
+                </h4>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 truncate">{form.driverName}</p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {form.driverPhone || "Contacto indisponível"}
+                    </p>
                   </div>
-                )}
+                  <button
+                    type="button"
+                    disabled={!form.driverPhone}
+                    onClick={() => handleCall(form.driverPhone)}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors ${
+                      form.driverPhone
+                        ? "bg-blue-500 text-white hover:bg-blue-600"
+                        : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                    }`}
+                  >
+                    <Icon name="phone" size={16} /> Ligar
+                  </button>
+                </div>
+                <p className="text-xs text-blue-600 mt-2">
+                  {resolvedServiceType === "delivery" ? "📦 Entregador atribuído" : "🚗 Motorista atribuído"}
+                </p>
+              </div>
+            )}
 
-                <div className="bg-slate-50 rounded-xl p-3">
-                  <div className="flex items-center justify-between gap-3 mb-1">
-                    <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-800 truncate">{supportContact.supportName || supportContact.name || "Plataforma/Suporte"}</p>
-                        <p className="text-xs text-slate-500 truncate">{supportContact.supportPhone || supportContact.phone || "Contacto indisponível"}</p>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={!supportContact.supportPhone && !supportContact.phone}
-                        onClick={() => handleCall(supportContact.supportPhone || supportContact.phone)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-orange-600 transition-colors flex items-center gap-1 ${
-                          supportContact.supportPhone || supportContact.phone
-                            ? "bg-orange-500 text-white"
-                            : "bg-slate-200 text-slate-400 cursor-not-allowed"
-                        }`}
-                      >
-                        <Icon name="phone" size={14} /> Ligar
-                      </button>
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-slate-200">
-                      <p className="text-xs text-slate-500">{supportContact.supportHours || supportContact.hours || "Contacte-nos por telefone ou email"}</p>
-                      <p className="text-xs text-orange-500 mt-1">{supportContact.supportResponseTime || supportContact.responseTime || "Resposta assim que possível"}</p>
-                    </div>
-                  <p className="text-xs text-slate-400 mt-1">Plataforma/Suporte</p>
+            {/* Delivery Tracking Info */}
+            {resolvedServiceType === "delivery" && (
+              <div className="bg-amber-50 rounded-xl p-4 mb-4 text-left border border-amber-200">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Icon name="mapPin" size={16} className="text-amber-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-amber-800">Acompanhamento em Tempo Real</h4>
+                    <p className="text-xs text-amber-700 mt-1">
+                      Pode acompanhar a sua entrega em tempo real durante o trajeto. 
+                      O motorista será notificado assim que estiver a caminho.
+                    </p>
+                    <p className="text-xs text-amber-600 mt-2 font-medium">
+                      📱 Acesse o histórico do pedido para ver a localização em tempo real.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Support Contact - Collapsible */}
+            <div className="bg-slate-50 rounded-xl p-4 text-left">
+              <button
+                onClick={() => {
+                  const content = document.getElementById('support-content');
+                  if (content) {
+                    content.classList.toggle('hidden');
+                  }
+                }}
+                className="w-full flex items-center justify-between text-left"
+              >
+                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-2">
+                  <Icon name="helpCircle" size={14} className="text-orange-500" /> Suporte
+                </h4>
+                <Icon name="chevronDown" size={16} className="text-slate-400" />
+              </button>
+              
+              <div id="support-content" className="hidden mt-3 pt-3 border-t border-slate-200">
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 truncate">
+                      {supportContact.supportName || supportContact.name || "Plataforma/Suporte"}
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {supportContact.supportPhone || supportContact.phone || "Contacto indisponível"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!supportContact.supportPhone && !supportContact.phone}
+                    onClick={() => handleCall(supportContact.supportPhone || supportContact.phone)}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 ${
+                      supportContact.supportPhone || supportContact.phone
+                        ? "bg-orange-500 text-white hover:bg-orange-600"
+                        : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                    }`}
+                  >
+                    <Icon name="phone" size={16} /> Ligar
+                  </button>
+                </div>
+                <div className="mt-2 pt-2 border-t border-slate-200">
+                  <p className="text-xs text-slate-500">{supportContact.supportHours || supportContact.hours || "Contacte-nos por telefone ou email"}</p>
+                  <p className="text-xs text-orange-500 mt-1">{supportContact.supportResponseTime || supportContact.responseTime || "Resposta assim que possível"}</p>
                 </div>
               </div>
             </div>
@@ -1321,11 +1595,13 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
               onClick={() => {
                 setSubmitStatus('idle');
                 resetForm();
-                onClose(true);
+                if (!createdOrder) {
+                  onClose(true);
+                }
               }}
-              className="w-full py-2.5 rounded-xl bg-green-500 text-white font-bold text-sm shadow-lg shadow-green-500/30 hover:bg-green-600 transition-colors"
+              className="w-full mt-4 py-2.5 rounded-xl bg-green-500 text-white font-bold text-sm shadow-lg shadow-green-500/30 hover:bg-green-600 transition-colors"
             >
-              Entendi
+              {createdOrder ? "Ir para o início" : "Entendi"}
             </button>
           </div>
         </div>

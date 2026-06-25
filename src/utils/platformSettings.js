@@ -60,6 +60,8 @@ export const defaultPlatformSettings = {
     paymentConfirmed: true,
     cancellation: true,
     promotions: false,
+    driverStatus: true,
+    orderPriceUpdated: true,
   },
   drivers: {
     requireDriverOnline: true,

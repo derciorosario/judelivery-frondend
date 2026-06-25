@@ -3,6 +3,7 @@ import Icon from "../common/Icon";
 import { toast } from "../../lib/toast";
 import { usePlatformSettings } from "../../contexts/SettingsContext";
 import CreateOrderModal from "./modals/CreateOrderModal";
+import { useNavigate } from "react-router-dom";
 
 const CustomerHome = ({
   user,
@@ -29,6 +30,8 @@ const CustomerHome = ({
   const canDelivery = !settingsLoading && settings.order.allowDelivery;
   const canTaxi = !settingsLoading && settings.order.allowTaxi;
   const hasAnyService = canDelivery || canTaxi;
+
+  const navigate= useNavigate();
 
   const formatOrderId = (id) => {
     if (!id) return "PEDIDO";
@@ -149,11 +152,11 @@ const CustomerHome = ({
       <div className="grid grid-cols-3 gap-2">
         <div className="bg-white rounded-xl p-3 text-center border border-slate-100">
           <p className="text-lg font-bold text-slate-800">{deliveryCount}</p>
-          <p className="text-[10px] text-slate-400">Entregas</p>
+          <p className="text-[10px] text-slate-400">Pedidos</p>
         </div>
         <div className="bg-white rounded-xl p-3 text-center border border-slate-100">
           <p className="text-lg font-bold text-slate-800">{totalSpent} MZN</p>
-          <p className="text-[10px] text-slate-400">Total Gasto</p>
+          <p className="text-[10px] text-slate-400">Gasto na semana</p>
         </div>
         <div className="bg-white rounded-xl p-3 text-center border border-slate-100">
           <p className="text-lg font-bold text-slate-800">{completedCount}</p>
@@ -196,7 +199,7 @@ const CustomerHome = ({
         <div>
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm font-bold text-slate-700">Pedidos Pendentes</p>
-            <button onClick={() => window.location.href = "#orders"} className="text-xs text-orange-500 font-medium">ver todos →</button>
+            <button onClick={() => navigate('/my-orders')} className="text-xs text-orange-500 pointer-pointer font-medium">ver todos →</button>
           </div>
           {pendingOrders.slice(0, 2).map(order => (
             <div key={order.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm mb-3">
@@ -221,8 +224,8 @@ const CustomerHome = ({
       {completedOrders.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-bold text-slate-700">Entregas Recentes</p>
-            <button onClick={() => window.location.href = "#orders"} className="text-xs text-orange-500 font-medium">ver todos →</button>
+            <p className="text-sm font-bold text-slate-700">Pedidos Recentes</p>
+            <button onClick={() => navigate('/history')} className="text-xs text-orange-500 font-medium">ver todos →</button>
           </div>
           {completedOrders.slice(0, 2).map(order => (
             <div key={order.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm mb-3">
@@ -285,7 +288,7 @@ const CustomerHome = ({
           </div>
           <div className="flex-1">
             <p className="text-sm font-semibold text-slate-800">Precisa de ajuda?</p>
-            <p className="text-xs text-slate-400">Estamos aqui para ajudar com suas entregas</p>
+            <p className="text-xs text-slate-400">Estamos aqui para ajudar com seus pedidos</p>
           </div>
           <button
             onClick={() => onContactSupport(activeOrder)}

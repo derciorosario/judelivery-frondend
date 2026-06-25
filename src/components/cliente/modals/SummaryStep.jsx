@@ -30,6 +30,43 @@ const SummaryStep = ({
 
   const formatAmount = (value) => `${Number(value) || 0} ${currency}`;
 
+  const formatDuration = (minutes) => {
+
+      if(isNaN(minutes)) {
+        return minutes
+      }
+
+      if (!minutes || minutes < 0) return "0 min";
+      
+      // Round to nearest integer
+      const totalMinutes = Math.round(minutes);
+      
+      if (totalMinutes === 0) return "0 min";
+      
+      const hours = Math.floor(totalMinutes / 60);
+      const remainingMinutes = totalMinutes % 60;
+      
+      if (hours === 0) {
+        return `${remainingMinutes} min`;
+      }
+      
+      if (hours === 1 && remainingMinutes === 0) {
+        return "1 hora";
+      }
+      
+      if (hours === 1 && remainingMinutes > 0) {
+        return `1h:${remainingMinutes.toString().padStart(2, '0')}min`;
+      }
+      
+      if (remainingMinutes === 0) {
+        return `${hours} horas`;
+      }
+      
+      return `${hours}h:${remainingMinutes.toString().padStart(2, '0')}min`;
+  };
+
+
+
   if (serviceType === "taxi") {
     return (
       <div className="space-y-4">
@@ -177,7 +214,7 @@ const SummaryStep = ({
             </div>
             <div className="bg-white rounded-lg p-2 text-center">
               <p className="text-xs text-slate-400">Tempo Estimado</p>
-              <p className="text-base font-bold text-slate-800">{duration} min</p>
+              <p className="text-base font-bold text-slate-800">{formatDuration(duration)}</p>
             </div>
           </div>
           

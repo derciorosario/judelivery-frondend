@@ -43,7 +43,6 @@ const GestorApp = () => {
     { id: "orders", label: "Pedidos", icon: "package", path: "/orders" },
     { id: "map", label: "Mapa", icon: "map", path: "/map" },
     { id: "drivers", label: "Equipa", icon: "users", path: "/drivers" },
-    { id: "managers", label: "Gestores", icon: "users", path: "/managers" },
     { id: "customers", label: "Clientes", icon: "user", path: "/customers" },
     { id: "incidents", label: "Incidentes", icon: "alertTriangle", path: "/incidents" },
     { id: "notifications", label: "Notificações", icon: "bell", path: "/notifications" },
