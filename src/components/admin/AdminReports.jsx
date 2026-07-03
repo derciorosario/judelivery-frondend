@@ -168,6 +168,7 @@ const AdminReports = () => {
       let reportData = [];
       
       if (reportType === "operacional" && operationalData) {
+
         reportData = [
           ["RELATÓRIO OPERACIONAL"],
           [`Período: ${dateFrom} a ${dateTo}`],
@@ -184,6 +185,7 @@ const AdminReports = () => {
           ["Consumo Estimado", `${(operationalData.estimatedFuelConsumption || 0).toFixed(1)} L`],
           ["Receita Total", `${(operationalData.totalRevenue || 0).toFixed(2)} MZN`]
         ];
+
       } else if (reportType === "financeiro" && financialData) {
         reportData = [
           ["RELATÓRIO FINANCEIRO"],
@@ -336,7 +338,15 @@ const AdminReports = () => {
 
       {reportType === "operacional" && operationalData && (
         <>
+          {/* FIRST ROW - Replace the Tempo Médio card with Pedidos/Motorista */}
           <div className="grid grid-cols-2 gap-3">
+
+            <StatCard 
+              label="Receita Total" 
+              value={`${(operationalData.totalRevenue || 0).toFixed(0)} MZN`} 
+              color="emerald" 
+            />
+
             <StatCard 
               label="Total Pedidos" 
               value={operationalData.totalOrders?.toString() || "0"} 
@@ -348,18 +358,17 @@ const AdminReports = () => {
               value={`${(operationalData.cancellationRate || 0).toFixed(1)}%`} 
               color="red" 
             />
-            <StatCard 
-              label="Tempo Médio" 
-              value={`${operationalData.avgDeliveryTime || 0} min`} 
-              sub="entrega" 
-              color="green" 
-            />
+           
             <StatCard 
               label="Distância Total" 
               value={`${(operationalData.totalDistance || 0).toFixed(0)} km`} 
               color="orange" 
             />
           </div>
+          
+        
+
+
 
           <div className="bg-white rounded-2xl p-4 border border-slate-100">
             <p className="text-xs font-semibold text-slate-500 mb-3">Pedidos por Status</p>
@@ -561,6 +570,9 @@ const AdminReports = () => {
 
       {reportType === "desempenho" && performanceData && (
         <>
+         
+         
+          {/* FIRST ROW - Replace Tempo Médio with Pedidos/Motorista */}
           <div className="grid grid-cols-2 gap-3">
             <StatCard 
               label="Total Pedidos" 
@@ -573,16 +585,45 @@ const AdminReports = () => {
               color="green" 
             />
             <StatCard 
+              label="Pedidos/Motorista"  // NEW
+              value={performanceData.overall?.avgOrdersPerDriver?.toString() || "0"} 
+              sub="média" 
+              color="purple" 
+            />
+            <StatCard 
               label="Avaliação Média" 
               value={(performanceData.overall?.avgRating || 0).toFixed(1)} 
               color="amber" 
             />
-            <StatCard 
-              label="Tempo Médio" 
-              value={`${performanceData.overall?.avgDeliveryTime || 0} min`} 
-              color="orange" 
-            />
           </div>
+          
+     
+          {/* SECOND ROW - Add new metrics */}
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard 
+              label="Pedidos/Hora"
+              value={performanceData.overall?.avgOrdersPerHour || "0"} 
+              sub="média" 
+              color="indigo" 
+            />
+            <StatCard 
+              label="Eficiência"
+              value={`${performanceData.overall?.deliveryEfficiency || 0}%`} 
+              sub="taxa de sucesso" 
+              color="green" 
+            />
+            
+            {/* This card will span 2 columns (full width) */}
+            <div className="col-span-2">
+              <StatCard 
+                label="Cancelados" 
+                value={performanceData.overall?.cancelledOrders?.toString() || "0"} 
+                sub="pedidos cancelados no período"
+                color="red" 
+              />
+            </div>
+          </div>
+
 
           {performanceData.drivers && performanceData.drivers.length > 0 && (
             <div className="bg-white rounded-2xl p-4 border border-slate-100">

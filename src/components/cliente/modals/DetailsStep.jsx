@@ -330,7 +330,7 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
                     )}
                   </div>
                   {driver.rating && (
-                    <div className="flex items-center gap-1 mt-1">
+                    <div className="flex items-center gap-1 mt-1 hidden"> {/** Leave it hidden */}
                       <Icon name="star" size={12} className="text-amber-400" />
                       <span className="text-xs text-slate-600">{driver.rating}</span>
                     </div>

@@ -63,7 +63,15 @@ const AdminClientSelectModal = ({ isOpen, onClose, onSelect, selectedClient }) =
 
   const handleSelect = (customer) => {
     onSelect(customer);
-    onClose();
+    // Don't close immediately, let user confirm
+  };
+
+  const handleConfirm = () => {
+    if (selectedClient) {
+      onClose();
+    } else {
+      toast.warning("Por favor, selecione um cliente");
+    }
   };
 
   return (
@@ -127,9 +135,10 @@ const AdminClientSelectModal = ({ isOpen, onClose, onSelect, selectedClient }) =
                     <p className="text-sm font-semibold text-slate-800 truncate">{selectedClient.name}</p>
                     <p className="text-xs text-slate-500 truncate">{selectedClient.phone} {selectedClient.email ? `• ${selectedClient.email}` : ""}</p>
                   </div>
-                  <button
+                  {/*** Leave hidden */}
+                  <button 
                     onClick={() => onSelect(null)}
-                    className="p-1.5 hover:bg-orange-200 hidden rounded-lg transition-colors"
+                    className="hidden p-1.5 hover:bg-orange-200 rounded-lg transition-colors"
                     title="Remover cliente"
                   >
                     <Icon name="x" size={16} className="text-orange-600" />
@@ -178,7 +187,11 @@ const AdminClientSelectModal = ({ isOpen, onClose, onSelect, selectedClient }) =
                     key={c.id}
                     type="button"
                     onClick={() => handleSelect(c)}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-orange-200 hover:bg-orange-50 transition-colors text-left"
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-left ${
+                      selectedClient?.id === c.id 
+                        ? 'border-orange-400 bg-orange-50' 
+                        : 'border-slate-100 hover:border-orange-200 hover:bg-orange-50'
+                    }`}
                   >
                     <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
                       <Icon name="user" size={20} className="text-orange-600" />
@@ -187,6 +200,9 @@ const AdminClientSelectModal = ({ isOpen, onClose, onSelect, selectedClient }) =
                       <p className="text-sm font-semibold text-slate-800 truncate">{c.name}</p>
                       <p className="text-xs text-slate-400 truncate">{c.phone} {c.email ? `• ${c.email}` : ""}</p>
                     </div>
+                    {selectedClient?.id === c.id && (
+                      <Icon name="check" size={20} className="text-orange-500 shrink-0" />
+                    )}
                   </button>
                 ))}
               </div>
@@ -199,6 +215,23 @@ const AdminClientSelectModal = ({ isOpen, onClose, onSelect, selectedClient }) =
             >
               <Icon name="plus" size={16} /> Novo Cliente
             </button>
+
+            {/* Confirm Button */}
+            <div className="pt-4 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={!selectedClient}
+                className={`w-full py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
+                  selectedClient 
+                    ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30 hover:bg-orange-600' 
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                <Icon name="check" size={18} />
+                {selectedClient ? `Confirmar ${selectedClient.name}` : 'Selecione um cliente'}
+              </button>
+            </div>
           </>
         )}
       </div>

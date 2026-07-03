@@ -1,14 +1,18 @@
+// src/components/motorista/MotoristaHome.jsx
 import { useState, useEffect } from "react";
 import Icon from "../common/Icon";
 import { getDriverDashboard, updateOrder } from "../../api/client";
 import NavigationModal from "./modals/NavigationModal";
 import { toast } from "../../lib/toast";
+import OrderDetailModal from "../modals/OrderDetailModal";
 
 const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey }) => {
   const [showNavigationModal, setShowNavigationModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showOrderDetailModal, setShowOrderDetailModal] = useState(false);
+  const [detailOrder, setDetailOrder] = useState(null);
 
   const handleToggleOnline = () => {
     const next = !online;
@@ -48,19 +52,23 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
     toast.info("Pedido recusado");
   };
 
-  const handleCompleteOrder = async (order) => {
-    try {
-      const res = await updateOrder(order.id, { status: "completed" });
-      toast.success("Pedido concluído com sucesso!");
-      if (onOrderUpdate) onOrderUpdate(res.data);
-      setDashboard(prev => ({
-        ...prev,
-        activeOrder: null
-      }));
-    } catch (err) {
-      const msg = err.response?.data?.message || "Erro ao concluir pedido";
-      toast.error(msg);
-    }
+  const handleViewDetails = (order) => {
+    setDetailOrder(order);
+    setShowOrderDetailModal(true);
+  };
+
+  const handleOrderUpdate = (updatedOrder) => {
+    if (onOrderUpdate) onOrderUpdate(updatedOrder);
+    // Refresh dashboard to reflect changes
+    const fetchDashboard = async () => {
+      try {
+        const response = await getDriverDashboard();
+        setDashboard(response.data);
+      } catch (error) {
+        console.error("Error refreshing dashboard:", error);
+      }
+    };
+    fetchDashboard();
   };
 
   const gpsPermission = location?.gpsPermission ?? "prompt";
@@ -98,6 +106,20 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
         onClose={() => setShowNavigationModal(false)}
         order={selectedOrder}
       />
+
+      {/* Order Detail Modal */}
+      {showOrderDetailModal && detailOrder && (
+        <OrderDetailModal
+          isOpen={showOrderDetailModal}
+          onClose={() => {
+            setShowOrderDetailModal(false);
+            setDetailOrder(null);
+          }}
+          order={detailOrder}
+          role="driver"
+          onUpdate={handleOrderUpdate}
+        />
+      )}
 
       {gpsPermission === "denied" && (
         <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
@@ -272,10 +294,10 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
                 Navegar
               </button>
               <button 
-                onClick={() => handleCompleteOrder(dashboard.activeOrder)}
-                className="flex-1 bg-green-400 text-white font-bold text-sm py-2.5 rounded-xl"
+                onClick={() => handleViewDetails(dashboard.activeOrder)}
+                className="flex-1 bg-amber-400 text-white font-bold text-sm py-2.5 rounded-xl"
               >
-                Concluir ✓
+                Ver Detalhes
               </button>
             </div>
           </div>

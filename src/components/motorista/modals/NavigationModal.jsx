@@ -127,6 +127,21 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
 
   const isActive = order?.status === "in_transit" || order?.status === "Em entrega";
 
+  const getStatusText = (status) => {
+    const s = status?.toLowerCase() || "";
+    if (s === "in_transit") return "Em entrega";
+    if (s === "pending_approval") return "Aguardando";
+    if (s === "completed") return "Concluído";
+    if (s === "cancelled") return "Cancelado";
+    if (s === "approved") return "Aprovado";
+    if (s === "scheduled") return "Agendado";
+    if (s === "assigned") return "Atribuído";
+    if (s === "rejected") return "Rejeitado";
+    return status || "Processando";
+};
+
+
+
   // Extract coordinates from order
   useEffect(() => {
     if (!order) return;
@@ -157,6 +172,8 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
         origin: new window.google.maps.LatLng(originCoords.lat, originCoords.lng),
         destination: new window.google.maps.LatLng(destCoords.lat, destCoords.lng),
         travelMode: window.google.maps.TravelMode.DRIVING,
+        language: 'pt-BR', 
+        
       },
       (result, status) => {
         if (status === "OK" && result) {
@@ -685,7 +702,7 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
                       <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${idx === currentStepIndex ? 'bg-blue-500 text-white' : 'bg-slate-300 text-slate-600'}`}>
                         <span className="text-[10px] font-bold">{idx + 1}</span>
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 text-black">
                         <div dangerouslySetInnerHTML={{ __html: step.instruction }} />
                         <div className="flex gap-2 mt-1">
                           <span className="text-[10px] text-slate-400">{step.distance}</span>
@@ -711,7 +728,7 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
                 isActive ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
               }`}>
                 <Clock size={10} />
-                <span>{order.status}</span>
+                <span>{getStatusText(order.status)}</span>
               </div>
             </div>
             <div className="flex items-center justify-between mt-2">

@@ -1066,15 +1066,22 @@ const OrderDetailModal = ({
             <CheckCircle size={16} />
             Concluir
           </button>
-          
-          <button
-            onClick={() => handleDriverStatusChange("cancelled")}
+
+            <button
+            onClick={() =>{
+              setShowCancelDialog(true);
+            }}
             disabled={updating || isCompleted || isCancelled || isRejected}
-            className="py-3 rounded-xl bg-red-500 text-white font-semibold text-sm hover:bg-red-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+            className="py-3 rounded-xl col-span-2 bg-red-500 text-white font-semibold text-sm hover:bg-red-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
           >
             <XCircle size={16} />
             Cancelar
           </button>
+
+
+          {/****
+           * 
+           * 
           
           <button
             onClick={() => handleDriverStatusChange("rejected")}
@@ -1084,6 +1091,11 @@ const OrderDetailModal = ({
             <UserX size={16} />
             Rejeitar
           </button>
+
+
+           */}
+          
+        
         </div>
       </div>
 
