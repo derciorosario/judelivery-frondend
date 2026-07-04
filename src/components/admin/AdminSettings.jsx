@@ -580,6 +580,7 @@ const AdminSettings = () => {
                     promotions: "Promoções",
                     driverStatus: "Status do motorista",
                     orderPriceUpdated: "Preço atualizado",
+                    incidentReported: "Incidente registado",
                   };
                   return (
                     <SwitchField key={key} checked={value} onChange={(next) => update("notifications", key, next)} label={labelMap[key] || key.replaceAll("_", " ")} hint={key === "promotions" ? "Opcional" : "Evento da app"} disabled={disabled} />
