@@ -265,6 +265,14 @@ const Notifications = () => {
       if (driverId) {
         window.dispatchEvent(new CustomEvent('notification:openMap', { detail: { driverId } }));
       }
+    } else if (n.category === "incident") {
+      // For incident notifications, open the order and switch to incidents tab
+      const orderId = n.content?.orderId;
+      if (orderId) {
+        window.dispatchEvent(new CustomEvent('notification:openOrder', { 
+          detail: { orderId, tab: "incidents" } 
+        }));
+      }
     }
   };
 

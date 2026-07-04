@@ -26,6 +26,7 @@ const MotoristaApp = () => {
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [driverProfile, setDriverProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [orderDetailTab, setOrderDetailTab] = useState("details");
 
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },
@@ -60,11 +61,17 @@ const MotoristaApp = () => {
   useEffect(() => {
     const handleOpenOrder = async (e) => {
       const orderId = e.detail?.orderId;
+      const tab = e.detail?.tab;
        console.log({orderId})
       if (orderId) {
         try {
           const response = await getOrder(orderId);
           setSelectedOrder(response.data);
+          if (tab) {
+            setOrderDetailTab(tab);
+          } else {
+            setOrderDetailTab("details");
+          }
           setShowOrderDetails(true);
         } catch (err) {
           console.error("Failed to fetch order for notification:", err);
@@ -169,11 +176,13 @@ const MotoristaApp = () => {
             setOrderRefreshKey(k => k + 1);
             setHomeRefreshKey(k => k + 1);
             setHistoryRefreshKey(k => k + 1);
+            setOrderDetailTab("details");
           }}
           order={selectedOrder}
           onUpdate={handleOrderUpdate}
           onStatusChange={handleStatusChange}
           role="driver"
+          initialTab={orderDetailTab}
         />
     </div>
   );

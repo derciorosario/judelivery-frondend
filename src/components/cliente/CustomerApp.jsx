@@ -31,6 +31,7 @@ const CustomerApp = () => {
   const [showFeedback, setShowFeedback] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [orderDetailTab, setOrderDetailTab] = useState("details");
   const [showTrackOrder, setShowTrackOrder] = useState(false);
   const [selectedTrackOrder, setSelectedTrackOrder] = useState(null);
   const [shouldRefreshOrders, setShouldRefreshOrders] = useState(false);
@@ -113,8 +114,14 @@ const CustomerApp = () => {
   useEffect(() => {
     const handleOpenOrder = (e) => {
       const orderId = e.detail?.orderId;
+      const tab = e.detail?.tab;
       if (orderId) {
         setSelectedOrderId(orderId);
+        if (tab) {
+          setOrderDetailTab(tab);
+        } else {
+          setOrderDetailTab("details");
+        }
         setShowOrderDetails(true);
         setShouldRefreshOrders(prev => !prev);
       }
@@ -394,17 +401,19 @@ const CustomerApp = () => {
       )}
 
        <OrderDetailModal
-        isOpen={showOrderDetails}
-        onClose={() => {
-          setShowOrderDetails(false);
-          setSelectedOrder(null);
-          setSelectedOrderId(null);
-          setRefreshData(true)
-        }}
-        order={selectedOrder}
-        orderId={selectedOrderId}
-        onGiveFeedback={handleGiveFeedback}
-      />
+         isOpen={showOrderDetails}
+         onClose={() => {
+           setShowOrderDetails(false);
+           setSelectedOrder(null);
+           setSelectedOrderId(null);
+           setRefreshData(true);
+           setOrderDetailTab("details");
+         }}
+         order={selectedOrder}
+         orderId={selectedOrderId}
+         onGiveFeedback={handleGiveFeedback}
+         initialTab={orderDetailTab}
+       />
 
       <TrackOrderModal
         isOpen={showTrackOrder}

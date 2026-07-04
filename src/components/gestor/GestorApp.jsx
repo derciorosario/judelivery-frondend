@@ -37,6 +37,7 @@ const GestorApp = () => {
   const [selectedDriverForNotification, setSelectedDriverForNotification] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [orderDetailTab, setOrderDetailTab] = useState("details");
 
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },
@@ -69,10 +70,16 @@ const GestorApp = () => {
   useEffect(() => {
     const handleOpenOrder = async (e) => {
       const orderId = e.detail?.orderId;
+      const tab = e.detail?.tab;
       if (orderId) {
         try {
           const response = await getOrder(orderId);
           setSelectedOrder(response.data);
+          if (tab) {
+            setOrderDetailTab(tab);
+          } else {
+            setOrderDetailTab("details");
+          }
           setShowOrderDetails(true);
         } catch (err) {
           console.error("Failed to fetch order for notification:", err);
@@ -173,10 +180,12 @@ const GestorApp = () => {
         onClose={() => {
           setShowOrderDetails(false);
           setSelectedOrder(null);
+          setOrderDetailTab("details");
         }}
         order={selectedOrder}
         onUpdate={handleOrderUpdate}
         role="manager"
+        initialTab={orderDetailTab}
       />
     </div>
   );

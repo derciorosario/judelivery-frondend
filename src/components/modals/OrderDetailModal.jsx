@@ -52,9 +52,10 @@ const OrderDetailModal = ({
   onGiveFeedback,
   role = "customer", // "customer", "admin", "manager", "driver"
   onStatusChange, // For driver role
-  updating // For driver role loading state
+  updating, // For driver role loading state
+  initialTab = "details" // Initial tab to show when modal opens
 }) => {
-   const [activeTab, setActiveTab] = useState("details");
+   const [activeTab, setActiveTab] = useState(initialTab);
    const [loadingOrder, setLoadingOrder] = useState(false);
    const [localOrder, setLocalOrder] = useState(order);
    const [showTrackModal, setShowTrackModal] = useState(false);
@@ -172,6 +173,26 @@ const OrderDetailModal = ({
       fetchIncidents();
     }
   }, [activeTab, localOrder?.id]);
+
+  // Set active tab when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
+
+  // Listen for notification:openOrder event to switch to specific tab
+  useEffect(() => {
+    const handleOpenOrderNotification = (event) => {
+      const { orderId: eventOrderId, tab } = event.detail;
+      if (eventOrderId && localOrder?.id && String(eventOrderId) === String(localOrder.id) && tab) {
+        setActiveTab(tab);
+      }
+    };
+
+    window.addEventListener('notification:openOrder', handleOpenOrderNotification);
+    return () => window.removeEventListener('notification:openOrder', handleOpenOrderNotification);
+  }, [localOrder?.id]);
 
   // Helper functions
 
@@ -1159,7 +1180,7 @@ const OrderDetailModal = ({
   };
 
   const showActionsTab = (isAdmin || isDriver) && !isCompleted && !isCancelled && !isRejected;
-  const showIncidentsTab = (isAdmin || isDriver) && localOrder?.id;
+  const showIncidentsTab = (isAdmin || isDriver || isCustomer) && localOrder?.id;
   const incidentsCount = incidents.length;
 
   // Get confirmation message based on action
@@ -1441,13 +1462,15 @@ const OrderDetailModal = ({
           {activeTab === "actions" && isDriver && renderDriverActionsTab()}
           
           {activeTab === "incidents" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-bold text-slate-700">Incidentes do Pedido</p>
-                <button onClick={() => setShowIncidentModal(true)} className="flex items-center gap-1 bg-orange-500 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm shadow-orange-300">
-                  <AlertCircle size={14} /> Reportar
-                </button>
-              </div>
+             <div className="space-y-4">
+               <div className="flex items-center justify-between">
+                 <p className="text-sm font-bold text-slate-700">Incidentes do Pedido</p>
+                 {(isAdmin || isDriver) && (
+                   <button onClick={() => setShowIncidentModal(true)} className="flex items-center gap-1 bg-orange-500 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm shadow-orange-300">
+                     <AlertCircle size={14} /> Reportar
+                   </button>
+                 )}
+               </div>
               
               {loadingIncidents ? (
                 <div className="text-center py-6">
@@ -1477,23 +1500,25 @@ const OrderDetailModal = ({
                           <span className="text-[10px] text-slate-400">{inc.photos.length} foto(s)</span>
                         </div>
                       )}
-                      <div className="flex gap-3 mt-2">
-                        <button
-                          onClick={() => handleEditIncident(inc)}
-                          className="text-xs text-blue-500 font-medium hover:text-blue-600 transition-colors flex items-center gap-1"
-                        >
-                          <Edit2 size={12} /> Editar
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedIncident(inc);
-                            setShowDeleteIncidentModal(true);
-                          }}
-                          className="text-xs text-red-500 font-medium hover:text-red-600 transition-colors flex items-center gap-1"
-                        >
-                          <XCircle size={12} /> Remover
-                        </button>
-                      </div>
+                      {(isAdmin || isDriver) && (
+                         <div className="flex gap-3 mt-2">
+                           <button
+                             onClick={() => handleEditIncident(inc)}
+                             className="text-xs text-blue-500 font-medium hover:text-blue-600 transition-colors flex items-center gap-1"
+                           >
+                             <Edit2 size={12} /> Editar
+                           </button>
+                           <button
+                             onClick={() => {
+                               setSelectedIncident(inc);
+                               setShowDeleteIncidentModal(true);
+                             }}
+                             className="text-xs text-red-500 font-medium hover:text-red-600 transition-colors flex items-center gap-1"
+                           >
+                             <XCircle size={12} /> Remover
+                           </button>
+                         </div>
+                       )}
                     </div>
                   ))}
                 </div>
