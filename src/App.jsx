@@ -12,6 +12,7 @@ import GestorApp from './components/gestor/GestorApp';
 import MotoristaApp from './components/motorista/MotoristaApp';
 import CustomerApp from './components/cliente/CustomerApp';
 
+import LandingPage from './pages/LandingPage';
 import ProtectedRoute from './ProtectedRoute';
 import { SocketProvider } from './contexts/SocketContext';
 import { AuthProvider } from './contexts/AuthContext';
@@ -52,6 +53,7 @@ const AppInner = () => {
       <Route path="/verify-registration" element={<VerificationPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/" element={user ? getAppComponent() : <LandingPage />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/*" element={getAppComponent()} />
       </Route>
