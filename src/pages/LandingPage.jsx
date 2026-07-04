@@ -170,8 +170,8 @@ const LandingPage = () => {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
-          <Link 
-            to="/register" 
+          <Link
+            to="/start"
             className="px-6 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 !text-white font-semibold rounded-full hover:shadow-xl transition-all duration-300 inline-flex items-center"
           >
             Começar
@@ -241,8 +241,8 @@ const LandingPage = () => {
               >
                 Contato
               </a>
-              <Link 
-                to="/register" 
+              <Link
+                to="/start"
                 className="px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 !text-white font-semibold rounded-full text-center hover:shadow-xl transition-all duration-300 mx-4"
                 onClick={() => setMobileMenuOpen(false)}
               >
@@ -337,8 +337,8 @@ const LandingPage = () => {
                   whileTap={{ scale: 0.95 }}
                   className="flex-1 sm:flex-none"
                 >
-                  <Link 
-                    to="/register" 
+                  <Link
+                    to="/start"
                     className="w-full sm:w-auto px-6 sm:px-8 lg:px-10 py-3 sm:py-4 bg-gradient-to-r from-gold-500 to-gold-400 text-secondary-900 font-bold rounded-full hover:shadow-2xl transition-all duration-300 flex items-center justify-center group text-sm sm:text-base lg:text-lg"
                   >
                     Começar Agora
@@ -856,8 +856,8 @@ const LandingPage = () => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Link 
-              to="/register" 
+            <Link
+              to="/start"
               className="inline-flex items-center  px-8 sm:px-10 lg:px-12 py-4 sm:py-5 bg-white text-primary-600 font-bold text-base sm:text-lg rounded-full hover:shadow-2xl transition-all duration-300 group"
             >
               Começar Agora

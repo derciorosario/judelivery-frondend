@@ -13,6 +13,7 @@ import MotoristaApp from './components/motorista/MotoristaApp';
 import CustomerApp from './components/cliente/CustomerApp';
 
 import LandingPage from './pages/LandingPage';
+import StartPage from './pages/StartPage';
 import ProtectedRoute from './ProtectedRoute';
 import { SocketProvider } from './contexts/SocketContext';
 import { AuthProvider } from './contexts/AuthContext';
@@ -50,6 +51,7 @@ const AppInner = () => {
     <Routes>
       <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/" replace />} />
       <Route path="/register" element={!user ? <RegisterPage /> : <Navigate to="/" replace />} />
+      <Route path="/start" element={<StartPage />} />
       <Route path="/verify-registration" element={<VerificationPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
