@@ -13,6 +13,7 @@ import AdminFinance from "./AdminFinance";
 import AdminRequests from "./AdminRequests";
 import AdminManagers from "./AdminManagers";
 import AdminSettings from "./AdminSettings";
+import AdminAuditLogs from "./AdminAuditLogs";
 import CreateOrderModal from "../cliente/modals/CreateOrderModal";
 import AdminClientSelectModal from "./AdminClientSelectModal";
 import { getOrder } from "../../api/client";
@@ -40,6 +41,7 @@ const AdminApp = () => {
     { id: "incidents", label: "Incidentes", icon: "alertTriangle", path: "/incidents" },
     { id: "finance", label: "Finanças", icon: "dollar", path: "/finance" },
     { id: "reports", label: "Relatórios", icon: "chart", path: "/reports" },
+    { id: "audit-logs", label: "Auditoria", icon: "fileText", path: "/audit-logs" },
     { id: "notifications", label: "Notificações", icon: "bell", path: "/notifications" },
     { id: "settings", label: "Configurações", icon: "settings", path: "/settings" },
   ], []);
@@ -148,6 +150,7 @@ const AdminApp = () => {
         {activeTab === "incidents" && <AdminIncidents />}
         {activeTab === "finance" && <AdminFinance />}
         {activeTab === "reports" && <AdminReports />}
+        {activeTab === "audit-logs" && <AdminAuditLogs />}
         {activeTab === "notifications" && <Notifications />}
         {activeTab === "settings" && <AdminSettings />}
       </div>

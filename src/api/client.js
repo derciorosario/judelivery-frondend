@@ -397,3 +397,25 @@ export const updateFinancialTransaction = (id, data) => client.put(`/financial/t
 export const deleteFinancialTransaction = (id) => client.delete(`/financial/transactions/${id}`);
 export const markTransactionAsPaid = (id) => client.patch(`/financial/transactions/${id}/mark-paid`);
 export const getFinancialStats = (params) => client.get('/financial/stats', { params });
+
+// ==================== AUDIT LOGS API ====================
+
+// Get all audit logs with filters
+export const getAuditLogs = (params) => client.get('/audit-logs', { params });
+
+// Get audit log by ID
+export const getAuditLog = (id) => client.get(`/audit-logs/${id}`);
+
+// Get audit logs for a specific entity
+export const getEntityAuditLogs = (entityType, entityId, params) =>
+  client.get(`/audit-logs/entity/${entityType}/${entityId}`, { params });
+
+// Get audit logs for a specific user
+export const getUserAuditLogs = (userId, params) =>
+  client.get(`/audit-logs/user/${userId}`, { params });
+
+// Get audit statistics
+export const getAuditStats = (params) => client.get('/audit-logs/stats/summary', { params });
+
+// Get available filter options
+export const getAuditFilterOptions = () => client.get('/audit-logs/meta/options');
