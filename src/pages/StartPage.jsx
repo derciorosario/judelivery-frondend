@@ -316,7 +316,6 @@ const StartPage = () => {
         isOpen={showServiceSelection}
         onClose={() => {
           setShowServiceSelection(false);
-          setGuestInfo(null);
         }}
         onSelectService={handleServiceSelect}
         settings={settings}

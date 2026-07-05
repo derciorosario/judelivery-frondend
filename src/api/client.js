@@ -235,6 +235,7 @@ export const getAdminDashboard = () => client.get('/profile/admin/dashboard');
 
 // Get/update platform settings from the Admin Settings page only
 export const getPlatformSettings = () => client.get('/settings');
+export const getPublicSettings = () => client.get('/settings/public');
 export const updatePlatformSettings = (settings) => client.put('/settings', { settings });
 
 // ==================== MANAGERS API ====================

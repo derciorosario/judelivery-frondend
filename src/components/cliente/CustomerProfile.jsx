@@ -446,11 +446,7 @@ const CustomerProfile = ({
            <p className="text-lg font-bold text-slate-800">{formData.name}</p>
            <p className="text-sm text-slate-400">{formData.phone}</p>
            <p className="text-sm text-slate-400">{customer.email || user?.email || ""}</p>
-           <div className="flex items-center justify-center gap-1 mt-2 text-amber-400">
-              {[1, 2, 3, 4].map(i => <Icon key={i} name="star" size={16} className="fill-amber-400" />)}
-              <Icon name="star" size={16} className={Number(customer.rating || 0) >= 5 ? "fill-amber-400" : ""} />
-              <span className="text-sm text-slate-600 ml-1">{customer.rating || "4.8"}</span>
-            </div>
+           
             <div className="flex gap-2 mt-4">
               <button onClick={() => setEditMode(true)} className="flex-1 bg-orange-500 text-white text-sm font-semibold py-2 rounded-xl">
                 Editar Perfil
@@ -546,7 +542,7 @@ const CustomerProfile = ({
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-4 border border-slate-100">
+      <div className="bg-white rounded-2xl p-4 border border-slate-100 hidden"> {/***Leave this section hidden */}
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-bold text-slate-700">Métodos de Pagamento</p>
           <button disabled={saving} onClick={() => setShowPaymentModal(true)} className="text-xs bg-orange-500 text-white px-3 py-1 rounded-lg disabled:opacity-50">
@@ -589,7 +585,7 @@ const CustomerProfile = ({
             <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full ${preference.notificationsEnabled ? "right-0.5" : "left-0.5"}`} />
           </button>
         </div>
-        <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center justify-between px-4 py-3 hidden"> {/** leave this section hidden */}
           <div className="flex items-center gap-3">
             <Icon name="moon" size={18} className="text-slate-400" />
             <span className="text-sm text-slate-700">Modo Escuro</span>
@@ -625,6 +621,7 @@ const CustomerProfile = ({
                     value={newAddress}
                     onChange={e => setNewAddress(e.target.value)}
                     placeholder="Pesquisar endereço..."
+                    disabled
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
                   />
                 </Autocomplete>
@@ -667,14 +664,7 @@ const CustomerProfile = ({
                   </>
                 )}
               </button>
-              {newAddressCoords && (
-                <div className="rounded-xl bg-blue-50 border border-blue-100 p-3">
-                  <p className="text-xs text-blue-700 font-semibold">Coordenadas selecionadas</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {newAddressCoords.lat.toFixed(5)}, {newAddressCoords.lng.toFixed(5)}
-                  </p>
-                </div>
-              )}
+             
               <div className="flex gap-2">
                 <button disabled={saving} onClick={() => setShowAddressModal(false)} className="flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 disabled:opacity-50">
                   Cancelar

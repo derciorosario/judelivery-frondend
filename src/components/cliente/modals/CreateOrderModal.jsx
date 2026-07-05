@@ -21,6 +21,7 @@ const libraries = ["places"];
 const USE_DIRECTIONS_DISTANCE = true;
 
 const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated, onOrderUpdated, repeatOrder, editOrder, serviceType, clientId, onClientSelectClick, selectedClient, settings, settingsLoading }) => {
+  console.log({a:customerData})
   const {user:authUser} = useAuth()
   const { settings: contextSettings, loading: contextSettingsLoading } = usePlatformSettings();
   const platformSettings = settings || contextSettings;
@@ -942,7 +943,10 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
       
       const companyId = user?.companyId || customerData?.companyId || null;
       const resolvedClientId = clientId || user?.id || null;
+      const hasGuestClientData = !resolvedClientId && customerData && (customerData.name || customerData.email || customerData.phone);
+      const guestDataPayload = hasGuestClientData ? { name: customerData.name, email: customerData.email, phone: customerData.phone, companyId: customerData.companyId } : undefined;
       
+      console.log({guestDataPayload,hasGuestClientData,resolvedClientId,customerData,user,clientId})
       // Determine status: if driver is assigned, use 'assigned', otherwise the configured default status
       const hasDriver = form.driverId;
       const orderStatus = hasDriver 
@@ -974,7 +978,8 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
         paymentMethod: paymentMethodCode,
         paymentStatus: "pending",
         isManualInput: form.manualPickup || form.manualDropoff,
-        distanceSource: USE_DIRECTIONS_DISTANCE ? "directions_api" : "haversine"
+        distanceSource: USE_DIRECTIONS_DISTANCE ? "directions_api" : "haversine",
+        ...(hasGuestClientData ? { customerData: guestDataPayload } : {})
       } : {
         companyId,
         clientId: resolvedClientId,
@@ -1001,7 +1006,8 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
         paymentMethod: paymentMethodCode,
         paymentStatus: "pending",
         isManualInput: form.manualOrigin || form.manualDest,
-        distanceSource: USE_DIRECTIONS_DISTANCE ? "directions_api" : "haversine"
+        distanceSource: USE_DIRECTIONS_DISTANCE ? "directions_api" : "haversine",
+        ...(hasGuestClientData ? { customerData: guestDataPayload } : {})
       };
       
       let response;

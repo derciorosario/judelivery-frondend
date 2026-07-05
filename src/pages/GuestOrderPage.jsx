@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaBox, FaArrowLeft, FaUser, FaPhone, FaMapMarkerAlt, FaFlag, FaCreditCard, FaClock, FaTruck, FaCheckCircle, FaTimes, FaStar, FaPhone as FaPhoneIcon, FaSignInAlt, FaUserPlus } from 'react-icons/fa';
-import { getOrder } from '../api/client';
+import Footer from '../components/common/Footer';
+import { getOrder, getPublicSettings } from '../api/client';
 import { toast } from '../lib/toast';
 
 const GUEST_ORDER_KEY = 'guest_order_id';
@@ -14,6 +15,7 @@ const GuestOrderPage = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [settings, setSettings] = useState(null);
 
   useEffect(() => {
     const stored = localStorage.getItem(GUEST_ORDER_KEY);
@@ -23,7 +25,17 @@ const GuestOrderPage = () => {
     } else {
       setLoading(false);
     }
+    fetchSettings();
   }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const response = await getPublicSettings();
+      setSettings(response.data?.settings || null);
+    } catch (error) {
+      console.error('Failed to fetch settings:', error);
+    }
+  };
 
   const fetchOrder = async (id) => {
     setLoading(true);
@@ -133,7 +145,7 @@ const GuestOrderPage = () => {
                 <FaBox className="text-white text-lg" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-secondary-900">J. RIBEIRO</h1>
+                <h1 className="text-xl font-bold text-secondary-900">{settings?.app?.appName || 'J. RIBEIRO'}</h1>
                 <p className="text-xs font-semibold text-primary-600">ENTREGAS & TRANSPORTE</p>
               </div>
             </Link>
@@ -396,9 +408,11 @@ const GuestOrderPage = () => {
               <FaArrowLeft size={16} />
               Voltar ao Início
             </Link>
+
+            {/** Leave this button hidden */}
             <button
               onClick={handleClearOrder}
-              className="flex-1 py-3 rounded-xl bg-red-500 text-white font-semibold text-sm hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+              className="flex-1 hidden py-3 rounded-xl bg-red-500 text-white font-semibold text-sm hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
             >
               <FaTimes size={16} />
               Limpar Pedido
@@ -419,18 +433,18 @@ const GuestOrderPage = () => {
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <a
-              href="tel:+258841234567"
+               href={`tel:${settings?.app?.supportPhone?.replace(/\s/g, '') || '+258823334455'}`}
               className="inline-flex items-center justify-center gap-2 bg-green-500 text-white px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-green-600 transition-colors"
             >
               <FaPhoneIcon size={14} />
-              +258 84 123 4567
+              {settings?.app?.supportPhone || '+258 82 333 4455'}
             </a>
             <a
-              href="mailto:info@jribeiro.co.mz"
+              href={`mailto:${settings?.app?.supportEmail || 'suporte@judelivery.co.mz'}`}
               className="inline-flex items-center justify-center gap-2 bg-slate-100 text-secondary-700 px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-slate-200 transition-colors"
             >
               <FaBox size={14} />
-              info@jribeiro.co.mz
+              {settings?.app?.supportEmail || 'suporte@judelivery.co.mz'}
             </a>
           </div>
         </motion.div>
@@ -462,7 +476,15 @@ const GuestOrderPage = () => {
                 O seu pedido <span className="font-bold">#{orderId.slice(-8).toUpperCase()}</span> foi recebido e está a ser processado.
               </p>
               <p className="text-xs text-secondary-500 mb-6">
-                Um motorista será atribuído em breve. Você pode acompanhar o status aqui.
+                {order.driver ? (
+                  <>O motorista <span className="font-semibold">{typeof order.driver === "string" ? order.driver : order.driver?.name}</span> já foi atribuído. Você pode acompanhar o status aqui.</>
+                ) : (
+                  <>Um motorista será atribuído em breve. Você pode acompanhar o status aqui.</>
+                )}
+              </p>
+
+              <p className="text-xs text-secondary-500 mb-6">
+                O seu pedido foi salvo e você será contactado em breve. Caso precise de algo, utilize as informações de contato abaixo.
               </p>
 
               {/* Login/Register suggestion */}
@@ -492,7 +514,7 @@ const GuestOrderPage = () => {
                   <Link
                     to="/login"
                     onClick={handleCloseSuccess}
-                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 text-white font-bold text-xs flex items-center justify-center gap-1 hover:shadow-lg transition-all"
+                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 !text-white font-bold text-xs flex items-center justify-center gap-1 hover:shadow-lg transition-all"
                   >
                     <FaSignInAlt size={12} />
                     Entrar
@@ -518,6 +540,7 @@ const GuestOrderPage = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      <Footer />
     </div>
   );
 };

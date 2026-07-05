@@ -108,9 +108,11 @@ const GuestOrderBar = ({setHasOrder}) => {
                 <FaEye className="text-[10px]" />
                 <span>Ver</span>
               </button>
+
+              {/***Leave this button hidden */}
               <button
                 onClick={handleClearOrder}
-                className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
+                className="hidden w-7 h-7 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
                 title="Fechar"
               >
                 <FaTimes className="text-white text-xs" />
