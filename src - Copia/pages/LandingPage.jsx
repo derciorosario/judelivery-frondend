@@ -1,16 +1,15 @@
 import { Link } from 'react-router-dom';
-import {
-  FaFacebook, FaInstagram, FaWhatsapp, FaMotorcycle,
-  FaShieldAlt, FaClock, FaMapMarkerAlt, FaUsers,
+import { 
+  FaFacebook, FaInstagram, FaWhatsapp, FaMotorcycle, 
+  FaShieldAlt, FaClock, FaMapMarkerAlt, FaUsers, 
   FaBox, FaTruck, FaStar, FaCheckCircle, FaArrowRight,
-  FaPhone, FaEnvelope, FaChevronDown, FaRocket,
+  FaPhone, FaEnvelope, FaChevronDown, FaRocket, 
   FaCreditCard, FaHeadset, FaMobileAlt, FaGooglePlay,
   FaApple, FaPlay, FaInfoCircle, FaSmile, FaGift,
   FaBars, FaTimes
 } from 'react-icons/fa';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
-import GuestOrderBar from '../components/common/GuestOrderBar';
 
 const LandingPage = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -19,7 +18,6 @@ const LandingPage = () => {
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll();
   const y = useTransform(scrollYProgress, [0, 1], [0, -50]);
-  const [hasOrder,setHasOrder] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -93,16 +91,12 @@ const LandingPage = () => {
   ];
 
   return (
-    <div className="">
-
-         <GuestOrderBar setHasOrder={setHasOrder} />
-
-
-      <div className="min-h-screen bg-white overflow-x-hidden relative">
-   
+    <div className="min-h-screen bg-white overflow-x-hidden">
       {/* Enhanced Mobile-First Header */}
+   
+   
    <motion.header 
-  className={`fixed ${hasOrder ? 'top-[60px]' : 'top-0'} w-full z-50 transition-all duration-500 ${
+  className={`fixed top-0 w-full z-50 transition-all duration-500 ${
     scrolled ? 'bg-white/95 backdrop-blur-xl shadow-2xl' : 'bg-transparent'
   }`}
   initial={{ y: -100 }}
@@ -953,9 +947,6 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
-    </div>
-
-
     </div>
   );
 };
