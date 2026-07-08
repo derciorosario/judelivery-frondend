@@ -5,6 +5,12 @@ import Icon from '../common/Icon';
 import { API_URL } from '../../api/client';
 
 const RegisterPage = () => {
+
+
+  useEffect(()=>{
+       document.body.scrollIntoView({ behavior:'instant' })
+  },[])
+
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
@@ -13,6 +19,7 @@ const RegisterPage = () => {
     password: '',
     confirmPassword: ''
   });
+  
   const [showPass, setShowPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [userId, setUserId] = useState(null);
@@ -170,7 +177,11 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-orange-900 flex flex-col items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-orange-900 flex flex-col items-center justify-center px-4 py-8 relative">
+      <button onClick={() => navigate('/')} className="absolute top-6 left-6 text-slate-400 hover:text-white flex items-center gap-1 text-sm">
+        <Icon name="home" size={18} />
+        Início
+      </button>
       <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-6">
         <div className="text-center mb-5">
           <div className="w-16 h-16 bg-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-orange-500/30">

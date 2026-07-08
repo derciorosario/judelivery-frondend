@@ -47,6 +47,7 @@ const CustomerProfile = ({
   const [newAddress, setNewAddress] = useState("");
   const [newAddressCoords, setNewAddressCoords] = useState(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
+  const [loadingMapLocation, setLoadingMapLocation] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [mapCenter, setMapCenter] = useState(MAPUTO_CENTER);
   const [mapMarker, setMapMarker] = useState(null);
@@ -158,6 +159,7 @@ const CustomerProfile = ({
   };
 
   const openAddressMap = async () => {
+    setLoadingMapLocation(true);
     let center = MAPUTO_CENTER;
 
     if (navigator.geolocation) {
@@ -175,12 +177,16 @@ const CustomerProfile = ({
         };
       } catch (error) {
         console.error("Error getting current location:", error);
+        toast.warning("Não foi possível obter sua localização. Usando localização padrão.");
       }
+    } else {
+      toast.warning("Geolocalização não é suportada. Usando localização padrão.");
     }
 
     setMapCenter(center);
     setMapMarker(newAddressCoords);
     setMapOpen(true);
+    setLoadingMapLocation(false);
   };
 
   const handleAddressMapLoad = (map) => {
@@ -259,46 +265,46 @@ const CustomerProfile = ({
     }
 
     setLoadingLocation(true);
-    setTimeout(() => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const coords = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const coords = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
 
-          setNewAddressCoords(coords);
-          setMapMarker(coords);
-          setMapCenter(coords);
+        setNewAddressCoords(coords);
+        setMapMarker(coords);
+        setMapCenter(coords);
 
-          if (!window.google) {
-            setNewAddress(`${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`);
-            setLoadingLocation(false);
-            return;
-          }
-
-          const geocoder = new window.google.maps.Geocoder();
-          geocoder.geocode({ location: coords }, (results, status) => {
-            if (status === "OK" && results && results[0]) {
-              setNewAddress(results[0].formatted_address);
-            } else {
-              setNewAddress(`${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`);
-            }
-            setLoadingLocation(false);
-          });
-        },
-        () => {
-          toast.error("Não foi possível obter a sua localização atual. Por favor, verifique as permissões.");
+        if (!window.google) {
+          setNewAddress(`${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`);
           setLoadingLocation(false);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-      );
-    }, 500);
+          return;
+        }
+
+        const geocoder = new window.google.maps.Geocoder();
+        geocoder.geocode({ location: coords }, (results, status) => {
+          if (status === "OK" && results && results[0]) {
+            setNewAddress(results[0].formatted_address);
+          } else {
+            setNewAddress(`${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`);
+          }
+          setLoadingLocation(false);
+        });
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        toast.error("Não foi possível obter a sua localização atual. Por favor, verifique as permissões.");
+        setLoadingLocation(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
   };
 
   const closeAddressMap = () => {
     setMapOpen(false);
     setMapMarker(null);
+    setLoadingMapLocation(false);
   };
 
   const handleAddPaymentMethod = async () => {
@@ -640,11 +646,21 @@ const CustomerProfile = ({
               )}
               <button
                 type="button"
-                disabled={saving || !mapsLoaded}
+                disabled={saving || !mapsLoaded || loadingMapLocation}
                 onClick={openAddressMap}
-                className="w-full py-2.5 rounded-xl border border-orange-200 bg-orange-50 text-orange-700 font-semibold text-sm disabled:opacity-50"
+                className="w-full py-2.5 rounded-xl border border-orange-200 bg-orange-50 text-orange-700 font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                Selecionar no mapa
+                {loadingMapLocation ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-700"></div>
+                    <span>A obter localização...</span>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="map" size={14} />
+                    <span>Selecionar no mapa</span>
+                  </>
+                )}
               </button>
               <button
                 type="button"
@@ -694,11 +710,13 @@ const CustomerProfile = ({
             </div>
 
             <div className="h-80 bg-slate-100 relative">
-              {!mapsLoaded ? (
+              {!mapsLoaded || loadingMapLocation ? (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
-                    <p className="text-xs text-slate-500">A carregar mapa...</p>
+                    <p className="text-xs text-slate-500">
+                      {loadingMapLocation ? "A obter localização..." : "A carregar mapa..."}
+                    </p>
                   </div>
                 </div>
               ) : (

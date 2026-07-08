@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "../common/Icon";
 import { toast } from "../../lib/toast";
 import { usePlatformSettings } from "../../contexts/SettingsContext";
 import CreateOrderModal from "./modals/CreateOrderModal";
 import { useNavigate } from "react-router-dom";
+import client, { getOrder, updateOrder } from "../../api/client";
 
 const CustomerHome = ({
   user,
@@ -14,14 +15,13 @@ const CustomerHome = ({
   totalSpent,
   deliveryCount,
   completedCount,
-  averageRating,
-  onCreateOrder,
   onViewOrderDetails,
   onTrackOrder,
   onGiveFeedback,
   onContactSupport,
   onNavigateToHistory,
-  ratedOrderIds = new Set()
+  ratedOrderIds = new Set(),
+  onRefreshData
 }) => {
   const { settings, loading: settingsLoading } = usePlatformSettings();
   const [showPromo, setShowPromo] = useState(true);
@@ -31,7 +31,58 @@ const CustomerHome = ({
   const canTaxi = !settingsLoading && settings.order.allowTaxi;
   const hasAnyService = canDelivery || canTaxi;
 
+  const [guestOrder, setGuestOrder] = useState(null);
+  const [guestOrderLoading, setGuestOrderLoading] = useState(false);
+  const [showGuestOrderModal, setShowGuestOrderModal] = useState(false);
+
   const navigate= useNavigate();
+
+  useEffect(() => {
+    const checkGuestOrder = async () => {
+      const storedId = localStorage.getItem("guest_order_id");
+      if (!storedId || !user?.id) return;
+
+      setGuestOrderLoading(true);
+      try {
+        const response = await getOrder(storedId);
+        const order = response.data;
+        setGuestOrder(order);
+        if (order && (!order.customerId || order.customerId !== user.id)) {
+          setShowGuestOrderModal(true);
+        }
+      } catch {
+        localStorage.removeItem("guest_order_id");
+      } finally {
+        setGuestOrderLoading(false);
+      }
+    };
+
+    checkGuestOrder();
+  }, [user]);
+
+  const handleAssociateGuestOrder = async () => {
+    if (!guestOrder || !user?.id) return;
+
+    setGuestOrderLoading(true);
+    try {
+      await updateOrder(guestOrder.id, { clientId: user.id });
+      toast.success("Pedido associado à sua conta!");
+      localStorage.removeItem("guest_order_id");
+      setShowGuestOrderModal(false);
+      setGuestOrder(null);
+      if (onRefreshData) onRefreshData();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Erro ao associar pedido");
+    } finally {
+      setGuestOrderLoading(false);
+    }
+  };
+
+  const handleIgnoreGuestOrder = () => {
+    localStorage.removeItem("guest_order_id");
+    setShowGuestOrderModal(false);
+    setGuestOrder(null);
+  };
 
   const formatOrderId = (id) => {
     if (!id) return "PEDIDO";
@@ -312,6 +363,58 @@ const CustomerHome = ({
           serviceType={selectedService}
           settings={settings}
         />
+      )}
+
+      {showGuestOrderModal && guestOrder && (
+        <div className="fixed inset-0 !mb-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl">
+            <div className="text-center mb-4">
+              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Icon name="externalLink" size={24} className="text-orange-600" />
+              </div>
+              <h3 className="text-base font-bold text-slate-800">Associar pedido anterior à sua conta?</h3>
+              <p className="text-sm text-slate-500 mt-2">
+                Detectámos um pedido criado anteriormente sem estar associado a nenhuma conta:
+              </p>
+              <div className="mt-3 text-left bg-slate-50 rounded-xl p-3 space-y-1">
+                <p className="text-xs text-slate-500">
+                  <span className="font-semibold text-slate-700">Pedido:</span> #{guestOrder.id ? guestOrder.id.slice(-8).toUpperCase() : ""}
+                </p>
+                {guestOrder.productName && (
+                  <p className="text-xs text-slate-500">
+                    <span className="font-semibold text-slate-700">Produto:</span> {guestOrder.productName}
+                  </p>
+                )}
+                <p className="text-xs text-slate-500">
+                  <span className="font-semibold text-slate-700">Data:</span> {guestOrder.createdAt ? new Date(guestOrder.createdAt).toLocaleDateString('pt-MZ') : `—`}
+                  {guestOrder.time && <span> às {guestOrder.time}</span>}
+                </p>
+                <p className="text-xs text-slate-500">
+                  <span className="font-semibold text-slate-700">Status:</span> {translateStatus(guestOrder.status)}
+                </p>
+              </div>
+              <p className="text-xs text-slate-400 mt-3">
+                Deseja associar este pedido à sua conta atual para ter acesso completo ao histórico e acompanhamento?
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleIgnoreGuestOrder}
+                disabled={guestOrder.status !== 'completed' && guestOrder.status !== 'cancelled'}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-semibold text-sm hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Ignorar
+              </button>
+              <button
+                onClick={handleAssociateGuestOrder}
+                disabled={guestOrderLoading}
+                className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-semibold text-sm hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {guestOrderLoading ? "A associar..." : "Associar"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

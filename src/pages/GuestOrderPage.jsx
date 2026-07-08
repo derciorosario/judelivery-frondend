@@ -28,6 +28,10 @@ const GuestOrderPage = () => {
     fetchSettings();
   }, []);
 
+  useEffect(()=>{
+         document.body.scrollIntoView({ behavior:'instant' })
+  },[])
+
   const fetchSettings = async () => {
     try {
       const response = await getPublicSettings();
@@ -473,7 +477,7 @@ const GuestOrderPage = () => {
                 Pedido criado com sucesso!
               </h3>
               <p className="text-sm text-secondary-600 mb-2">
-                O seu pedido <span className="font-bold">#{orderId.slice(-8).toUpperCase()}</span> foi recebido e está a ser processado.
+                O seu pedido <span className="font-bold">#{orderId.slice(-8).toUpperCase()}</span> foi recebido e será contactado em breve. Caso precise de algo, utilize as informações de contato fornecidos.
               </p>
               <p className="text-xs text-secondary-500 mb-6">
                 {order.driver ? (
@@ -483,9 +487,7 @@ const GuestOrderPage = () => {
                 )}
               </p>
 
-              <p className="text-xs text-secondary-500 mb-6">
-                O seu pedido foi salvo e você será contactado em breve. Caso precise de algo, utilize as informações de contato abaixo.
-              </p>
+          
 
               {/* Login/Register suggestion */}
               <div className="bg-orange-50 rounded-xl p-4 mb-6 text-left">

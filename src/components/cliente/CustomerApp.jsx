@@ -157,7 +157,7 @@ const CustomerApp = () => {
   const totalSpent = customerProfile?.stats?.weeklySpent || dashboardData?.stats?.weeklySpent || 0;
   const deliveryCount = customerProfile?.stats?.deliveryCount || dashboardData?.stats?.deliveryCount || customerOrders.length;
   const completedCount = customerProfile?.stats?.completedCount || dashboardData?.stats?.completedCount || completedOrders.length;
-  const averageRating = customerData.rating || 4.5;
+  const _averageRating = customerData.rating || 4.5;
 
   const getAvailableServiceType = () => {
     if (settingsLoading) return null;
@@ -166,7 +166,7 @@ const CustomerApp = () => {
     return null;
   };
  
-  const handleCreateOrder = (serviceType = null) => {
+  const _handleCreateOrder = (serviceType = null) => {
     if (settingsLoading) {
       toast.info("A carregar configurações...");
       return;
@@ -274,26 +274,25 @@ const CustomerApp = () => {
       />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
         {activeTab === "home" && (
-           <CustomerHome
-             user={user}
-             customerData={customerData}
-             activeOrder={activeOrder}
-             pendingOrders={pendingOrders}
-             completedOrders={completedOrders}
-             totalSpent={totalSpent}
-             deliveryCount={deliveryCount}
-             completedCount={completedCount}
-             averageRating={averageRating}
-             onCreateOrder={handleCreateOrder}
-             onViewOrderDetails={handleViewOrderDetails}
-             onTrackOrder={handleTrackOrder}
-             onGiveFeedback={handleGiveFeedback}
-             onContactSupport={() => setShowSupport(true)}
-             onNavigateToHistory={() => setTab("history")}
-             settings={settings}
-             settingsLoading={settingsLoading}
-             ratedOrderIds={ratedOrderIds}
-           />
+            <CustomerHome
+              user={user}
+              customerData={customerData}
+              activeOrder={activeOrder}
+              pendingOrders={pendingOrders}
+              completedOrders={completedOrders}
+              totalSpent={totalSpent}
+              deliveryCount={deliveryCount}
+              completedCount={completedCount}
+              onViewOrderDetails={handleViewOrderDetails}
+              onTrackOrder={handleTrackOrder}
+              onGiveFeedback={handleGiveFeedback}
+              onContactSupport={() => setShowSupport(true)}
+              onNavigateToHistory={() => setTab("history")}
+              settings={settings}
+              settingsLoading={settingsLoading}
+              ratedOrderIds={ratedOrderIds}
+              onRefreshData={() => setRefreshData(true)}
+            />
          )}
         {activeTab === "orders" && (
           <OrdersList

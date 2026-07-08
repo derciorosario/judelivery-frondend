@@ -5,6 +5,7 @@ import client from '../../api/client';
 
 // Import sound file
 import notificationSound from '../../assets/sound/notification-1.mp3';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Header = ({ user, onLogout, title, onNotificationClick }) => {
   const [unseenCount, setUnseenCount] = useState(0);
@@ -15,6 +16,13 @@ const Header = ({ user, onLogout, title, onNotificationClick }) => {
   const animationTimeoutRef = useRef(null);
   const audioRef = useRef(null);
   const { socket } = useSocket();
+  const {pathname} = useAuth()
+
+
+
+  useEffect(()=>{
+       document.body.scrollIntoView({ behavior:'instant' })
+  },[pathname])
 
   // Initialize audio
   useEffect(() => {

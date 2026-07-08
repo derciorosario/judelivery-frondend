@@ -12,6 +12,9 @@ import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import { useState, useEffect, useRef } from 'react';
 import GuestOrderBar from '../components/common/GuestOrderBar';
 import Footer from '../components/common/Footer';
+import FullLogo from '../assets/full-logo.png'
+import Logo from '../assets/logo.png'
+
 
 const LandingPage = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -21,6 +24,11 @@ const LandingPage = () => {
   const { scrollYProgress } = useScroll();
   const y = useTransform(scrollYProgress, [0, 1], [0, -50]);
   const [hasOrder,setHasOrder] = useState(false)
+
+
+  useEffect(()=>{
+       document.body.scrollIntoView({ behavior:'instant' })
+  },[])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -117,10 +125,11 @@ const LandingPage = () => {
         whileHover={{ scale: 1.02 }}
       >
         <motion.div 
-          className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-xl"
+          className=" flex items-center justify-center"
           whileHover={{ rotate: -10 }}
         >
-          <FaMotorcycle className="text-white text-lg sm:text-2xl" />
+           
+           <img src={Logo} className="w-[60px]"/>
         </motion.div>
         <div className="hidden xs:block">
           <h1 className={`text-base sm:text-xl font-bold tracking-tight leading-tight ${

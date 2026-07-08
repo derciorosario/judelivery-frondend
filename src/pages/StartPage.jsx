@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FaBox, FaSignInAlt, FaUserPlus, FaArrowRight, FaCheckCircle, FaClock, FaShieldAlt } from 'react-icons/fa';
 import { usePlatformSettings } from '../contexts/SettingsContext';
@@ -8,6 +8,8 @@ import GuestInfoModal from '../components/cliente/modals/GuestInfoModal';
 import ServiceSelectionModal from '../components/cliente/modals/ServiceSelectionModal';
 import CreateOrderModal from '../components/cliente/modals/CreateOrderModal';
 import GuestOrderBar from '../components/common/GuestOrderBar';
+import FullLogo from '../assets/full-logo.png'
+import Logo from '../assets/logo.png'
 
 const GUEST_ORDER_KEY = 'guest_order_id';
 
@@ -21,6 +23,10 @@ const StartPage = () => {
   const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [guestInfo, setGuestInfo] = useState(null);
   const [selectedServiceType, setSelectedServiceType] = useState(null);
+
+  useEffect(()=>{
+         document.body.scrollIntoView({ behavior:'instant' })
+  },[])
 
   const options = [
      {
@@ -135,13 +141,7 @@ const StartPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center shadow-lg">
-                <FaBox className="text-white text-sm sm:text-lg" />
-              </div>
-              <div className="hidden xs:block">
-                <h1 className="text-base sm:text-xl font-bold text-secondary-900">J. RIBEIRO</h1>
-                <p className="text-[10px] sm:text-xs font-semibold text-primary-600 leading-tight">ENTREGAS & TRANSPORTE</p>
-              </div>
+              <img src={Logo} className="w-[60px]"/>
             </Link>
             <Link
               to="/"

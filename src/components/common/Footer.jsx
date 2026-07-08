@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { FaFacebook, FaInstagram, FaWhatsapp, FaMotorcycle, FaPhone, FaEnvelope, FaMapMarkerAlt } from 'react-icons/fa';
 import { getPublicSettings } from '../../api/client';
 
+
+import FullLogo from '../../assets/full-logo.png'
+
+
 const Footer = () => {
   const [settings, setSettings] = useState(null);
 
@@ -25,13 +29,12 @@ const Footer = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10 lg:gap-12 mb-8 sm:mb-12 lg:mb-16">
           <div className="text-center sm:text-left">
             <div className="flex items-center justify-center sm:justify-start space-x-3 mb-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl sm:rounded-2xl flex items-center justify-center">
-                <FaMotorcycle className="text-white text-base sm:text-xl" />
-              </div>
-              <div>
-                <h4 className="text-xl sm:text-2xl font-bold">{appSettings.appName || 'J. RIBEIRO'}</h4>
-                <p className="text-xs sm:text-sm text-primary-400">ENTREGAS &amp; TRANSPORTE</p>
-              </div>
+              
+             <div className="p-1 bg-white rounded-2xl">
+               <img src={FullLogo} className="w-[130px]"/>
+             </div>
+
+             
             </div>
             <p className="text-gray-400 text-xs sm:text-sm mb-4 sm:mb-6">Sua entrega, nossa missão!</p>
             <div className="flex justify-center sm:justify-start space-x-3 sm:space-x-4">

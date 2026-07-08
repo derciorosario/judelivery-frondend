@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Icon from '../common/Icon';
@@ -16,6 +16,10 @@ const LoginPage = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(registerMessage || "");
   const [loading, setLoading] = useState(false);
+
+  useEffect(()=>{
+         document.body.scrollIntoView({ behavior:'instant' })
+  },[])
 
   const credentials = [
     { role: "Super Admin", email: "superadmin@judelivery.mz", pass: "superadmin123", color: "bg-red-50 border-red-200", dot: "bg-red-400" },
@@ -85,7 +89,11 @@ const LoginPage = () => {
   const fillCred = (c) => { setEmail(c.email); setPassword(c.pass); setError(""); };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-orange-900 flex flex-col items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-orange-900 flex flex-col items-center justify-center px-4 py-8 relative">
+      <button onClick={() => navigate('/')} className="absolute top-6 left-6 text-slate-400 hover:text-white flex items-center gap-1 text-sm">
+        <Icon name="home" size={18} />
+        Início
+      </button>
       {/* Logo */}
       <div className="mb-8 text-center">
         <div className="w-16 h-16 bg-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-orange-500/30">
