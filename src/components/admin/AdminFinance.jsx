@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import * as XLSX from "xlsx";
 import StatCard from "../common/StatCard";
+import PrintReport from "./PrintReport";
 import Modal from "../common/Modal";
 import Icon from "../common/Icon";
 import { toast } from "../../lib/toast";
@@ -824,9 +826,47 @@ const AdminFinance = () => {
     }
   };
 
-  const exportToCSV = () => {
+  const buildFinanceReport = () => {
     const filtered = filterTransactions();
-    const csv = [
+    const tables = [{
+      title: "Transações Financeiras",
+      headers: ["ID", "Tipo", "Categoria", "Descrição", "Valor (MZN)", "Data", "Hora", "Status", "Método Pagamento"],
+      rows: filtered.map(t => [
+        t.id.slice(0, 8),
+        t.type === "receita" ? "Receita" : "Despesa",
+        t.category?.name || "Sem categoria",
+        t.description,
+        t.amount,
+        t.date,
+        t.time || "",
+        t.status,
+        t.paymentMethod || "—"
+      ])
+    }];
+
+    if (stats) {
+      tables.unshift({
+        title: "Resumo Financeiro",
+        headers: ["Métrica", "Valor (MZN)"],
+        rows: [
+          ["Receita Total", (stats.totalRevenue || 0).toLocaleString()],
+          ["Despesas Totais", (stats.totalExpenses || 0).toLocaleString()],
+          ["Lucro Líquido", (stats.netProfit || 0).toLocaleString()],
+          ["Pendente Receber", (stats.pendingRevenue || 0).toLocaleString()]
+        ]
+      });
+    }
+
+    return {
+      title: "Relatório Financeiro",
+      subtitle: dateRange.start && dateRange.end ? `Período: ${dateRange.start} a ${dateRange.end}` : "Todas as transações",
+      tables
+    };
+  };
+
+  const exportToExcel = () => {
+    const filtered = filterTransactions();
+    const reportData = [
       ["ID", "Tipo", "Categoria", "Descrição", "Valor", "Data", "Hora", "Status", "Método Pagamento"],
       ...filtered.map(t => [
         t.id.slice(0, 8),
@@ -839,18 +879,18 @@ const AdminFinance = () => {
         t.status,
         t.paymentMethod || "—"
       ])
-    ].map(row => row.join(",")).join("\n");
-    
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `financeiro_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(reportData);
+    worksheet["!cols"] = [{ wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 30 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 20 }];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Transações");
+    XLSX.writeFile(workbook, `financeiro_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const pendingTransactions = transactions.filter(t => t.status === "pendente");
+  const financeReport = buildFinanceReport();
 
   if (loading) {
     return (
@@ -862,10 +902,12 @@ const AdminFinance = () => {
 
   return (
     <div className="space-y-4">
+      <PrintReport title={financeReport.title} subtitle={financeReport.subtitle} tables={financeReport.tables} />
+
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-slate-700">Gestão Financeira</p>
         <div className="flex gap-1">
-          <button onClick={exportToCSV} className="p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200" title="Exportar CSV">
+          <button onClick={exportToExcel} className="p-2 rounded-xl bg-green-100 text-green-600 hover:bg-green-200" title="Exportar Excel">
             <Icon name="file" size={16} />
           </button>
           <button onClick={() => window.print()} className="p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200" title="Exportar PDF">

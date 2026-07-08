@@ -9,6 +9,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(Boolean(token));
   const [ready, setReady] = useState(false);
+  const [addresses,setAddresses]=useState([])
 
   useEffect(() => {
     setStoredToken(token || null);
@@ -33,6 +34,7 @@ export function AuthProvider({ children }) {
       const { data } = await client.get("/auth/profile");
       
       setUser(data?.user || null);
+      setAddresses(data?.addresses || [])
     } catch (e) {
       if (e?.response?.status === 401) {
         setTokenState(null);
@@ -91,6 +93,7 @@ export function AuthProvider({ children }) {
       user,
       loading,
       ready,
+      addresses,
       setToken: signInWithToken,
       signInWithToken,
       setRefreshToken: (refreshToken) => {

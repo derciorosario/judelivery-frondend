@@ -1,5 +1,62 @@
+import { useState, useRef, useEffect } from "react";
+import { useAuth } from "../../../contexts/AuthContext";
 import Icon from "../../common/Icon";
 import { Autocomplete } from "@react-google-maps/api";
+
+const SavedAddressPicker = ({ addresses, onSelect, colorClass, disabled }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  if (!addresses || addresses.length === 0) return null;
+
+  const handleSelect = (addr) => {
+    onSelect(addr);
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        disabled={disabled}
+        title="Endereços guardados"
+        className={`flex items-center gap-1 text-xs font-medium ${colorClass}`}
+      >
+        <Icon name="mapPin" size={12} />
+        <span>Guardados</span>
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-64 max-h-56 overflow-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+          {addresses.map((addr) => (
+            <button
+              key={addr.id}
+              type="button"
+              onClick={() => handleSelect(addr)}
+              className="w-full text-left px-3 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-0"
+            >
+              <p className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                {addr.label || "Endereço"}
+                {addr.isDefault && (
+                  <span className="text-[10px] text-green-600 font-normal">(Padrão)</span>
+                )}
+              </p>
+              <p className="text-[11px] text-slate-500 truncate">{addr.fullAddress}</p>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const LocationStep = ({ 
   serviceType, 
@@ -27,6 +84,8 @@ const LocationStep = ({
   const urgentPercent = Number(pricing.urgentPercentage ?? 30);
   const veryUrgentPercent = Number(pricing.veryUrgentPercentage ?? 60);
   const manualInputDisabled = !allowManualAddressInput;
+
+  const {addresses} = useAuth()
 
 
 
@@ -186,6 +245,16 @@ const LocationStep = ({
                 <Icon name="map" size={12} />
                 Selecionar no mapa
               </button>
+              <SavedAddressPicker
+                addresses={addresses}
+                colorClass="text-indigo-600 hover:text-indigo-800"
+                disabled={form.manualPickup}
+                onSelect={(addr) => onFormChange(prev => ({
+                  ...prev,
+                  pickupLocation: addr.fullAddress,
+                  pickupCoords: { lat: Number(addr.lat), lng: Number(addr.lng) }
+                }))}
+              />
             </div>
           )}
         </div>
@@ -306,6 +375,16 @@ const LocationStep = ({
                 <Icon name="map" size={12} />
                 Selecionar no mapa
               </button>
+              <SavedAddressPicker
+                addresses={addresses}
+                colorClass="text-indigo-600 hover:text-indigo-800"
+                disabled={form.manualDropoff}
+                onSelect={(addr) => onFormChange(prev => ({
+                  ...prev,
+                  dropoffLocation: addr.fullAddress,
+                  dropoffCoords: { lat: Number(addr.lat), lng: Number(addr.lng) }
+                }))}
+              />
             </div>
           )}
         </div>
@@ -514,6 +593,16 @@ const LocationStep = ({
           <Icon name="map" size={12} />
           Selecionar no mapa
         </button>
+        <SavedAddressPicker
+          addresses={addresses}
+          colorClass="text-indigo-600 hover:text-indigo-800"
+          disabled={form.manualOrigin}
+          onSelect={(addr) => onFormChange(prev => ({
+            ...prev,
+            origin: addr.fullAddress,
+            originCoords: { lat: Number(addr.lat), lng: Number(addr.lng) }
+          }))}
+        />
       </div>
     )}
   </div>
@@ -633,6 +722,16 @@ const LocationStep = ({
           <Icon name="map" size={12} />
           Selecionar no mapa
         </button>
+        <SavedAddressPicker
+          addresses={addresses}
+          colorClass="text-indigo-600 hover:text-indigo-800"
+          disabled={form.manualDest}
+          onSelect={(addr) => onFormChange(prev => ({
+            ...prev,
+            dest: addr.fullAddress,
+            destCoords: { lat: Number(addr.lat), lng: Number(addr.lng) }
+          }))}
+        />
       </div>
     )}
   </div>

@@ -300,10 +300,46 @@ display: table-header-group;
 display: table-row-group;
 }
 
-._print_content tfoot {
+ ._print_content tfoot {
     display: table-footer-group; 
+  }
+
 }
 
+/* Hide the printable report on screen; only show it when printing */
+.print-section {
+  display: none !important;
+}
+
+@media print {
+  /* Hide everything, then reveal only the printable report */
+  body * {
+    visibility: hidden;
+  }
+
+  .print-section,
+  .print-section * {
+    visibility: visible;
+  }
+
+  .print-section {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    text-align: left;
+  }
+
+  .print-section table {
+    border-collapse: collapse;
+    width: 100%;
+    page-break-inside: auto;
+  }
+
+  .print-section tr {
+    page-break-inside: avoid;
+  }
 }
 
 :root {

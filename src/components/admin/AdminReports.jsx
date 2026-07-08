@@ -1,7 +1,9 @@
 // frontend/src/components/admin/AdminReports.js
 import { useState, useEffect, useCallback } from "react";
+import * as XLSX from "xlsx";
 import StatCard from "../common/StatCard";
 import Icon from "../common/Icon";
+import PrintReport from "./PrintReport";
 import { toast } from "../../lib/toast";
 import {
   getOperationalReport,
@@ -231,17 +233,15 @@ const AdminReports = () => {
         ];
       }
 
-      const csv = reportData.map(row => row.join(",")).join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `relatorio_${reportType}_${dateFrom}_${dateTo}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
+      const worksheet = XLSX.utils.aoa_to_sheet(reportData);
+      worksheet["!cols"] = [{ wch: 30 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+
+      const workbook = XLSX.utils.book_new();
+      const sheetName = reportType === "operacional" ? "Operacional" : reportType === "financeiro" ? "Financeiro" : "Desempenho";
+      XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+
+      XLSX.writeFile(workbook, `relatorio_${reportType}_${dateFrom}_${dateTo}.xlsx`);
+
       toast.success("Relatório exportado com sucesso");
     } catch (error) {
       console.error("Error exporting:", error);
@@ -249,6 +249,88 @@ const AdminReports = () => {
     } finally {
       setExporting(false);
     }
+  };
+
+  const buildReportTables = () => {
+    const title = reportType === "operacional"
+      ? "Relatório Operacional"
+      : reportType === "financeiro"
+        ? "Relatório Financeiro"
+        : "Relatório de Desempenho";
+    const subtitle = `Período: ${dateFrom} a ${dateTo}`;
+    const tables = [];
+
+    if (reportType === "operacional" && operationalData) {
+      tables.push({
+        title: "Métricas Operacionais",
+        headers: ["Métrica", "Valor"],
+        rows: [
+          ["Total de Pedidos", operationalData.totalOrders || 0],
+          ["Pedidos Concluídos", operationalData.completedOrders || 0],
+          ["Pedidos em Andamento", operationalData.inProgressOrders || 0],
+          ["Pedidos Pendentes", operationalData.pendingOrders || 0],
+          ["Pedidos Cancelados", operationalData.cancelledOrders || 0],
+          ["Taxa de Cancelamento", `${(operationalData.cancellationRate || 0).toFixed(1)}%`],
+          ["Tempo Médio de Entrega", `${operationalData.avgDeliveryTime || 0} min`],
+          ["Distância Total", `${(operationalData.totalDistance || 0).toFixed(1)} km`],
+          ["Consumo Estimado", `${(operationalData.estimatedFuelConsumption || 0).toFixed(1)} L`],
+          ["Receita Total", `${(operationalData.totalRevenue || 0).toFixed(2)} MZN`]
+        ]
+      });
+    } else if (reportType === "financeiro" && financialData) {
+      tables.push({
+        title: "Métricas Financeiras",
+        headers: ["Métrica", "Valor"],
+        rows: [
+          ["Receita Total", `${(financialData.totalRevenue || 0).toFixed(2)} MZN`],
+          ["Despesas Totais", `${(financialData.totalExpenses || 0).toFixed(2)} MZN`],
+          ["Lucro Líquido", `${(financialData.netProfit || 0).toFixed(2)} MZN`],
+          ["Receitas Pendentes", `${(financialData.pendingRevenue || 0).toFixed(2)} MZN`],
+          ["Despesas Pendentes", `${(financialData.pendingExpenses || 0).toFixed(2)} MZN`]
+        ]
+      });
+    } else if (reportType === "desempenho" && performanceData) {
+      tables.push({
+        title: "Métricas de Desempenho",
+        headers: ["Métrica", "Valor"],
+        rows: [
+          ["Total Pedidos", performanceData.overall?.totalOrders || 0],
+          ["Pedidos Concluídos", performanceData.overall?.completedOrders || 0],
+          ["Taxa de Conclusão", `${(performanceData.overall?.completionRate || 0).toFixed(1)}%`],
+          ["Avaliação Média", `${(performanceData.overall?.avgRating || 0).toFixed(1)}`],
+          ["Tempo Médio Entrega", `${performanceData.overall?.avgDeliveryTime || 0} min`]
+        ]
+      });
+
+      if (performanceData.drivers?.length) {
+        tables.push({
+          title: "Top Motoristas",
+          headers: ["Posição", "Nome", "Entregas", "Avaliação", "Taxa Conclusão"],
+          rows: performanceData.drivers.map((d, i) => [
+            i + 1,
+            d.name,
+            d.completedOrders || 0,
+            (d.avgRating || 0).toFixed(1),
+            `${(d.completionRate || 0).toFixed(1)}%`
+          ])
+        });
+      }
+
+      if (performanceData.customers?.length) {
+        tables.push({
+          title: "Top Clientes",
+          headers: ["Posição", "Nome", "Pedidos", "Avaliação"],
+          rows: performanceData.customers.map((c, i) => [
+            i + 1,
+            c.name,
+            c.totalOrders || 0,
+            (c.avgRating || 0).toFixed(1)
+          ])
+        });
+      }
+    }
+
+    return { title, subtitle, tables };
   };
 
   const exportToPDF = () => {
@@ -266,8 +348,12 @@ const AdminReports = () => {
     );
   }
 
+  const printData = buildReportTables();
+
   return (
     <div className="space-y-4">
+      <PrintReport title={printData.title} subtitle={printData.subtitle} tables={printData.tables} />
+
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-slate-700">Relatórios & Estatísticas</p>
         <div className="flex gap-1">
