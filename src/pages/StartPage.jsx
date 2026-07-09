@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FaBox, FaSignInAlt, FaUserPlus, FaArrowRight, FaCheckCircle, FaClock, FaShieldAlt } from 'react-icons/fa';
 import { usePlatformSettings } from '../contexts/SettingsContext';
+import { isNative } from '../api/client';
 import GuestInfoModal from '../components/cliente/modals/GuestInfoModal';
 import ServiceSelectionModal from '../components/cliente/modals/ServiceSelectionModal';
 import CreateOrderModal from '../components/cliente/modals/CreateOrderModal';
@@ -131,27 +132,28 @@ const StartPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-secondary-50 to-white overflow-x-hidden">
-      {/* Header - Compact for mobile */}
-      <motion.header
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="bg-white shadow-sm sticky top-0 z-10"
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center space-x-2">
-              <img src={Logo} className="w-[60px]"/>
-            </Link>
-            <Link
-              to="/"
-              className="text-secondary-600 hover:text-primary-600 font-medium transition text-xs sm:text-sm"
-            >
-              Voltar
-            </Link>
+      {!isNative && (
+        <motion.header
+          initial={{ y: -100 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="bg-white shadow-sm sticky top-0 z-10"
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+            <div className="flex items-center justify-between">
+              <Link to="/" className="flex items-center space-x-2">
+                <img src={Logo} className="w-[60px]"/>
+              </Link>
+              <Link
+                to="/"
+                className="text-secondary-600 hover:text-primary-600 font-medium transition text-xs sm:text-sm"
+              >
+                Voltar
+              </Link>
+            </div>
           </div>
-        </div>
-      </motion.header>
+        </motion.header>
+      )}
 
       {/* Main Content - More compact */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 lg:py-12">

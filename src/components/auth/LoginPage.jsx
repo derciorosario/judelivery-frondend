@@ -4,6 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import Icon from '../common/Icon';
 import { useGoogleLogin } from '@react-oauth/google';
 import { API_URL, setStoredToken } from '../../api/client';
+import Logo from '../../assets/logo.png'
+import FullLogo from '../../assets/full-logo-2.png'
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -18,7 +20,7 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(()=>{
-         document.body.scrollIntoView({ behavior:'instant' })
+      document.body.scrollIntoView({ behavior:'instant' })
   },[])
 
   const credentials = [
@@ -93,14 +95,13 @@ const LoginPage = () => {
       <button onClick={() => navigate('/')} className="absolute top-6 left-6 text-slate-400 hover:text-white flex items-center gap-1 text-sm">
         <Icon name="home" size={18} />
         Início
-      </button>
+      </button>      
       {/* Logo */}
       <div className="mb-8 text-center">
-        <div className="w-16 h-16 bg-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-orange-500/30">
-          <Icon name="truck" size={30} className="text-white" />
+        <div className=" rounded-2xl">
+          <img src={FullLogo} className="w-[160px]"/>
         </div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">JuDelivery</h1>
-        <p className="text-slate-400 text-sm mt-1">O seu parceiro de entregas.</p>
+
       </div>
 
       {/* Card */}

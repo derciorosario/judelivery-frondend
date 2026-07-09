@@ -17,6 +17,8 @@ import GestorMap from "./GestorMap";
 import Notifications from "../common/Notifications";
 import L from "leaflet";
 import OrderDetailModal from "../modals/OrderDetailModal";
+import { useData } from "../../contexts/DataContext";
+import { registerPush } from "../../services/push";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -29,6 +31,7 @@ const GestorApp = () => {
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const data=useData()
 
   const [showAdminCreateOrder, setShowAdminCreateOrder] = useState(false);
   const [showClientSelect, setShowClientSelect] = useState(false);
@@ -38,6 +41,13 @@ const GestorApp = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [orderDetailTab, setOrderDetailTab] = useState("details");
+
+
+  useEffect(() => {
+       if(user && !data.pushRegistered){
+         registerPush(user?.id,navigate,data)
+       }
+  }, [user]);
 
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },

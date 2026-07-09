@@ -15,10 +15,12 @@ import CustomerApp from './components/cliente/CustomerApp';
 import LandingPage from './pages/LandingPage';
 import StartPage from './pages/StartPage';
 import GuestOrderPage from './pages/GuestOrderPage';
+import NativeStartPage from './pages/NativeStartPage';
 import ProtectedRoute from './ProtectedRoute';
 import { SocketProvider } from './contexts/SocketContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { SettingsProvider } from './contexts/SettingsContext';
+import { isNative } from './api/client';
 
 const AppInner = () => {
   const { user, loading } = useAuth();
@@ -57,7 +59,7 @@ const AppInner = () => {
       <Route path="/verify-registration" element={<VerificationPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/" element={user ? getAppComponent() : <LandingPage />} />
+      <Route path="/" element={user ? getAppComponent() : (isNative ? <NativeStartPage /> : <LandingPage />)} />
       <Route element={<ProtectedRoute />}>
         <Route path="/*" element={getAppComponent()} />
       </Route>

@@ -1,6 +1,7 @@
 import { createContext, useContext,useState,useEffect} from 'react';
 const DataContext = createContext();
 
+
 export const DataProvider = ({ children }) => {
 
     let initial_popups={
@@ -13,6 +14,7 @@ export const DataProvider = ({ children }) => {
       'support_messages'
     ]
     const [_openPopUps, _setOpenPopUps] = useState(initial_popups);
+    const [pushRegistered,setPushRegistered]=useState(false)
 
     // State for partner login status
     const [isPartner, setIsPartner] = useState(() => {
@@ -79,11 +81,12 @@ export const DataProvider = ({ children }) => {
         _setOpenPopUps({...initial_popups,[option]:value || true})
     }
 
-     const [postDialogOpen, setPostDialogOpen] = useState(false);
+    const [postDialogOpen, setPostDialogOpen] = useState(false);
 
     const env="test" //test || pro
     
     const value = {
+      pushRegistered,setPushRegistered,
       postDialogOpen, setPostDialogOpen,
       env,
       isPartner,
