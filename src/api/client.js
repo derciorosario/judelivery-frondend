@@ -3,10 +3,10 @@ export const env = "pro";
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 export const isNative = Capacitor.isNativePlatform();
 export const API_URL = 
- //env == "dev" ? isNative ? "http://192.168.18.3:5001/api" : "http://localhost:5001/api" :
-   env == "dev" ? true ? "https://judelivery-server.derflash.com/api" : "http://localhost:5001/api" :
-   env == "test" ? "https://judelivery-server.derflash.com/api" :
-                  "https://judelivery-server.derflash.com/api";
+ env == "dev" ? isNative ? "http://192.168.18.3:5001/api" : "http://localhost:5001/api" :
+  // env == "dev" ? true ? "https://judelivery-api.derflash.com/api" : "http://localhost:5001/api" :
+   env == "test" ? "https://judelivery-api.derflash.com/api" :
+                  "https://judelivery-api.derflash.com/api";
 
 const client = axios.create({
   baseURL: API_URL,

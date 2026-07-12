@@ -23,6 +23,8 @@ import { toast } from "../../lib/toast";
 import { usePlatformSettings } from "../../contexts/SettingsContext";
 import Icon from "../common/Icon";
 import OrderDetailModal from "../modals/OrderDetailModal";
+import { registerPush } from "../../services/push";
+import { useData } from "../../contexts/DataContext";
 
 const CustomerApp = () => {
   const [showCreateOrder, setShowCreateOrder] = useState(false);
@@ -50,6 +52,14 @@ const CustomerApp = () => {
   const { settings, loading: settingsLoading } = usePlatformSettings();
   const location = useLocation();
   const navigate = useNavigate();
+  const data=useData()
+
+
+   useEffect(() => {
+         if(user && !data.pushRegistered){
+           registerPush(user?.id,navigate,data)
+         }
+    }, [user]);
 
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },
