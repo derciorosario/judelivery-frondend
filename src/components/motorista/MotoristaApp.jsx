@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getOrder, updateOrder, getDriverProfile, getDriverDashboard } from "../../api/client";
@@ -12,12 +12,15 @@ import MotoristaProfile from "./MotoristaProfile";
 import MotoristaMap from "./MotoristaMap";
 import Notifications from "../common/Notifications";
 import OrderDetailModal from "../modals/OrderDetailModal";
+import { registerPush } from "../../services/push";
+import { useData } from "../../contexts/DataContext";
 
 const MotoristaApp = () => {
   const [online, setOnline] = useState(true);
   const { user, signOut } = useAuth();
   const routerLocation = useLocation();
   const navigate = useNavigate();
+  const data=useData()
   
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
@@ -27,6 +30,13 @@ const MotoristaApp = () => {
   const [driverProfile, setDriverProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [orderDetailTab, setOrderDetailTab] = useState("details");
+
+  useEffect(() => {
+          if(user && !data.pushRegistered){
+            registerPush(user?.id,navigate,data)
+          }
+  }, [user]);
+  
 
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },
@@ -58,29 +68,37 @@ const MotoristaApp = () => {
     }
   }, [navigate, tabs]);
 
+  const openOrderById = useCallback(async (orderId, tab) => {
+    if (!orderId) return;
+    try {
+      const response = await getOrder(orderId);
+      setSelectedOrder(response.data);
+      setOrderDetailTab(tab || "details");
+      setShowOrderDetails(true);
+    } catch (err) {
+      console.error("Failed to fetch order for notification:", err);
+    }
+  }, []);
+
   useEffect(() => {
-    const handleOpenOrder = async (e) => {
+    const handleOpenOrder = (e) => {
       const orderId = e.detail?.orderId;
       const tab = e.detail?.tab;
-       console.log({orderId})
-      if (orderId) {
-        try {
-          const response = await getOrder(orderId);
-          setSelectedOrder(response.data);
-          if (tab) {
-            setOrderDetailTab(tab);
-          } else {
-            setOrderDetailTab("details");
-          }
-          setShowOrderDetails(true);
-        } catch (err) {
-          console.error("Failed to fetch order for notification:", err);
-        }
-      }
+      if (orderId) openOrderById(orderId, tab);
     };
     window.addEventListener("notification:openOrder", handleOpenOrder);
     return () => window.removeEventListener("notification:openOrder", handleOpenOrder);
-  }, []);
+  }, [openOrderById]);
+
+  const deepLinkRef = useRef(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(routerLocation.search);
+    const orderId = params.get('order_id');
+    if (!orderId || deepLinkRef.current === orderId) return;
+    deepLinkRef.current = orderId;
+    window.dispatchEvent(new CustomEvent('notification:openOrder', { detail: { orderId } }));
+  }, [routerLocation.search, openOrderById]);
 
   const location = useDriverLocation({ autoStart: true });
 

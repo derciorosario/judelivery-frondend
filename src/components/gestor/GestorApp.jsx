@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getOrder } from "../../api/client";
@@ -77,28 +77,46 @@ const GestorApp = () => {
     }
   }, [navigate, tabs]);
 
+  const openOrderById = useCallback(async (orderId, tab) => {
+    if (!orderId) return;
+    try {
+      const response = await getOrder(orderId);
+      setSelectedOrder(response.data);
+      setOrderDetailTab(tab || "details");
+      setShowOrderDetails(true);
+    } catch (err) {
+      console.error("Failed to fetch order for notification:", err);
+    }
+  }, []);
+
   useEffect(() => {
-    const handleOpenOrder = async (e) => {
+    const handleOpenOrder = (e) => {
       const orderId = e.detail?.orderId;
       const tab = e.detail?.tab;
-      if (orderId) {
-        try {
-          const response = await getOrder(orderId);
-          setSelectedOrder(response.data);
-          if (tab) {
-            setOrderDetailTab(tab);
-          } else {
-            setOrderDetailTab("details");
-          }
-          setShowOrderDetails(true);
-        } catch (err) {
-          console.error("Failed to fetch order for notification:", err);
-        }
-      }
+      if (orderId) openOrderById(orderId, tab);
     };
     window.addEventListener("notification:openOrder", handleOpenOrder);
     return () => window.removeEventListener("notification:openOrder", handleOpenOrder);
-  }, []);
+  }, [openOrderById]);
+
+  const deepLinkRef = useRef(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const orderId = params.get('order_id');
+    const incidentId = params.get('incident_id');
+    const driverId = params.get('driver_id');
+    const key = orderId || incidentId || driverId;
+    if (!key || deepLinkRef.current === key) return;
+    deepLinkRef.current = key;
+    if (orderId) {
+      window.dispatchEvent(new CustomEvent('notification:openOrder', { detail: { orderId } }));
+    } else if (incidentId) {
+      setTab('incidents');
+    } else if (driverId) {
+      window.dispatchEvent(new CustomEvent('notification:openMap', { detail: { driverId } }));
+    }
+  }, [location.search, openOrderById, setTab]);
 
   useEffect(() => {
     const handleOpenMap = (e) => {

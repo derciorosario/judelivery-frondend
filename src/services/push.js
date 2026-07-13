@@ -56,6 +56,8 @@ export async function registerPush(userId,navigate,data) {
     });
 
     PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+
+      console.log({a:action?.notification?.data,b:action?.notification})
        
         console.log('pushNotificationActionPerformed',action?.notification?.data?.link)
         try{

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import BottomNav from "../common/BottomNav";
@@ -139,6 +139,19 @@ const CustomerApp = () => {
     window.addEventListener("notification:openOrder", handleOpenOrder);
     return () => window.removeEventListener("notification:openOrder", handleOpenOrder);
   }, []);
+
+  const openedOrderIdRef = useRef(null);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const orderId = urlParams.get('order_id') || null
+    if (!orderId || openedOrderIdRef.current === orderId) return;
+    openedOrderIdRef.current = orderId;
+    setSelectedOrderId(orderId);
+    setOrderDetailTab("details");
+    setShowOrderDetails(true);
+    setShouldRefreshOrders(prev => !prev);
+  }, [location.search]);
 
   const dashboardActiveOrder = dashboardData?.activeOrder || null;
   const dashboardPendingOrders = dashboardData?.pendingOrders || [];
