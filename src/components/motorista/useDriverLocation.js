@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Geolocation } from "@capacitor/geolocation";
 import { useSocket } from "../../contexts/SocketContext";
+import { isNative } from "../../api/client";
 
 const useDriverLocation = ({ autoStart = true, orderId = null } = {}) => {
   const { socket, connected } = useSocket();
@@ -13,8 +15,12 @@ const useDriverLocation = ({ autoStart = true, orderId = null } = {}) => {
   const isStartingRef = useRef(false);
 
   const stop = useCallback(() => {
-    if (watchIdRef.current !== null && navigator.geolocation) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
+    if (watchIdRef.current !== null) {
+      if (isNative) {
+        Geolocation.clearWatch({ id: watchIdRef.current });
+      } else if (navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
       watchIdRef.current = null;
     }
     setPosition(null);
@@ -26,6 +32,99 @@ const useDriverLocation = ({ autoStart = true, orderId = null } = {}) => {
       socket.emit("driver:status", "offline");
     }
   }, [socket, connected]);
+
+  function startWatching() {
+    // Don't start if already watching
+    if (watchIdRef.current !== null) {
+      console.log("Already watching location");
+      isStartingRef.current = false;
+      return;
+    }
+
+    const handlePosition = (pos) => {
+      const { latitude, longitude, heading, accuracy } = pos.coords;
+      const coords = { lat: latitude, lng: longitude };
+      
+      setPosition(coords);
+      setHeading(heading || 0);
+      setAccuracy(accuracy);
+      setLastUpdate(new Date());
+      setGpsPermission("granted");
+      setIsActive(true);
+
+      // Only emit if socket is connected
+      if (socket && connected) {
+        socket.emit("driver:location", coords);
+        if (orderId) {
+          socket.emit("order:location", { orderId, coords });
+        }
+      } else {
+        console.log("Socket not connected, location stored locally");
+      }
+    };
+
+    const handleError = (err) => {
+      console.error("Geolocation watch error:", err);
+      
+      if (err && err.code === err.PERMISSION_DENIED) {
+        setGpsPermission("denied");
+        setIsActive(false);
+        isStartingRef.current = false;
+      } else if (err && err.code === err.TIMEOUT) {
+        // Retry on timeout
+        console.log("Geolocation timeout, retrying...");
+        setTimeout(() => {
+          if (watchIdRef.current === null && !isStartingRef.current) {
+            startWatching();
+          }
+        }, 3000);
+      } else {
+        setGpsPermission("prompt");
+        setIsActive(false);
+        isStartingRef.current = false;
+      }
+    };
+
+    if (isNative) {
+      Geolocation.watchPosition(
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 },
+        (position, err) => {
+          if (err) {
+            handleError(err);
+            return;
+          }
+          if (position) handlePosition(position);
+        }
+      )
+        .then((id) => {
+          watchIdRef.current = id;
+          isStartingRef.current = false;
+        })
+        .catch((error) => {
+          console.error("Error starting native geolocation watch:", error);
+          isStartingRef.current = false;
+          setGpsPermission("denied");
+        });
+      return;
+    }
+
+    try {
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        handlePosition,
+        handleError,
+        { 
+          enableHighAccuracy: true, 
+          timeout: 10000, 
+          maximumAge: 5000 
+        }
+      );
+      isStartingRef.current = false;
+    } catch (error) {
+      console.error("Error starting geolocation watch:", error);
+      isStartingRef.current = false;
+      setGpsPermission("denied");
+    }
+  }
 
   const start = useCallback(() => {
     // Prevent multiple start attempts
@@ -41,6 +140,36 @@ const useDriverLocation = ({ autoStart = true, orderId = null } = {}) => {
     }
 
     isStartingRef.current = true;
+
+    // On native platforms use the Capacitor Geolocation plugin
+    if (isNative) {
+      Geolocation.checkPermissions()
+        .then((status) => {
+          if (status.location === "denied") {
+            setGpsPermission("denied");
+            setIsActive(false);
+            isStartingRef.current = false;
+            return;
+          }
+          return Geolocation.requestPermissions();
+        })
+        .then((status) => {
+          if (status && status.location === "denied") {
+            setGpsPermission("denied");
+            setIsActive(false);
+            isStartingRef.current = false;
+            return;
+          }
+          startWatching();
+        })
+        .catch((err) => {
+          console.error("Native geolocation permission error:", err);
+          setGpsPermission("denied");
+          setIsActive(false);
+          isStartingRef.current = false;
+        });
+      return;
+    }
 
     // First, check current permission state
     if (navigator.permissions && navigator.permissions.query) {
@@ -74,77 +203,7 @@ const useDriverLocation = ({ autoStart = true, orderId = null } = {}) => {
       // Fallback for browsers without permissions API
       startWatching();
     }
-  }, [socket, connected, orderId, stop]);
-
-  const startWatching = useCallback(() => {
-    // Don't start if already watching
-    if (watchIdRef.current !== null) {
-      console.log("Already watching location");
-      isStartingRef.current = false;
-      return;
-    }
-
-    const watchSuccess = (pos) => {
-      const { latitude, longitude, heading, accuracy } = pos.coords;
-      const coords = { lat: latitude, lng: longitude };
-      
-      setPosition(coords);
-      setHeading(heading || 0);
-      setAccuracy(accuracy);
-      setLastUpdate(new Date());
-      setGpsPermission("granted");
-      setIsActive(true);
-
-      // Only emit if socket is connected
-      if (socket && connected) {
-        socket.emit("driver:location", coords);
-        if (orderId) {
-          socket.emit("order:location", { orderId, coords });
-        }
-      } else {
-        console.log("Socket not connected, location stored locally");
-      }
-    };
-
-    const watchError = (err) => {
-      console.error("Geolocation watch error:", err);
-      
-      if (err.code === err.PERMISSION_DENIED) {
-        setGpsPermission("denied");
-        setIsActive(false);
-        isStartingRef.current = false;
-      } else if (err.code === err.TIMEOUT) {
-        // Retry on timeout
-        console.log("Geolocation timeout, retrying...");
-        setTimeout(() => {
-          if (watchIdRef.current === null && !isStartingRef.current) {
-            startWatching();
-          }
-        }, 3000);
-      } else {
-        setGpsPermission("prompt");
-        setIsActive(false);
-        isStartingRef.current = false;
-      }
-    };
-
-    try {
-      watchIdRef.current = navigator.geolocation.watchPosition(
-        watchSuccess,
-        watchError,
-        { 
-          enableHighAccuracy: true, 
-          timeout: 10000, 
-          maximumAge: 5000 
-        }
-      );
-      isStartingRef.current = false;
-    } catch (error) {
-      console.error("Error starting geolocation watch:", error);
-      isStartingRef.current = false;
-      setGpsPermission("denied");
-    }
-  }, [socket, connected, orderId]);
+  }, [socket, connected, orderId, stop, startWatching]);
 
   const setPositionCallback = useCallback((pos) => {
     setPosition(pos);
