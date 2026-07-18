@@ -356,8 +356,7 @@ const GestorMap = ({ initialDriverId }) => {
     }
   }, [drivers.length, handleFitAll]);
 
- 
-const iconForStatus = (status) => {
+  const iconForStatus = (status) => {
     if (!window.google) return undefined;
     const color = status === "working" ? "#f97316" : status === "online" ? "#10b981" : "#94a3b8";
     return {
@@ -805,7 +804,7 @@ const iconForStatus = (status) => {
         </div>
       </div>
 
-      {/* Map Container */}
+      {/* Map Container - Updated for better mobile interaction */}
       <div className="rounded-xl overflow-hidden border border-slate-200 relative shadow-sm" style={{ height: 420 }}>
         {!isLoaded ? (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
@@ -823,12 +822,21 @@ const iconForStatus = (status) => {
             zoom={mapZoom}
             onLoad={onMapLoad}
             options={{
+              // Updated for better mobile interaction
               disableDefaultUI: true,
-              zoomControl: true,
+              zoomControl: false, // Disabled to use custom controls
               mapTypeControl: false,
               streetViewControl: false,
               fullscreenControl: false,
-              gestureHandling: "cooperative",
+              gestureHandling: 'auto', // Changed from 'cooperative' to 'auto'
+              draggable: true,
+              draggableCursor: 'grab',
+              draggableCursor: 'grabbing',
+              scrollwheel: false,
+              touchZoom: true,
+              doubleClickZoom: true,
+              disableDoubleClickZoom: false,
+              clickableIcons: false,
               styles: [
                 {
                   featureType: "poi",
@@ -883,7 +891,7 @@ const iconForStatus = (status) => {
           </GoogleMap>
         )}
 
-        {/* Map Controls */}
+        {/* Map Controls - Updated with custom zoom controls */}
         <div className="absolute bottom-3 left-3 flex gap-2">
           <button
             type="button"
@@ -893,17 +901,20 @@ const iconForStatus = (status) => {
             <Compass size={14} className="text-slate-500" />
             Ver todos
           </button>
-         
-          {/*** Leave this buttons here and commented
-           * 
-           *   <button
+        </div>
+
+        {/* Custom Zoom Controls - Added for better mobile experience */}
+        <div className="absolute right-3 top-3 flex flex-col gap-1">
+          <button
             type="button"
             onClick={() => {
               if (mapRef.current) {
-                mapRef.current.setZoom(mapRef.current.getZoom() + 1);
+                const currentZoom = mapRef.current.getZoom();
+                mapRef.current.setZoom(currentZoom + 1);
               }
             }}
-            className="px-3 py-2 bg-white rounded-lg shadow-md border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 transition-all duration-200"
+            className="w-9 h-9 bg-white rounded-lg shadow-md border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:bg-slate-100 transition-colors text-lg font-bold"
+            title="Aumentar zoom"
           >
             +
           </button>
@@ -911,26 +922,26 @@ const iconForStatus = (status) => {
             type="button"
             onClick={() => {
               if (mapRef.current) {
-                mapRef.current.setZoom(mapRef.current.getZoom() - 1);
+                const currentZoom = mapRef.current.getZoom();
+                mapRef.current.setZoom(currentZoom - 1);
               }
             }}
-            className="px-3 py-2 bg-white rounded-lg shadow-md border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 transition-all duration-200"
+            className="w-9 h-9 bg-white rounded-lg shadow-md border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:bg-slate-100 transition-colors text-lg font-bold"
+            title="Diminuir zoom"
           >
-            -
+            −
           </button>
-           */}
-
         </div>
 
         {/* Floating Action Button for Driver List */}
         <button
           onClick={() => setShowDriverList(true)}
-          className="absolute top-3 right-3 w-12 h-12 bg-orange-500 rounded-full shadow-lg flex items-center justify-center active:bg-orange-600 transition-all duration-200 hover:scale-105 active:scale-95"
+          className="absolute top-3 right-[52px] w-12 h-12 bg-orange-500 rounded-full shadow-lg flex items-center justify-center active:bg-orange-600 transition-all duration-200 hover:scale-105 active:scale-95"
         >
           <List size={20} className="text-white" />
         </button>
 
-        {/* Mini legend on top */}
+        {/* Mini legend on top - Adjusted for custom zoom controls */}
         <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm rounded-lg px-3 py-2 shadow-md border border-slate-100">
           <div className="flex gap-3">
             <div className="flex items-center gap-1.5">
@@ -966,7 +977,5 @@ const iconForStatus = (status) => {
     </div>
   );
 };
-
-
 
 export default GestorMap;

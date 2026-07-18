@@ -3,6 +3,8 @@ import { useJsApiLoader } from "@react-google-maps/api";
 import { GoogleMap, Marker, DirectionsRenderer, InfoWindow } from "@react-google-maps/api";
 import { useSocket } from "../../../contexts/SocketContext";
 import Modal from "../../common/Modal";
+import { Geolocation } from "@capacitor/geolocation";
+import { isNative } from "../../../api/client";
 import {
   X,
   Navigation,
@@ -25,6 +27,38 @@ import {
 
 const GOOGLE_MAPS_KEY = "AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak";
 const libraries = ["places"];
+
+const getCurrentPosition = async () => {
+  if (isNative) {
+    const permission = await Geolocation.checkPermissions();
+    if (permission.location === "denied") {
+      throw new Error("PERMISSION_DENIED");
+    }
+    if (permission.location !== "granted") {
+      const request = await Geolocation.requestPermissions();
+      if (request.location === "denied") {
+        throw new Error("PERMISSION_DENIED");
+      }
+    }
+    return await Geolocation.getCurrentPosition({
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 60000,
+    });
+  }
+
+  if (!navigator.geolocation) {
+    throw new Error("GEOLOCATION_NOT_SUPPORTED");
+  }
+
+  return await new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 60000,
+    });
+  });
+};
 
 // Helper to normalize coordinates
 const normalizeCoords = (coord) => {
@@ -213,49 +247,90 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
   }, [originCoords, destCoords, calculateRoute]);
 
   // Get driver's current location
-  const getCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      alert("Geolocalização não é suportada pelo seu navegador");
-      return;
+  const getCurrentLocation = async () => {
+    try {
+      const position = await getCurrentPosition();
+      const pos = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude
+      };
+      setDriverPosition(pos);
+      setMapCenter(pos);
+      
+      // Send location to server via socket
+      if (socket && order?.id) {
+        socket.emit("order:location", { orderId: order.id, coords: pos });
+      }
+      
+      // Update current step based on position
+      updateCurrentStep(pos);
+    } catch (error) {
+      console.error("Error getting location:", error);
+      alert("Não foi possível obter sua localização. Verifique as permissões.");
     }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const pos = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        };
-        setDriverPosition(pos);
-        setMapCenter(pos);
-        
-        // Send location to server via socket
-        if (socket && order?.id) {
-          socket.emit("order:location", { orderId: order.id, coords: pos });
-        }
-        
-        // Update current step based on position
-        updateCurrentStep(pos);
-      },
-      (error) => {
-        console.error("Error getting location:", error);
-        alert("Não foi possível obter sua localização. Verifique as permissões.");
-      },
-      { enableHighAccuracy: true, maximumAge: 10000 }
-    );
   };
 
   // Start navigation (continuous location tracking)
-  const startNavigation = () => {
+  const startNavigation = async () => {
+    setIsNavigating(true);
+    
+    // Get initial position
+    await getCurrentLocation();
+    
+    if (isNative) {
+      try {
+        const permission = await Geolocation.checkPermissions();
+        if (permission.location === "denied") {
+          alert("Permissão de localização negada");
+          return;
+        }
+        if (permission.location !== "granted") {
+          const request = await Geolocation.requestPermissions();
+          if (request.location === "denied") {
+            alert("Permissão de localização negada");
+            return;
+          }
+        }
+        const watchId = await Geolocation.watchPosition(
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 },
+          (position, err) => {
+            if (err) {
+              console.error("Error watching location:", err);
+              return;
+            }
+            if (position) {
+              const pos = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+              };
+              setDriverPosition(pos);
+              
+              if (mapRef.current && isNavigating) {
+                mapRef.current.panTo(pos);
+              }
+              
+              if (socket && order?.id) {
+                socket.emit("order:location", { orderId: order.id, coords: pos });
+              }
+              
+              updateCurrentStep(pos);
+              updateRemainingInfo(pos);
+            }
+          }
+        );
+        watchIdRef.current = watchId;
+      } catch (error) {
+        console.error("Error starting native geolocation watch:", error);
+        alert("Não foi possível iniciar a navegação.");
+      }
+      return;
+    }
+
     if (!navigator.geolocation) {
       alert("Geolocalização não é suportada");
       return;
     }
 
-    setIsNavigating(true);
-    
-    // Get initial position
-    getCurrentLocation();
-    
     // Start watching position
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
@@ -290,8 +365,12 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
 
   // Stop navigation
   const stopNavigation = () => {
-    if (watchIdRef.current) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
+    if (watchIdRef.current !== null) {
+      if (isNative) {
+        Geolocation.clearWatch({ id: watchIdRef.current });
+      } else if (navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
       watchIdRef.current = null;
     }
     setIsNavigating(false);
@@ -441,8 +520,13 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (watchIdRef.current) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
+      if (watchIdRef.current !== null) {
+        if (isNative) {
+          Geolocation.clearWatch({ id: watchIdRef.current });
+        } else if (navigator.geolocation) {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+        }
+        watchIdRef.current = null;
       }
       window.speechSynthesis.cancel();
     };

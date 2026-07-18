@@ -12,6 +12,8 @@ import {
   updateProfilePreferences
 } from "../../api/client";
 import { toast } from "../../lib/toast";
+import { Geolocation } from "@capacitor/geolocation";
+import { isNative } from "../../api/client";
 
 const GOOGLE_MAPS_KEY = "AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak";
 const MAPUTO_CENTER = { lat: -25.9653, lng: 32.5778 };
@@ -89,6 +91,38 @@ const CustomerProfile = ({
   const deliveryCount = profileData?.stats?.deliveryCount || orders.length;
   const completedCount = profileData?.stats?.completedCount || orders.filter(o => o.status === "completed" || o.statusCode === "completed").length;
 
+  const getCurrentPosition = async () => {
+    if (isNative) {
+      const permission = await Geolocation.checkPermissions();
+      if (permission.location === "denied") {
+        throw new Error("PERMISSION_DENIED");
+      }
+      if (permission.location !== "granted") {
+        const request = await Geolocation.requestPermissions();
+        if (request.location === "denied") {
+          throw new Error("PERMISSION_DENIED");
+        }
+      }
+      return await Geolocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000,
+      });
+    }
+
+    if (!navigator.geolocation) {
+      throw new Error("GEOLOCATION_NOT_SUPPORTED");
+    }
+
+    return await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000,
+      });
+    });
+  };
+
   const refreshProfile = async () => {
     if (onProfileUpdated) await onProfileUpdated();
   };
@@ -162,25 +196,21 @@ const CustomerProfile = ({
     setLoadingMapLocation(true);
     let center = MAPUTO_CENTER;
 
-    if (navigator.geolocation) {
-      try {
-        const position = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 60000
-          });
-        });
-        center = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        };
-      } catch (error) {
-        console.error("Error getting current location:", error);
+    try {
+      const position = await getCurrentPosition();
+      center = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude
+      };
+    } catch (error) {
+      console.error("Error getting current location:", error);
+      if (error.message === "PERMISSION_DENIED") {
+        toast.warning("A permissão de localização foi negada. Usando localização padrão.");
+      } else if (error.message === "GEOLOCATION_NOT_SUPPORTED") {
+        toast.warning("Geolocalização não é suportada. Usando localização padrão.");
+      } else {
         toast.warning("Não foi possível obter sua localização. Usando localização padrão.");
       }
-    } else {
-      toast.warning("Geolocalização não é suportada. Usando localização padrão.");
     }
 
     setMapCenter(center);
@@ -259,14 +289,10 @@ const CustomerProfile = ({
   };
 
   const useCurrentAddressLocation = () => {
-    if (!navigator.geolocation) {
-      toast.error("Geolocalização não é suportada pelo seu navegador.");
-      return;
-    }
-
     setLoadingLocation(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
+
+    getCurrentPosition()
+      .then((position) => {
         const coords = {
           lat: position.coords.latitude,
           lng: position.coords.longitude
@@ -291,14 +317,18 @@ const CustomerProfile = ({
           }
           setLoadingLocation(false);
         });
-      },
-      (error) => {
+      })
+      .catch((error) => {
         console.error("Geolocation error:", error);
-        toast.error("Não foi possível obter a sua localização atual. Por favor, verifique as permissões.");
+        if (error.message === "PERMISSION_DENIED") {
+          toast.error("A permissão de localização foi negada. Por favor, habilite-a nas configurações.");
+        } else if (error.message === "GEOLOCATION_NOT_SUPPORTED") {
+          toast.error("Geolocalização não é suportada pelo seu navegador.");
+        } else {
+          toast.error("Não foi possível obter a sua localização atual. Por favor, verifique as permissões.");
+        }
         setLoadingLocation(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-    );
+      });
   };
 
   const closeAddressMap = () => {
@@ -664,7 +694,7 @@ const CustomerProfile = ({
               </button>
               <button
                 type="button"
-                disabled={saving || loadingLocation || !navigator.geolocation}
+                disabled={saving || loadingLocation}
                 onClick={useCurrentAddressLocation}
                 className="w-full py-2.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 font-semibold text-sm flex items-center justify-center gap-2"
               >
@@ -750,7 +780,7 @@ const CustomerProfile = ({
                 <button
                   type="button"
                   onClick={useCurrentAddressLocation}
-                  disabled={saving || loadingLocation || !navigator.geolocation}
+                  disabled={saving || loadingLocation}
                   className="flex-1 py-2 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 font-semibold text-sm flex items-center justify-center gap-2"
                 >
                   {loadingLocation ? (

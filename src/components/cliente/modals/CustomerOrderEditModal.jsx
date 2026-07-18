@@ -5,6 +5,8 @@ import { updateOrder } from "../../../api/client";
 import { toast } from "../../../lib/toast";
 import { useJsApiLoader } from "@react-google-maps/api";
 import { GoogleMap, Marker, Autocomplete } from "@react-google-maps/api";
+import { Geolocation } from "@capacitor/geolocation";
+import { isNative } from "../../../api/client";
 
 const GOOGLE_MAPS_KEY = "AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak";
 const MAPUTO_CENTER = { lat: -25.9653, lng: 32.5778 };
@@ -50,6 +52,38 @@ const CustomerOrderEditModal = ({ isOpen, onClose, order, onUpdated }) => {
   const originCoordsField = isTaxi ? "pickupCoords" : "originCoords";
   const destCoordsField = isTaxi ? "dropoffCoords" : "destCoords";
 
+  const getCurrentPosition = async () => {
+    if (isNative) {
+      const permission = await Geolocation.checkPermissions();
+      if (permission.location === "denied") {
+        throw new Error("PERMISSION_DENIED");
+      }
+      if (permission.location !== "granted") {
+        const request = await Geolocation.requestPermissions();
+        if (request.location === "denied") {
+          throw new Error("PERMISSION_DENIED");
+        }
+      }
+      return await Geolocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000,
+      });
+    }
+
+    if (!navigator.geolocation) {
+      throw new Error("GEOLOCATION_NOT_SUPPORTED");
+    }
+
+    return await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000,
+      });
+    });
+  };
+
   const handleOriginPlaceChanged = (autocomplete) => {
     const place = autocomplete.getPlace();
     if (place.formatted_address && place.geometry) {
@@ -72,11 +106,9 @@ const CustomerOrderEditModal = ({ isOpen, onClose, order, onUpdated }) => {
     const coords = form[coordsField];
     if (coords) {
       center = coords;
-    } else if (navigator.geolocation) {
+    } else {
       try {
-        const position = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
-        });
+        const position = await getCurrentPosition();
         center = { lat: position.coords.latitude, lng: position.coords.longitude };
       } catch (e) {
         console.error("Geolocation error:", e);

@@ -1304,22 +1304,32 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                   </div>
                 </div>
               ) : (
-                <GoogleMap
-                  mapContainerStyle={{ width: "100%", height: "100%" }}
-                  center={mapCenter}
-                  zoom={14}
-                  onClick={handleMapClick}
-                  onLoad={onMapLoad}
-                  options={{ 
-                    disableDefaultUI: true, 
-                    zoomControl: true,
-                    streetViewControl: false,
-                    mapTypeControl: false,
-                    fullscreenControl: false
-                  }}
-                >
-                  {mapMarker && <Marker position={mapMarker} />}
-                </GoogleMap>
+
+            <GoogleMap
+              mapContainerStyle={{ width: "100%", height: "100%" }}
+              center={mapCenter}
+              zoom={14}
+              onClick={handleMapClick}
+              onLoad={onMapLoad}
+              options={{ 
+                disableDefaultUI: true, 
+                zoomControl: false, // Changed from true to false for custom controls
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: false,
+                gestureHandling: 'auto', // Changed from default to 'auto' for better mobile interaction
+                draggable: true,
+                draggableCursor: 'grab',
+                draggableCursor: 'grabbing',
+                scrollwheel: false, // Prevent map scroll interference
+                touchZoom: true,
+                doubleClickZoom: true,
+                disableDoubleClickZoom: false,
+                clickableIcons: false
+              }}
+            >
+              {mapMarker && <Marker position={mapMarker} />}
+            </GoogleMap>
               )}
             </div>
             
@@ -1385,27 +1395,36 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
             <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
               <div className="w-full sm:w-1/2 h-64 sm:h-96 bg-slate-100 relative">
                 {isLoaded && directions && (
-                  <GoogleMap
-                    mapContainerStyle={{ width: "100%", height: "100%" }}
-                    center={mapCenter}
-                    zoom={12}
-                    options={{ 
-                      disableDefaultUI: true, 
-                      zoomControl: true,
-                      gestureHandling: 'greedy'
+
+                <GoogleMap
+                  mapContainerStyle={{ width: "100%", height: "100%" }}
+                  center={mapCenter}
+                  zoom={12}
+                  options={{ 
+                    disableDefaultUI: true, 
+                    zoomControl: false, // Changed from true to false
+                    gestureHandling: 'auto', // Changed from 'greedy' to 'auto'
+                    draggable: true,
+                    draggableCursor: 'grab',
+                    draggableCursor: 'grabbing',
+                    scrollwheel: false,
+                    touchZoom: true,
+                    doubleClickZoom: true,
+                    disableDoubleClickZoom: false,
+                    clickableIcons: false
+                  }}
+                >
+                  <DirectionsRenderer 
+                    directions={directions}
+                    options={{
+                      polylineOptions: {
+                        strokeColor: "#3b82f6",
+                        strokeWeight: 4,
+                        strokeOpacity: 0.8
+                      }
                     }}
-                  >
-                    <DirectionsRenderer 
-                      directions={directions}
-                      options={{
-                        polylineOptions: {
-                          strokeColor: "#3b82f6",
-                          strokeWeight: 4,
-                          strokeOpacity: 0.8
-                        }
-                      }}
-                    />
-                  </GoogleMap>
+                  />
+                </GoogleMap>
                 )}
               </div>
               

@@ -146,7 +146,7 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
   const [showRouteDetails, setShowRouteDetails] = useState(false);
   const [loadingAddress, setLoadingAddress] = useState(false);
   const [loadingDriverLocation, setLoadingDriverLocation] = useState(false);
-  const [useMotoIcon, setUseMotoIcon] = useState(false); // Toggle between car and moto
+  const [useMotoIcon, setUseMotoIcon] = useState(false);
 
   const isDelivery = order?.serviceType !== "taxi";
   
@@ -174,7 +174,6 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
   const handleShowRouteDetails = () => {
     setShowRouteDetails(!showRouteDetails);
     if (!showRouteDetails) {
-      // Small delay to ensure the element is rendered
       setTimeout(() => {
         if (routeDetailsRef.current) {
           scrollToElement(routeDetailsRef, 80);
@@ -518,7 +517,7 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {/* Map Section - Fixed height percentage */}
+          {/* Map Section - Updated for better mobile interaction */}
           <div ref={mapContainerRef} className="relative bg-slate-100" style={{ height: '45vh', minHeight: 320, maxHeight: 400 }}>
             {!isLoaded ? (
               <div className="w-full h-full flex items-center justify-center">
@@ -535,12 +534,29 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
                   zoom={zoom}
                   onLoad={onMapLoad}
                   options={{
+                    // Updated options for better mobile interaction
                     disableDefaultUI: true,
-                    zoomControl: true,
+                    zoomControl: false, // Disabled to use custom controls
                     mapTypeControl: false,
                     streetViewControl: false,
                     fullscreenControl: false,
-                    gestureHandling: 'cooperative'
+                    gestureHandling: 'auto', // Changed from 'cooperative' to 'auto'
+                    // These options improve touch interaction
+                    draggable: true,
+                    draggableCursor: 'grab',
+                    draggableCursor: 'grabbing',
+                    // Disable scrollwheel to prevent conflict with modal scrolling
+                    scrollwheel: false,
+                    // Touch controls
+                    touchZoom: true,
+                    doubleClickZoom: true,
+                    // Allow single finger pan on mobile
+                    disableDoubleClickZoom: false,
+                    clickableIcons: false,
+                    // Zoom control position
+                    zoomControlOptions: {
+                      position: window.google?.maps?.ControlPosition?.RIGHT_BOTTOM
+                    }
                   }}
                 >
                   {directions && (
@@ -627,9 +643,9 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
                   )}
                 </GoogleMap>
 
-                {/* Map Controls */}
+                {/* Map Controls - Updated with zoom controls */}
                 <div className="absolute bottom-3 left-3 right-3 flex justify-between gap-2">
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     {showRecenter && (
                       <>
                         <button
@@ -682,9 +698,39 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
                   )}
                 </div>
 
+                {/* Zoom Controls - Added for better mobile experience */}
+                <div className="absolute right-3 top-3 flex flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (mapRef.current) {
+                        const currentZoom = mapRef.current.getZoom();
+                        mapRef.current.setZoom(currentZoom + 1);
+                      }
+                    }}
+                    className="w-9 h-9 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:text-orange-600 transition-colors text-lg font-bold"
+                    title="Aumentar zoom"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (mapRef.current) {
+                        const currentZoom = mapRef.current.getZoom();
+                        mapRef.current.setZoom(currentZoom - 1);
+                      }
+                    }}
+                    className="w-9 h-9 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:text-orange-600 transition-colors text-lg font-bold"
+                    title="Diminuir zoom"
+                  >
+                    −
+                  </button>
+                </div>
+
                 {/* Progress Bar */}
                 {driverPosition && routeInfo && (
-                  <div className="absolute top-3 left-3 right-3">
+                  <div className="absolute top-3 left-3 right-[52px]">
                     <div className="bg-white/95 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg">
                       <div className="flex justify-between text-xs mb-1">
                         <span className="text-slate-600">Progresso da entrega</span>
@@ -702,7 +748,7 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
 
                 {/* Driver Location Loading Indicator */}
                 {showLoading && (
-                  <div className="absolute top-3 right-3">
+                  <div className="absolute top-3 right-[52px]">
                     <div className="bg-white/95 backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-lg flex items-center gap-2">
                       <Loader2 size={14} className="text-blue-500 animate-spin" />
                       <span className="text-xs text-slate-600">A carregar localização...</span>
@@ -713,7 +759,7 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
             )}
           </div>
 
-          {/* Order Details Section */}
+          {/* Order Details Section - Rest of the component remains the same */}
           <div className="p-4 space-y-4">
             {/* Status Badge */}
             <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full ${displayStatus.color}`}>
