@@ -15,6 +15,8 @@ import TrackOrderModal from "./modals/TrackOrderModal";
 import Notifications from "../common/Notifications";
 import {
   createFeedback,
+  updateFeedback,
+  deleteFeedback,
   getCustomerProfile,
   getCustomerOrders,
   getCustomerDashboard
@@ -38,6 +40,7 @@ const CustomerApp = () => {
   const [selectedTrackOrder, setSelectedTrackOrder] = useState(null);
   const [shouldRefreshOrders, setShouldRefreshOrders] = useState(false);
   const [feedbackOrder, setFeedbackOrder] = useState(null);
+  const [existingFeedback, setExistingFeedback] = useState(null);
   const [showFeedbackSuccess, setShowFeedbackSuccess] = useState(false);
   const [feedbackSuccessMessage, setFeedbackSuccessMessage] = useState("");
   const [showSupport, setShowSupport] = useState(false);
@@ -239,30 +242,52 @@ const CustomerApp = () => {
     setShowOrderDetails(true);
   };
 
-  const handleGiveFeedback = (order) => {
+  const handleGiveFeedback = (order, feedback = null) => {
     setFeedbackOrder(order);
+    setExistingFeedback(feedback);
     setShowFeedback(true);
     setShowOrderDetails(false)
   };
 
-  const handleSubmitFeedback = async (rating, comment) => {
+  const handleSubmitFeedback = async (rating, comment, feedbackId = null) => {
     if (!feedbackOrder) return;
     try {
-      await createFeedback({
-        orderId: feedbackOrder.id,
-        rating,
-        comment,
-        category: "service",
-        driverId: feedbackOrder.driverId || (typeof feedbackOrder.driver === "object" ? feedbackOrder.driver?.id : null)
-      });
+      if (feedbackId) {
+        await updateFeedback(feedbackId, {
+          rating,
+          comment,
+          category: "service"
+        });
+      } else {
+        await createFeedback({
+          orderId: feedbackOrder.id,
+          rating,
+          comment,
+          category: "service",
+          driverId: feedbackOrder.driverId || (typeof feedbackOrder.driver === "object" ? feedbackOrder.driver?.id : null)
+        });
+      }
       setRatedOrderIds(prev => new Set(prev).add(feedbackOrder.id));
-      setFeedbackSuccessMessage(`A sua avaliação para o pedido #${feedbackOrder.id ? feedbackOrder.id.slice(-6).toUpperCase() : ""} foi registada com sucesso!`);
+      setFeedbackSuccessMessage(feedbackId ? "A sua avaliação foi atualizada com sucesso!" : `A sua avaliação para o pedido #${feedbackOrder.id ? feedbackOrder.id.slice(-6).toUpperCase() : ""} foi registada com sucesso!`);
       setShowFeedbackSuccess(true);
       setShowFeedback(false);
       setFeedbackOrder(null);
+      setExistingFeedback(null);
       setRefreshData(true);
     } catch (error) {
       const message = error?.response?.data?.message || "Erro ao enviar avaliação";
+      toast.error(message);
+    }
+  };
+
+  const handleDeleteFeedback = async (feedbackId) => {
+    if (!feedbackId) return;
+    try {
+      await deleteFeedback(feedbackId);
+      toast.success("Avaliação removida com sucesso!");
+      setRefreshData(true);
+    } catch (error) {
+      const message = error?.response?.data?.message || "Erro ao remover avaliação";
       toast.error(message);
     }
   };
@@ -395,9 +420,11 @@ const CustomerApp = () => {
         onClose={() => {
           setShowFeedback(false);
           setFeedbackOrder(null);
+          setExistingFeedback(null);
           setRefreshData(true)
         }}
         order={feedbackOrder}
+        existingFeedback={existingFeedback}
         onSubmit={handleSubmitFeedback}
       />
 

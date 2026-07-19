@@ -1,6 +1,6 @@
 // src/components/common/OrderDetailModal.jsx
 import { useState, useEffect } from "react";
-import { updateOrder, getDrivers, getOrder, cancelOrder, getOrderIncidents, createIncident, updateIncidentWithFiles, deleteIncident } from "../../api/client";
+import { updateOrder, getDrivers, getOrder, cancelOrder, getOrderIncidents, createIncident, updateIncidentWithFiles, deleteIncident, deleteFeedback } from "../../api/client";
 import { toast } from "../../lib/toast";
 import {
   X,
@@ -27,7 +27,8 @@ import {
   Eye,
   EyeOff,
   UserCheck,
-  UserX
+  UserX,
+  Trash2
 } from "lucide-react";
 import Modal from "../common/Modal";
 import CancelOrderDialog from "../common/CancelOrderDialog";
@@ -63,9 +64,13 @@ const OrderDetailModal = ({
    const [showCancelDialog, setShowCancelDialog] = useState(false);
    const [showConfirmDialog, setShowConfirmDialog] = useState(false);
    const [pendingStatus, setPendingStatus] = useState(null);
-   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-   const [pendingDriverStatus, setPendingDriverStatus] = useState(null);
-   const [pendingAdminCompletion, setPendingAdminCompletion] = useState(false);
+    const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+    const [pendingDriverStatus, setPendingDriverStatus] = useState(null);
+    const [pendingAdminCompletion, setPendingAdminCompletion] = useState(false);
+    const [showDeleteFeedbackDialog, setShowDeleteFeedbackDialog] = useState(false);
+    const [feedbackToDelete, setFeedbackToDelete] = useState(null);
+
+   console.log({localOrder})
 
    // Incidents state
    const [incidents, setIncidents] = useState([]);
@@ -641,6 +646,43 @@ const OrderDetailModal = ({
     setShowCancelDialog(true);
   };
 
+  const handleEditFeedback = () => {
+    if (!localOrder || !customerFeedback) return;
+    if (onGiveFeedback) {
+      onGiveFeedback(localOrder, customerFeedback);
+    }
+  };
+
+  const handleDeleteFeedback = async () => {
+    if (!feedbackToDelete) return;
+    setIsSubmitting(true);
+    try {
+      await deleteFeedback(feedbackToDelete.id);
+      toast.success("Avaliação removida com sucesso!");
+      setShowDeleteFeedbackDialog(false);
+      setFeedbackToDelete(null);
+      setLocalOrder(prev => ({
+        ...prev,
+        feedbacks: (prev.feedbacks || []).filter(f => f.id !== feedbackToDelete.id)
+      }));
+      if (onUpdate) {
+        onUpdate({
+          ...localOrder,
+          feedbacks: (localOrder.feedbacks || []).filter(f => f.id !== feedbackToDelete.id)
+        });
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Erro ao remover avaliação");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const confirmDeleteFeedback = (feedback) => {
+    setFeedbackToDelete(feedback);
+    setShowDeleteFeedbackDialog(true);
+  };
+
   // Status checks
   const statusConfig = getStatusConfig(localOrder?.status);
   const StatusIcon = statusConfig.icon;
@@ -652,6 +694,7 @@ const OrderDetailModal = ({
   const canCancel = !isCompleted && !isCancelled && !isRejected;
   const urgencyConfig = isDelivery && localOrder?.urgencyLevel ? getUrgencyConfig(localOrder.urgencyLevel) : null;
   const paymentStatusConfig = getPaymentStatusConfig(localOrder?.paymentStatus);
+  const customerFeedback = localOrder?.feedbacks?.find(f => f.client?.id === localOrder.clientId);
 
   // Selected driver for admin
   const selectedDriver = drivers.find(d => d.id === form.driverId);
@@ -801,6 +844,30 @@ const OrderDetailModal = ({
               </p>
             </div>
           </div>
+
+          {localOrder.paymentStatus === 'pending' && localOrder.payments && localOrder.payments.some(p => p.checkoutUrl) && (
+            <div className="mt-2 space-y-2">
+              {(() => {
+                const pendingPayment = localOrder.payments.find(p => p.checkoutUrl);
+                return (
+                  <>
+                    <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-100">
+                      O pagamento está pendente. Complete o pagamento para confirmar o pedido.
+                    </p>
+                    <a
+                      href={pendingPayment.checkoutUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500 text-white font-semibold text-sm hover:bg-green-600 transition-colors"
+                    >
+                      <CreditCard size={16} />
+                      Ir para Checkout
+                    </a>
+                  </>
+                );
+              })()}
+            </div>
+          )}
 
           {localOrder.client && (
             <div className="flex justify-between items-start">
@@ -964,7 +1031,7 @@ const OrderDetailModal = ({
           disabled={isSubmitting || form.status === localOrder?.status}
           className="w-full mt-2 py-2 rounded-lg bg-orange-500 text-white font-semibold text-sm hover:bg-orange-600 disabled:opacity-50 transition-colors"
         >
-          Aplicar Mudança de Status
+          Aplicar Mudança de Statuss=
         </button>
       </div>
 
@@ -1135,10 +1202,20 @@ const OrderDetailModal = ({
   // Render Footer Actions for Customer
   const renderCustomerFooter = () => (
     <div className="flex gap-2">
-      {isCompleted && onGiveFeedback && (
+      {isCompleted && onGiveFeedback && !customerFeedback && (
         <button onClick={() => onGiveFeedback(localOrder)} className="flex-1 py-2.5 rounded-xl bg-amber-100 text-amber-700 font-semibold text-sm hover:bg-amber-200 transition-colors flex items-center justify-center gap-2">
           <Star size={16} /> Avaliar Pedido
         </button>
+      )}
+      {isCompleted && customerFeedback && (
+        <>
+          <button onClick={handleEditFeedback} className="flex-1 py-2.5 rounded-xl bg-amber-100 text-amber-700 font-semibold text-sm hover:bg-amber-200 transition-colors flex items-center justify-center gap-2">
+            <Edit2 size={16} /> Editar Avaliação
+          </button>
+          <button onClick={() => confirmDeleteFeedback(customerFeedback)} className="flex-1 py-2.5 rounded-xl bg-red-100 text-red-700 font-semibold text-sm hover:bg-red-200 transition-colors flex items-center justify-center gap-2">
+            <Trash2 size={16} /> Eliminar
+          </button>
+        </>
       )}
       {isActive && (
         <button onClick={() => setShowTrackModal(true)} className="flex-1 py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
@@ -1581,6 +1658,31 @@ const OrderDetailModal = ({
           cancelText="Cancelar"
           variant={pendingDriverStatus === "cancelled" || pendingDriverStatus === "rejected" ? "danger" : "warning"}
         />
+      )}
+
+      {/* Delete Feedback Confirmation Dialog */}
+      {showDeleteFeedbackDialog && feedbackToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
+            <div className="text-center mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <AlertCircle size={24} className="text-red-600" />
+              </div>
+              <h3 className="text-base font-bold text-slate-800">Eliminar Avaliação</h3>
+              <p className="text-sm text-slate-500 mt-1">
+                Tem certeza que deseja eliminar esta avaliação? Esta ação não pode ser revertida.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => { setShowDeleteFeedbackDialog(false); setFeedbackToDelete(null); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
+                Cancelar
+              </button>
+              <button onClick={handleDeleteFeedback} disabled={isSubmitting} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-bold text-sm shadow-lg shadow-red-300 hover:bg-red-600 disabled:opacity-70 disabled:cursor-not-allowed">
+                {isSubmitting ? "A eliminar..." : "Eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Report Incident Modal */}
