@@ -348,9 +348,9 @@ const OrdersList = ({
     }
   };
 
-  const handleGiveFeedback = (order) => {
+  const handleGiveFeedback = (order,feedback=null) => {
     if (onGiveFeedback) {
-      onGiveFeedback(order);
+      onGiveFeedback(order,feedback);
     }
     setShowOrderDetails(false);
     setMenuOpenId(null);
@@ -607,7 +607,7 @@ const OrdersList = ({
           }}
           order={selectedOrder}
           orderId={selectedOrder.id}
-          onGiveFeedback={() => handleGiveFeedback(selectedOrder)}
+          onGiveFeedback={() => handleGiveFeedback(selectedOrder, selectedOrder.feedbacks[0] || null)}
         />
       );
     }

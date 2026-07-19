@@ -646,13 +646,7 @@ const OrderDetailModal = ({
     setShowCancelDialog(true);
   };
 
-  const handleEditFeedback = () => {
-    if (!localOrder || !customerFeedback) return;
-    if (onGiveFeedback) {
-      onGiveFeedback(localOrder, customerFeedback);
-    }
-  };
-
+ 
   const handleDeleteFeedback = async () => {
     if (!feedbackToDelete) return;
     setIsSubmitting(true);
@@ -698,6 +692,16 @@ const OrderDetailModal = ({
 
   // Selected driver for admin
   const selectedDriver = drivers.find(d => d.id === form.driverId);
+
+
+   const handleEditFeedback = () => {
+    if (!localOrder || !customerFeedback) return;
+    if (onGiveFeedback) {
+      onGiveFeedback(localOrder, customerFeedback);
+    }
+  };
+
+
 
   // Get existing payment method from order
   const existingPaymentMethod = localOrder?.paymentMethod;
