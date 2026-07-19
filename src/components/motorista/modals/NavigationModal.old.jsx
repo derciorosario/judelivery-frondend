@@ -107,107 +107,33 @@ const normalizeCoords = (coord) => {
   return null;
 };
 
-// Custom driver car icon with proper error handling
+// Custom driver car icon
 const getDriverCarIcon = () => {
-  if (!window.google || !window.google.maps) return null;
-  
-  try {
-    // Check if Point class exists
-    const anchor = window.google.maps.Point 
-      ? new window.google.maps.Point(12, 12)
-      : { x: 12, y: 12 };
-    
-    return {
-      path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
-      fillColor: "#3b82f6",
-      fillOpacity: 1,
-      strokeColor: "#ffffff",
-      strokeWeight: 2,
-      scale: 1.5,
-      anchor: anchor,
-      rotation: 0
-    };
-  } catch (error) {
-    console.error("Error creating driver icon:", error);
-    return null;
-  }
+  if (!window.google) return null;
+  return {
+    path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
+    fillColor: "#3b82f6",
+    fillOpacity: 1,
+    strokeColor: "#ffffff",
+    strokeWeight: 2,
+    scale: 1.5,
+    anchor: new window.google.maps.Point(12, 12),
+    rotation: 0
+  };
 };
 
-// Alternative SVG-based driver icon (more reliable)
-const getDriverCarIconSVG = () => {
-  if (!window.google || !window.google.maps) return null;
-  
-  try {
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48">
-        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" 
-              fill="#3b82f6" stroke="#ffffff" stroke-width="2"/>
-        <circle cx="12" cy="9" r="2" fill="#ffffff"/>
-      </svg>
-    `;
-    
-    return {
-      url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-      scaledSize: new window.google.maps.Size(48, 48),
-      anchor: window.google.maps.Point 
-        ? new window.google.maps.Point(24, 24)
-        : { x: 24, y: 24 }
-    };
-  } catch (error) {
-    console.error("Error creating SVG driver icon:", error);
-    return null;
-  }
-};
-
-// Custom marker icons with proper error handling
+// Custom marker icons
 const createMarkerIcon = (color, scale = 8) => {
-  if (!window.google || !window.google.maps) return null;
-  
-  try {
-    const icon = {
-      path: window.google.maps.SymbolPath.CIRCLE,
-      fillColor: color,
-      fillOpacity: 1,
-      strokeColor: "#ffffff",
-      strokeWeight: 2,
-      scale: scale,
-    };
-    
-    // Only add anchor if Point is available
-    if (window.google.maps.Point) {
-      icon.anchor = new window.google.maps.Point(0, 0);
-    }
-    
-    return icon;
-  } catch (error) {
-    console.error("Error creating marker icon:", error);
-    return null;
-  }
-};
-
-// Alternative SVG-based marker icon
-const createMarkerIconSVG = (color, scale = 8) => {
-  if (!window.google || !window.google.maps) return null;
-  
-  try {
-    const size = scale * 2.5;
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" width="${size}" height="${size}">
-        <circle cx="10" cy="10" r="8" fill="${color}" stroke="#ffffff" stroke-width="2"/>
-      </svg>
-    `;
-    
-    return {
-      url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-      scaledSize: new window.google.maps.Size(size, size),
-      anchor: window.google.maps.Point 
-        ? new window.google.maps.Point(size/2, size/2)
-        : { x: size/2, y: size/2 }
-    };
-  } catch (error) {
-    console.error("Error creating SVG marker icon:", error);
-    return null;
-  }
+  if (!window.google) return null;
+  return {
+    path: window.google.maps.SymbolPath.CIRCLE,
+    fillColor: color,
+    fillOpacity: 1,
+    strokeColor: "#ffffff",
+    strokeWeight: 2,
+    scale: scale,
+    anchor: new window.google.maps.Point(0, 0)
+  };
 };
 
 const NavigationModal = ({ isOpen, onClose, order }) => {
@@ -232,7 +158,6 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
   const [remainingDistance, setRemainingDistance] = useState(null);
   const [remainingDuration, setRemainingDuration] = useState(null);
   const [showStepDetails, setShowStepDetails] = useState(false);
-  const [mapError, setMapError] = useState(false);
 
   const isActive = order?.status === "in_transit" || order?.status === "Em entrega";
 
@@ -247,7 +172,9 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
     if (s === "assigned") return "Atribuído";
     if (s === "rejected") return "Rejeitado";
     return status || "Processando";
-  };
+};
+
+
 
   // Extract coordinates from order
   useEffect(() => {
@@ -268,58 +195,49 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
 
   // Calculate route
   const calculateRoute = useCallback(() => {
-    if (!isLoaded || !window.google || !originCoords || !destCoords) {
-      console.log("Cannot calculate route: missing dependencies");
-      return;
+    if (!isLoaded || !window.google || !originCoords || !destCoords) return;
+
+    if (!directionsServiceRef.current) {
+      directionsServiceRef.current = new window.google.maps.DirectionsService();
     }
 
-    try {
-      if (!directionsServiceRef.current) {
-        directionsServiceRef.current = new window.google.maps.DirectionsService();
-      }
-
-      directionsServiceRef.current.route(
-        {
-          origin: new window.google.maps.LatLng(originCoords.lat, originCoords.lng),
-          destination: new window.google.maps.LatLng(destCoords.lat, destCoords.lng),
-          travelMode: window.google.maps.TravelMode.DRIVING,
-          language: 'pt-BR',
-        },
-        (result, status) => {
-          if (status === "OK" && result) {
-            setDirections(result);
-            const route = result.routes[0];
-            const leg = route.legs[0];
-            setRouteInfo({
-              distance: leg.distance?.text,
-              distanceValue: leg.distance?.value,
-              duration: leg.duration?.text,
-              durationValue: leg.duration?.value,
-              startAddress: leg.start_address,
-              endAddress: leg.end_address,
-              steps: leg.steps.map(step => ({
-                instruction: step.instructions,
-                distance: step.distance.text,
-                distanceValue: step.distance.value,
-                duration: step.duration.text,
-                durationValue: step.duration.value,
-                lat: step.end_location.lat(),
-                lng: step.end_location.lng()
-              }))
-            });
-            setRemainingDistance(leg.distance?.text);
-            setRemainingDuration(leg.duration?.text);
-            setMapError(false);
-          } else {
-            console.error("Directions request failed:", status);
-            setMapError(true);
-          }
+    directionsServiceRef.current.route(
+      {
+        origin: new window.google.maps.LatLng(originCoords.lat, originCoords.lng),
+        destination: new window.google.maps.LatLng(destCoords.lat, destCoords.lng),
+        travelMode: window.google.maps.TravelMode.DRIVING,
+        language: 'pt-BR', 
+        
+      },
+      (result, status) => {
+        if (status === "OK" && result) {
+          setDirections(result);
+          const route = result.routes[0];
+          const leg = route.legs[0];
+          setRouteInfo({
+            distance: leg.distance?.text,
+            distanceValue: leg.distance?.value,
+            duration: leg.duration?.text,
+            durationValue: leg.duration?.value,
+            startAddress: leg.start_address,
+            endAddress: leg.end_address,
+            steps: leg.steps.map(step => ({
+              instruction: step.instructions,
+              distance: step.distance.text,
+              distanceValue: step.distance.value,
+              duration: step.duration.text,
+              durationValue: step.duration.value,
+              lat: step.end_location.lat(),
+              lng: step.end_location.lng()
+            }))
+          });
+          setRemainingDistance(leg.distance?.text);
+          setRemainingDuration(leg.duration?.text);
+        } else {
+          console.error("Directions request failed:", status);
         }
-      );
-    } catch (error) {
-      console.error("Error calculating route:", error);
-      setMapError(true);
-    }
+      }
+    );
   }, [isLoaded, originCoords, destCoords]);
 
   useEffect(() => {
@@ -550,15 +468,11 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
   // Fit bounds to show full route
   const fitBounds = () => {
     if (mapRef.current && window.google && originCoords && destCoords) {
-      try {
-        const bounds = new window.google.maps.LatLngBounds();
-        bounds.extend(originCoords);
-        bounds.extend(destCoords);
-        if (driverPosition) bounds.extend(driverPosition);
-        mapRef.current.fitBounds(bounds);
-      } catch (error) {
-        console.error("Error fitting bounds:", error);
-      }
+      const bounds = new window.google.maps.LatLngBounds();
+      bounds.extend(originCoords);
+      bounds.extend(destCoords);
+      if (driverPosition) bounds.extend(driverPosition);
+      mapRef.current.fitBounds(bounds);
     }
   };
 
@@ -579,13 +493,9 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
   // Simulate voice instruction (text-to-speech)
   const speakInstruction = (instruction) => {
     if (isMuted) return;
-    try {
-      const utterance = new SpeechSynthesisUtterance(instruction);
-      utterance.lang = "pt-BR";
-      window.speechSynthesis.speak(utterance);
-    } catch (error) {
-      console.error("Error speaking instruction:", error);
-    }
+    const utterance = new SpeechSynthesisUtterance(instruction);
+    utterance.lang = "pt-BR";
+    window.speechSynthesis.speak(utterance);
   };
 
   // Get next instruction
@@ -604,13 +514,11 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
 
   const onMapLoad = useCallback((map) => {
     mapRef.current = map;
-    if (originCoords && destCoords) {
-      setTimeout(() => fitBounds(), 100);
-    }
-  }, [originCoords, destCoords]);
+    fitBounds();
+  }, [fitBounds]);
 
-  // Cleanup on unmount - do not uncomment this line because it is breaking my app
- /* useEffect(() => {
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
       if (watchIdRef.current !== null) {
         if (isNative) {
@@ -622,16 +530,12 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
       }
       window.speechSynthesis.cancel();
     };
-  }, []);*/
+  }, []);
 
   if (!isOpen || !order) return null;
 
   const currentInstruction = getNextInstruction();
-  
-  // Safely create icons - using SVG versions as fallback
-  const DriverIcon = isLoaded ? getDriverCarIconSVG() || getDriverCarIcon() : null;
-  const originIcon = isLoaded ? createMarkerIconSVG("#10b981", 10) || createMarkerIcon("#10b981", 10) : null;
-  const destIcon = isLoaded ? createMarkerIconSVG("#ef4444", 10) || createMarkerIcon("#ef4444", 10) : null;
+  const DriverIcon = getDriverCarIcon();
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Navegação">
@@ -643,14 +547,6 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
               <div className="text-center">
                 <div className="animate-spin w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full mx-auto mb-2" />
                 <p className="text-xs text-slate-500">A carregar mapa...</p>
-              </div>
-            </div>
-          ) : mapError ? (
-            <div className="w-full h-full flex items-center justify-center bg-slate-100">
-              <div className="text-center">
-                <AlertCircle size={32} className="text-red-500 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-slate-700">Erro ao carregar rota</p>
-                <p className="text-xs text-slate-500 mt-1">Tente novamente mais tarde</p>
               </div>
             </div>
           ) : (
@@ -686,10 +582,10 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
                 )}
 
                 {/* Origin Marker */}
-                {originCoords && originIcon && (
+                {originCoords && (
                   <Marker
                     position={originCoords}
-                    icon={originIcon}
+                    icon={createMarkerIcon("#10b981", 10)}
                     onClick={() => setSelectedMarker('origin')}
                   >
                     {selectedMarker === 'origin' && (
@@ -706,10 +602,10 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
                 )}
 
                 {/* Destination Marker */}
-                {destCoords && destIcon && (
+                {destCoords && (
                   <Marker
                     position={destCoords}
-                    icon={destIcon}
+                    icon={createMarkerIcon("#ef4444", 10)}
                     onClick={() => setSelectedMarker('destination')}
                   >
                     {selectedMarker === 'destination' && (
@@ -726,7 +622,7 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
                 )}
 
                 {/* Driver Marker */}
-                {driverPosition && DriverIcon && isLoaded && (
+                {driverPosition && DriverIcon && (
                   <Marker
                     position={driverPosition}
                     icon={DriverIcon}
