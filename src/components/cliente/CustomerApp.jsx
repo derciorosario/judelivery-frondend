@@ -66,7 +66,7 @@ const CustomerApp = () => {
 
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },
-    { id: "orders", label: "Pedidos", icon: "package", path: "/my-orders" },
+    { id: "orders", label: "Pedidos", icon: "package", path: "/orders" },
     { id: "tracking", label: "Rastrear", icon: "map", path: "/tracking" },
     { id: "history", label: "Histórico", icon: "history", path: "/history" },
     { id: "profile", label: "Perfil", icon: "user", path: "/profile" },

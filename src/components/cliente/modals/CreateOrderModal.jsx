@@ -871,8 +871,11 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
   };
 
   const handleViewOrderDetails = (order) => {
-    if (onOrderCreated) {
+    if (onOrderCreated && !editOrder) {
       onOrderCreated(order);
+    }
+    if (onOrderUpdated && editOrder) {
+      onOrderUpdated(order);
     }
 
     window.dispatchEvent(new CustomEvent('notification:openOrder', { detail: { orderId:order.id } }));
@@ -1014,6 +1017,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
       if (editOrder) {
         response = await updateOrder(editOrder.id, orderPayload);
         setSubmitStatus('success');
+        setCreatedOrder(response.data);
         if (onOrderUpdated) onOrderUpdated(response.data);
       } else {
         response = await apiCreateOrder(orderPayload);
@@ -1616,18 +1620,40 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
               </div>
             </div>
 
-            <button
-              onClick={() => {
-                setSubmitStatus('idle');
-                resetForm();
-                if (!createdOrder) {
+            {createdOrder ? (
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => {
+                    setSubmitStatus('idle');
+                    resetForm();
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-green-500 text-white font-bold text-sm shadow-lg shadow-green-500/30 hover:bg-green-600 transition-colors"
+                >
+                  Fazer outro pedido
+                </button>
+                <button
+                  onClick={() => {
+                    setSubmitStatus('idle');
+                    resetForm();
+                    onClose(true);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setSubmitStatus('idle');
+                  resetForm();
                   onClose(true);
-                }
-              }}
-              className="w-full mt-4 py-2.5 rounded-xl bg-green-500 text-white font-bold text-sm shadow-lg shadow-green-500/30 hover:bg-green-600 transition-colors"
-            >
-              {createdOrder ? "Ir para o início" : "Entendi"}
-            </button>
+                }}
+                className="w-full mt-4 py-2.5 rounded-xl bg-green-500 text-white font-bold text-sm shadow-lg shadow-green-500/30 hover:bg-green-600 transition-colors"
+              >
+                Entendi
+              </button>
+            )}
           </div>
         </div>
       )}

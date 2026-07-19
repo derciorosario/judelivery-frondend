@@ -570,7 +570,9 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
                           strokeOpacity: 0.8,
                         },
                         suppressMarkers: true,
-                        preserveViewport: true
+                        preserveViewport: true,
+                        language: 'pt',
+                        region: 'mz'
                       }}
                     />
                   )}
