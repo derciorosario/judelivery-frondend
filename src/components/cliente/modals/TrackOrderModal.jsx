@@ -302,6 +302,7 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
         origin: new window.google.maps.LatLng(originCoords.lat, originCoords.lng),
         destination: new window.google.maps.LatLng(destCoords.lat, destCoords.lng),
         travelMode: window.google.maps.TravelMode.DRIVING,
+        language:'pt'
       },
       (result, status) => {
         if (status === "OK" && result) {

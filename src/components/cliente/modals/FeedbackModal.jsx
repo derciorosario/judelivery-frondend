@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import Icon from "../../common/Icon";
 
-const FeedbackModal = ({ isOpen, onClose, order, onSubmit }) => {
+const FeedbackModal = ({ isOpen, onClose, order, onSubmit, existingFeedback }) => {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [hoverRating, setHoverRating] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  const isEditing = Boolean(existingFeedback);
 
   const toShortId = (id) => {
     if (!id) return "---";
@@ -13,19 +15,28 @@ const FeedbackModal = ({ isOpen, onClose, order, onSubmit }) => {
     return `#${hex.slice(-6)}`;
   };
 
+  useEffect(() => {
+    if (isOpen) {
+      if (existingFeedback) {
+        setRating(existingFeedback.rating || 5);
+        setComment(existingFeedback.comment || "");
+      } else {
+        setRating(5);
+        setComment("");
+      }
+      setHoverRating(0);
+    }
+  }, [isOpen, existingFeedback]);
+
   const handleSubmit = async () => {
     if (!order) return;
     setLoading(true);
     try {
-      await onSubmit(rating, comment);
+      await onSubmit(rating, comment, existingFeedback?.id);
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(()=>{
-    setComment('')
-  },[isOpen])
 
   if (!isOpen || !order) return null;
 
@@ -33,7 +44,7 @@ const FeedbackModal = ({ isOpen, onClose, order, onSubmit }) => {
     <div className="fixed inset-0 !mb-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-2xl w-full max-w-md p-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-slate-800">Avaliar Pedido</h2>
+          <h2 className="text-lg font-bold text-slate-800">{isEditing ? "Editar Avaliação" : "Avaliar Pedido"}</h2>
           <button type="button" onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
             <Icon name="x" size={16} className="text-black" />
           </button>
@@ -92,7 +103,7 @@ const FeedbackModal = ({ isOpen, onClose, order, onSubmit }) => {
             Cancelar
           </button>
           <button type="button" onClick={handleSubmit} disabled={loading} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm disabled:opacity-50">
-            {loading ? "Enviando..." : "Enviar Avaliação"}
+            {loading ? "A guardar..." : (isEditing ? "Atualizar Avaliação" : "Enviar Avaliação")}
           </button>
         </div>
       </div>

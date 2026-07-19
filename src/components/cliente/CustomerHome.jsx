@@ -250,7 +250,7 @@ const CustomerHome = ({
         <div>
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm font-bold text-slate-700">Pedidos Pendentes</p>
-            <button onClick={() => navigate('/my-orders')} className="text-xs text-orange-500 pointer-pointer font-medium">ver todos →</button>
+            <button onClick={() => navigate('/orders')} className="text-xs text-orange-500 pointer-pointer font-medium">ver todos →</button>
           </div>
           {pendingOrders.slice(0, 2).map(order => (
             <div key={order.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm mb-3">

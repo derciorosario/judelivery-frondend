@@ -255,6 +255,11 @@ const Notifications = () => {
       }
     }
 
+    if (n.content?.checkoutUrl) {
+      window.open(n.content.checkoutUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
     if (n.category === "order" || n.category === "customer_order" || n.category === "customer_driver") {
       const orderId = n.content?.orderId;
       if (orderId) {

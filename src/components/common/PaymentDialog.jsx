@@ -25,6 +25,8 @@ const PaymentDialog = ({
   const [feePercentage, setFeePercentage] = useState(0);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [checkoutUrl, setCheckoutUrl] = useState(null);
+  const [payWithPaySuite, setPayWithPaySuite] = useState(true);
 
   const directTransferOptions = [
     { id: "cash", name: "Dinheiro", number: "Pagar em dinheiro na entrega", holder: "Pague ao motorista" },
@@ -98,10 +100,16 @@ const PaymentDialog = ({
         fee,
         feePercentage,
         totalWithFees: calculatedTotal,
-        phoneNumber: paymentType === "online" && paymentMethod === "mpesa" ? phoneNumber : undefined
+        phoneNumber: paymentType === "online" && (paymentMethod === "mpesa" || paymentMethod === "emola") && !payWithPaySuite ? phoneNumber : undefined
       };
 
       const response = await createPayment(paymentData);
+      
+      if (response.data?.status === 'pending' && response.data?.checkoutUrl) {
+        toast.success("Pagamento criado! Clique abaixo para ir ao checkout.");
+        setCheckoutUrl(response.data.checkoutUrl);
+        return;
+      }
       
       toast.success("Pagamento processado com sucesso!");
       
@@ -144,6 +152,7 @@ const PaymentDialog = ({
   const showExistingPaymentInfo = existingPaymentMethod && !paymentType && !paymentMethod;
 
   const isMpesaSelected = paymentType === "online" && paymentMethod === "mpesa";
+  const isEmolaSelected = paymentType === "online" && paymentMethod === "emola";
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={getRoleTitle()} size="lg">
@@ -191,11 +200,11 @@ const PaymentDialog = ({
         <div>
           <label className="block text-xs font-semibold text-slate-500 mb-2">Selecione o tipo de pagamento</label>
           <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => {
-                setPaymentType("direct");
-                setPaymentMethod(null);
-              }}
+              <button
+                onClick={() => {
+                  setPaymentType("direct");
+                  setPaymentMethod(null);
+                }}
               className={`p-3 rounded-lg border-2 transition-all ${
                 paymentType === "direct"
                   ? "border-orange-500 bg-orange-50"
@@ -206,11 +215,11 @@ const PaymentDialog = ({
               <p className="text-sm font-semibold text-slate-700">Transferência Directa</p>
               <p className="text-xs text-slate-500">Pagamento manual - Sem taxas</p>
             </button>
-            <button
-              onClick={() => {
-                setPaymentType("online");
-                setPaymentMethod(null);
-              }}
+              <button
+                onClick={() => {
+                  setPaymentType("online");
+                  setPaymentMethod(null);
+                }}
               className={`p-3 rounded-lg border-2 transition-all ${
                 paymentType === "online"
                   ? "border-orange-500 bg-orange-50"
@@ -230,9 +239,11 @@ const PaymentDialog = ({
             <label className="block text-xs font-semibold text-slate-500 mb-2">Selecione o método de transferência</label>
             <div className="space-y-2">
               {directTransferOptions.map(option => (
-                <button
-                  key={option.id}
-                  onClick={() => setPaymentMethod(option.id)}
+              <button
+                key={option.id}
+                onClick={() => {
+                  setPaymentMethod(option.id);
+                }}
                   className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
                     paymentMethod === option.id
                       ? "border-orange-500 bg-orange-50"
@@ -274,9 +285,11 @@ const PaymentDialog = ({
                 const Icon = option.icon;
                 const isSelected = paymentMethod === option.id;
                 return (
-                  <button
-                    key={option.id}
-                    onClick={() => setPaymentMethod(option.id)}
+                <button
+                  key={option.id}
+                  onClick={() => {
+                    setPaymentMethod(option.id);
+                  }}
                     className={`p-3 rounded-lg border-2 transition-all text-center ${
                       isSelected
                         ? "border-orange-500 bg-orange-50"
@@ -295,7 +308,7 @@ const PaymentDialog = ({
             </div>
             
             {/* Phone number input for M-Pesa */}
-            {isMpesaSelected && (
+            {(isMpesaSelected && !payWithPaySuite) && (
               <div className="mt-3">
                 <label className="block text-xs font-semibold text-slate-500 mb-2">Número de telefone M-Pesa</label>
                 <div className="relative">
@@ -310,6 +323,26 @@ const PaymentDialog = ({
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">
                   Insira o número M-Pesa registado para receber o pedido de pagamento
+                </p>
+              </div>
+            )}
+
+            {/* Phone number input for E-Mola */}
+            {(isEmolaSelected && !payWithPaySuite) && (
+              <div className="mt-3">
+                <label className="block text-xs font-semibold text-slate-500 mb-2">Número de telefone E-Mola</label>
+                <div className="relative">
+                  <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="84 123 4567"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Insira o número E-Mola registado para receber o pedido de pagamento
                 </p>
               </div>
             )}
@@ -341,6 +374,7 @@ const PaymentDialog = ({
         )}
 
         {/* Action Buttons */}
+        {!checkoutUrl && (
         <div className="flex gap-3 pt-3 border-t border-slate-100">
           <button
             onClick={onClose}
@@ -351,7 +385,7 @@ const PaymentDialog = ({
           </button>
           <button
             onClick={handleConfirm}
-            disabled={isProcessing || isSubmitting || !paymentType || !paymentMethod || (isMpesaSelected && !phoneNumber)}
+            disabled={isProcessing || isSubmitting || !paymentType || !paymentMethod || ((isMpesaSelected || isEmolaSelected) && !payWithPaySuite && !phoneNumber)}
             className="flex-1 py-2.5 rounded-lg bg-green-500 text-white font-semibold text-sm hover:bg-green-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
           >
             {isProcessing || isSubmitting ? (
@@ -364,6 +398,29 @@ const PaymentDialog = ({
             )}
           </button>
         </div>
+        )}
+
+        {checkoutUrl && (
+          <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-200">
+            <p className="text-sm font-semibold text-green-800 mb-2">Pagamento criado com sucesso!</p>
+            <p className="text-xs text-green-700 mb-3">Clique no botão abaixo para completar o pagamento no gateway.</p>
+            <a
+              href={checkoutUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-500 text-white font-semibold text-sm hover:bg-green-600 transition-colors"
+            >
+              <CreditCard size={16} />
+              Ir para Checkout
+            </a>
+            <button
+              onClick={onClose}
+              className="w-full mt-3 py-2.5 rounded-lg border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors"
+            >
+              Fechar
+            </button>
+          </div>
+        )}
       </div>
     </Modal>
   );
