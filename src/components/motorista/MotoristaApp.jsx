@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getOrder, updateOrder, getDriverProfile, getDriverDashboard } from "../../api/client";
@@ -15,12 +15,20 @@ import OrderDetailModal from "../modals/OrderDetailModal";
 import { registerPush } from "../../services/push";
 import { useData } from "../../contexts/DataContext";
 
+// Memoize tab components to prevent unnecessary re-renders
+const MemoizedMotoristaHome = memo(MotoristaHome);
+const MemoizedMotoristaMap = memo(MotoristaMap);
+const MemoizedOrdersList = memo(OrdersList);
+const MemoizedMotoristaHistory = memo(MotoristaHistory);
+const MemoizedMotoristaProfile = memo(MotoristaProfile);
+const MemoizedNotifications = memo(Notifications);
+
 const MotoristaApp = () => {
   const [online, setOnline] = useState(true);
   const { user, signOut } = useAuth();
   const routerLocation = useLocation();
   const navigate = useNavigate();
-  const data=useData()
+  const data = useData();
   
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
@@ -31,23 +39,25 @@ const MotoristaApp = () => {
   const [profileLoading, setProfileLoading] = useState(true);
   const [orderDetailTab, setOrderDetailTab] = useState("details");
 
-  useEffect(() => {
-          if(user && !data.pushRegistered){
-            registerPush(user?.id,navigate,data)
-          }
-  }, [user]);
-  
+  // Use a single location instance at the app level
+  const location = useDriverLocation({ autoStart: true });
 
-  const tabs = [
+  useEffect(() => {
+    if (user && !data.pushRegistered) {
+      registerPush(user?.id, navigate, data);
+    }
+  }, [user, data, navigate]);
+
+  const tabs = useRef([
     { id: "home", label: "Início", icon: "home", path: "/" },
     { id: "map", label: "Mapa", icon: "map", path: "/map" },
     { id: "orders", label: "Pedidos", icon: "package", path: "/orders" },
     { id: "history", label: "Histórico", icon: "clock", path: "/history" },
     { id: "profile", label: "Perfil", icon: "settings", path: "/profile" },
     { id: "notifications", label: "Notificações", icon: "bell", path: "/notifications" },
-  ];
+  ]).current;
 
-  const getTabFromPath = () => {
+  const getTabFromPath = useCallback(() => {
     const rawPath = routerLocation.pathname;
     const normalized = rawPath.replace(/\/$/, "") || "/";
     const tab = tabs.find(t => {
@@ -55,7 +65,7 @@ const MotoristaApp = () => {
       return normalized === t.path || normalized === "/" + t.path || ("/" + t.path) === normalized;
     });
     return tab ? tab.id : "home";
-  };
+  }, [routerLocation.pathname, tabs]);
 
   const activeTab = getTabFromPath();
 
@@ -100,24 +110,19 @@ const MotoristaApp = () => {
     window.dispatchEvent(new CustomEvent('notification:openOrder', { detail: { orderId } }));
   }, [routerLocation.search, openOrderById]);
 
-  const location = useDriverLocation({ autoStart: true });
+  const handleOrderUpdate = useCallback((updatedOrder) => {
+    setOrderRefreshKey(prev => prev + 1);
+    setHomeRefreshKey(prev => prev + 1);
+    setHistoryRefreshKey(prev => prev + 1);
+    setSelectedOrder(prev => ({ ...prev, status: updatedOrder.status }));
+  }, []);
 
-  const handleOrderUpdate = (updatedOrder) => {
-      
-     setOrderRefreshKey(prev => prev + 1);
-     setHomeRefreshKey(prev => prev + 1);
-     setHistoryRefreshKey(prev => prev + 1);
-     setSelectedOrder(prev => ({...prev,status:updatedOrder.status}))
-
-   };
-
-
-  const handleStatusChange = (newStatus) => {
+  const handleStatusChange = useCallback((newStatus) => {
     if (!selectedOrder) return;
     updateOrderStatus(selectedOrder.id, newStatus);
-};
+  }, [selectedOrder]);
 
-  const updateOrderStatus = async (orderId, newStatus) => {
+  const updateOrderStatus = useCallback(async (orderId, newStatus) => {
     try {
       const payload = { status: newStatus };
       const res = await updateOrder(orderId, payload);
@@ -125,7 +130,7 @@ const MotoristaApp = () => {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [handleOrderUpdate]);
 
   const loadDriverProfile = useCallback(async () => {
     if (!user?.id) return;
@@ -144,6 +149,64 @@ const MotoristaApp = () => {
     loadDriverProfile();
   }, [loadDriverProfile]);
 
+  const handleCloseOrderDetails = useCallback(() => {
+    setShowOrderDetails(false);
+    setSelectedOrder(null);
+    setOrderRefreshKey(k => k + 1);
+    setHomeRefreshKey(k => k + 1);
+    setHistoryRefreshKey(k => k + 1);
+    setOrderDetailTab("details");
+  }, []);
+
+  // Memoize the render of each tab to prevent unnecessary re-renders
+  const renderTabContent = useCallback(() => {
+    switch (activeTab) {
+      case "home":
+        return (
+          <MemoizedMotoristaHome 
+            online={online} 
+            setOnline={setOnline} 
+            location={location} 
+            onOrderUpdate={handleOrderUpdate}
+            refreshKey={homeRefreshKey}
+          />
+        );
+      case "map":
+        return (
+          <MemoizedMotoristaMap 
+            online={online} 
+            onToggleOnline={setOnline} 
+            location={location} 
+          />
+        );
+      case "orders":
+        return (
+          <MemoizedOrdersList
+            refreshKey={orderRefreshKey}
+            showNewOrderButton={false}
+            title="Os Meus Pedidos"
+            onOrderUpdate={handleOrderUpdate}
+          />
+        );
+      case "history":
+        return <MemoizedMotoristaHistory refreshKey={historyRefreshKey} />;
+      case "profile":
+        return profileLoading ? (
+          <div className="text-center py-10 text-sm text-slate-500">A carregar perfil...</div>
+        ) : (
+          <MemoizedMotoristaProfile 
+            user={user} 
+            profileData={driverProfile} 
+            onProfileUpdated={loadDriverProfile} 
+          />
+        );
+      case "notifications":
+        return <MemoizedNotifications />;
+      default:
+        return null;
+    }
+  }, [activeTab, online, location, homeRefreshKey, orderRefreshKey, historyRefreshKey, 
+      handleOrderUpdate, profileLoading, user, driverProfile, loadDriverProfile]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto">
@@ -154,54 +217,19 @@ const MotoristaApp = () => {
         onNotificationClick={() => setTab("notifications")}
       />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
-        {activeTab === "home" && (
-           <MotoristaHome 
-             online={online} 
-             setOnline={setOnline} 
-             location={location} 
-             onOrderUpdate={handleOrderUpdate}
-             refreshKey={homeRefreshKey}
-           />
-         )}
-        {activeTab === "map" && (
-          <MotoristaMap online={online} onToggleOnline={setOnline} location={location} />
-        )}
-        {activeTab === "orders" && (
-          <OrdersList
-            refreshKey={orderRefreshKey}
-            showNewOrderButton={false}
-            title="Os Meus Pedidos"
-            onOrderUpdate={handleOrderUpdate}
-          />
-        )}
-        {activeTab === "history" && <MotoristaHistory refreshKey={historyRefreshKey} />}
-        {activeTab === "profile" && (
-          profileLoading ? (
-            <div className="text-center py-10 text-sm text-slate-500">A carregar perfil...</div>
-          ) : (
-            <MotoristaProfile user={user} profileData={driverProfile} onProfileUpdated={loadDriverProfile} />
-          )
-        )}
-        {activeTab === "notifications" && <Notifications />}
+        {renderTabContent()}
       </div>
       <BottomNav tabs={tabs} active={activeTab} setActive={setTab} />
 
-       <OrderDetailModal
-          isOpen={showOrderDetails}
-          onClose={() => {
-            setShowOrderDetails(false);
-            setSelectedOrder(null);
-            setOrderRefreshKey(k => k + 1);
-            setHomeRefreshKey(k => k + 1);
-            setHistoryRefreshKey(k => k + 1);
-            setOrderDetailTab("details");
-          }}
-          order={selectedOrder}
-          onUpdate={handleOrderUpdate}
-          onStatusChange={handleStatusChange}
-          role="driver"
-          initialTab={orderDetailTab}
-        />
+      <OrderDetailModal
+        isOpen={showOrderDetails}
+        onClose={handleCloseOrderDetails}
+        order={selectedOrder}
+        onUpdate={handleOrderUpdate}
+        onStatusChange={handleStatusChange}
+        role="driver"
+        initialTab={orderDetailTab}
+      />
     </div>
   );
 };
