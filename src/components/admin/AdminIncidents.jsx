@@ -4,8 +4,131 @@ import Modal from "../common/Modal";
 import { getIncidents, createIncident, updateIncidentWithFiles, deleteIncident } from "../../api/client";
 import { toast } from "../../lib/toast";
 import client, { API_URL } from "../../api/client";
+import { Capacitor } from '@capacitor/core';
 
-// Add Incident Modal
+// Camera Modal for native devices
+const CameraModal = ({ isOpen, onClose, onTakePhoto }) => {
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const [facingMode, setFacingMode] = useState('environment');
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      // Stop camera when modal closes
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+      setIsCameraReady(false);
+      setError(null);
+      return;
+    }
+
+    startCamera();
+
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    };
+  }, [isOpen, facingMode]);
+
+  const startCamera = async () => {
+    try {
+      setError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facingMode }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        setIsCameraReady(true);
+      }
+    } catch (err) {
+      console.error("Camera error:", err);
+      setError("Não foi possível acessar a câmera. Verifique as permissões.");
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+          onTakePhoto(file);
+          onClose();
+        }
+      }, 'image/jpeg', 0.9);
+    }
+  };
+
+  const switchCamera = () => {
+    setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black flex flex-col">
+      <div className="flex items-center justify-between p-4 bg-black/90">
+        <button onClick={onClose} className="text-white p-2">
+          <Icon name="x" size={24} />
+        </button>
+        <button onClick={switchCamera} className="text-white p-2">
+          <Icon name="refreshCw" size={20} />
+        </button>
+      </div>
+      
+      <div className="flex-1 relative bg-black flex items-center justify-center">
+        {error ? (
+          <div className="text-center text-white p-6">
+            <Icon name="alertCircle" size={48} className="mx-auto mb-4 text-red-400" />
+            <p className="text-sm">{error}</p>
+            <button 
+              onClick={startCamera}
+              className="mt-4 px-6 py-2 bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        ) : (
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        )}
+        <canvas ref={canvasRef} className="hidden" />
+      </div>
+      
+      <div className="p-6 bg-black/90 flex justify-center">
+        <button
+          onClick={capturePhoto}
+          disabled={!isCameraReady}
+          className={`w-16 h-16 rounded-full border-4 border-white ${
+            isCameraReady ? 'bg-white hover:bg-gray-200' : 'bg-gray-500'
+          } transition-colors flex items-center justify-center`}
+        >
+          <div className="w-12 h-12 rounded-full bg-transparent border-2 border-black" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Add Incident Modal with camera support
 const INCIDENT_TYPE_MAP = {
   "Acidente": "accident",
   "Avaria": "breakdown",
@@ -29,6 +152,16 @@ const AddIncidentModal = ({ isOpen, onClose, onAdd, drivers = [], orderId = null
   const [photos, setPhotos] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [isNative, setIsNative] = useState(false);
+
+  useEffect(() => {
+    setIsNative(Capacitor.isNativePlatform());
+  }, []);
+
+  const handleTakePhoto = (file) => {
+    setPhotos(prev => [...prev, file]);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,136 +205,155 @@ const AddIncidentModal = ({ isOpen, onClose, onAdd, drivers = [], orderId = null
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Registrar Incidente">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Tipo de Incidente</label>
-          <select
-            value={form.type}
-            onChange={e => setForm({ ...form, type: e.target.value })}
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
-          >
-            <option value="accident">Acidente</option>
-            <option value="breakdown">Avaria</option>
-            <option value="delivery_issue">Problema Entrega</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Título</label>
-          <input
-            type="text"
-            value={form.title}
-            onChange={e => setForm({ ...form, title: e.target.value })}
-            placeholder="Ex: Colisão na Av. Julius Nyerere"
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Descrição</label>
-          <textarea
-            value={form.description}
-            onChange={e => setForm({ ...form, description: e.target.value })}
-            placeholder="Descreva o incidente..."
-            rows={3}
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Motorista</label>
-          <select
-            value={form.driverId}
-            onChange={e => setForm({ ...form, driverId: e.target.value })}
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
-          >
-            <option value="">Selecionar motorista</option>
-            {drivers.map(d => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-2">Fotos</label>
-          <div className="grid grid-cols-3 gap-2 mb-2">
-            {photos.map((photo, index) => (
-              <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200 group">
-                <img
-                  src={URL.createObjectURL(photo)}
-                  alt={photo.name}
-                  className="w-full h-full object-cover"
+    <>
+      <CameraModal 
+        isOpen={cameraOpen} 
+        onClose={() => setCameraOpen(false)}
+        onTakePhoto={handleTakePhoto}
+      />
+      <Modal isOpen={isOpen} onClose={onClose} title="Registrar Incidente">
+        <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Tipo de Incidente</label>
+            <select
+              value={form.type}
+              onChange={e => setForm({ ...form, type: e.target.value })}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+            >
+              <option value="accident">Acidente</option>
+              <option value="breakdown">Avaria</option>
+              <option value="delivery_issue">Problema Entrega</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Título</label>
+            <input
+              type="text"
+              value={form.title}
+              onChange={e => setForm({ ...form, title: e.target.value })}
+              placeholder="Ex: Colisão na Av. Julius Nyerere"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Descrição</label>
+            <textarea
+              value={form.description}
+              onChange={e => setForm({ ...form, description: e.target.value })}
+              placeholder="Descreva o incidente..."
+              rows={3}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Motorista</label>
+            <select
+              value={form.driverId}
+              onChange={e => setForm({ ...form, driverId: e.target.value })}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+            >
+              <option value="">Selecionar motorista</option>
+              {drivers.map(d => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-2">Fotos</label>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {photos.map((photo, index) => (
+                <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200 group">
+                  <img
+                    src={URL.createObjectURL(photo)}
+                    alt={photo.name}
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(index)}
+                    className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-sm hover:bg-red-600 transition-colors shadow-lg z-10"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-slate-500 text-xs font-semibold cursor-pointer hover:border-orange-300 hover:text-orange-600 transition-colors">
+                <Icon name="camera" size={16} />
+                Selecionar Fotos
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => setPhotos(prev => [...prev, ...Array.from(e.target.files)])}
+                  className="hidden"
                 />
+              </label>
+              {isNative && (
                 <button
                   type="button"
-                  onClick={() => removePhoto(index)}
-                  className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-sm hover:bg-red-600 transition-colors shadow-lg z-10"
+                  onClick={() => setCameraOpen(true)}
+                  className="px-4 py-3 rounded-xl bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition-colors flex items-center gap-2 shrink-0"
                 >
-                  ×
+                  <Icon name="camera" size={16} />
+                  Tirar Foto
                 </button>
-              </div>
-            ))}
+              )}
+            </div>
           </div>
-          <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-slate-500 text-xs font-semibold cursor-pointer hover:border-orange-300 hover:text-orange-600 transition-colors">
-            <Icon name="camera" size={16} />
-            Adicionar Fotos
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => setPhotos(prev => [...prev, ...Array.from(e.target.files)])}
-              className="hidden"
-            />
-          </label>
-        </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-2">Documentos</label>
-          <div className="space-y-2 mb-2">
-            {documents.map((doc, index) => (
-              <div key={index} className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 border border-slate-200">
-                <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-                  <Icon name="file" size={18} className="text-red-500" />
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-2">Documentos</label>
+            <div className="space-y-2 mb-2">
+              {documents.map((doc, index) => (
+                <div key={index} className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                    <Icon name="file" size={18} className="text-red-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-slate-700 truncate">{doc.name}</p>
+                    <p className="text-[10px] text-slate-400">{(doc.size / 1024).toFixed(1)} KB</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeDocument(index)}
+                    className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 shrink-0"
+                  >
+                    ×
+                  </button>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-slate-700 truncate">{doc.name}</p>
-                  <p className="text-[10px] text-slate-400">{(doc.size / 1024).toFixed(1)} KB</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeDocument(index)}
-                  className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 shrink-0"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
+              ))}
+            </div>
+            <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-slate-500 text-xs font-semibold cursor-pointer hover:border-orange-300 hover:text-orange-600 transition-colors">
+              <Icon name="upload" size={16} />
+              Adicionar Documentos
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                multiple
+                onChange={(e) => setDocuments(prev => [...prev, ...Array.from(e.target.files)])}
+                className="hidden"
+              />
+            </label>
           </div>
-          <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-slate-500 text-xs font-semibold cursor-pointer hover:border-orange-300 hover:text-orange-600 transition-colors">
-            <Icon name="upload" size={16} />
-            Adicionar Documentos
-            <input
-              type="file"
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              multiple
-              onChange={(e) => setDocuments(prev => [...prev, ...Array.from(e.target.files)])}
-              className="hidden"
-            />
-          </label>
-        </div>
-        <div className="flex gap-2 pt-2">
-          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
-            Cancelar
-          </button>
-          <button type="submit" disabled={submitting} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-            {submitting ? "A registar..." : "Registar"}
-          </button>
-        </div>
-      </form>
-    </Modal>
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
+              Cancelar
+            </button>
+            <button type="submit" disabled={submitting} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              {submitting ? "A registar..." : "Registar"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    </>
   );
 };
 
-// Edit Incident Modal
+// Edit Incident Modal with camera support
 const EditIncidentModal = ({ isOpen, onClose, onUpdate, incident, drivers = [] }) => {
   const [form, setForm] = useState({
     type: "accident",
@@ -217,6 +369,12 @@ const EditIncidentModal = ({ isOpen, onClose, onUpdate, incident, drivers = [] }
   const [existingDocuments, setExistingDocuments] = useState([]);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [isNative, setIsNative] = useState(false);
+
+  useEffect(() => {
+    setIsNative(Capacitor.isNativePlatform());
+  }, []);
 
   useEffect(() => {
     if (incident) {
@@ -234,6 +392,10 @@ const EditIncidentModal = ({ isOpen, onClose, onUpdate, incident, drivers = [] }
       setDocuments([]);
     }
   }, [incident]);
+
+  const handleTakePhoto = (file) => {
+    setPhotos(prev => [...prev, file]);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -295,222 +457,241 @@ const EditIncidentModal = ({ isOpen, onClose, onUpdate, incident, drivers = [] }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Editar Incidente">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Tipo de Incidente</label>
-          <select
-            value={form.type}
-            onChange={e => setForm({ ...form, type: e.target.value })}
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
-          >
-            <option value="accident">Acidente</option>
-            <option value="breakdown">Avaria</option>
-            <option value="delivery_issue">Problema Entrega</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Título</label>
-          <input
-            type="text"
-            value={form.title}
-            onChange={e => setForm({ ...form, title: e.target.value })}
-            placeholder="Ex: Colisão na Av. Julius Nyerere"
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Descrição</label>
-          <textarea
-            value={form.description}
-            onChange={e => setForm({ ...form, description: e.target.value })}
-            placeholder="Descreva o incidente..."
-            rows={3}
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Motorista</label>
-          <select
-            value={form.driverId}
-            onChange={e => setForm({ ...form, driverId: e.target.value })}
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
-          >
-            <option value="">Selecionar motorista</option>
-            {drivers.map(d => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Status</label>
-          <select
-            value={form.status}
-            onChange={e => setForm({ ...form, status: e.target.value })}
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
-          >
-            <option value="pending">Em análise</option>
-            <option value="resolved">Resolvido</option>
-            <option value="completed">Concluído</option>
-            <option value="cancelled">Cancelado</option>
-          </select>
-        </div>
-        
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-2">Fotos</label>
-          {/* Existing Photos */}
-          {existingPhotos.length > 0 && (
-            <div className="mb-2">
-              <p className="text-[10px] text-slate-400 mb-1">Fotos existentes:</p>
-              <div className="grid grid-cols-3 gap-2">
-                {existingPhotos.map((photo, index) => (
-                  <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200 group">
-                    <img
-                      src={getFileUrl(photo)}
-                      alt={`Photo ${index + 1}`}
-                      className="w-full h-full object-cover cursor-pointer"
-                      onClick={() => openPhotoViewer(photo)}
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer" onClick={() => openPhotoViewer(photo)}>
-                      <Icon name="eye" size={20} className="text-white" />
+    <>
+      <CameraModal 
+        isOpen={cameraOpen} 
+        onClose={() => setCameraOpen(false)}
+        onTakePhoto={handleTakePhoto}
+      />
+      <Modal isOpen={isOpen} onClose={onClose} title="Editar Incidente">
+        <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Tipo de Incidente</label>
+            <select
+              value={form.type}
+              onChange={e => setForm({ ...form, type: e.target.value })}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+            >
+              <option value="accident">Acidente</option>
+              <option value="breakdown">Avaria</option>
+              <option value="delivery_issue">Problema Entrega</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Título</label>
+            <input
+              type="text"
+              value={form.title}
+              onChange={e => setForm({ ...form, title: e.target.value })}
+              placeholder="Ex: Colisão na Av. Julius Nyerere"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Descrição</label>
+            <textarea
+              value={form.description}
+              onChange={e => setForm({ ...form, description: e.target.value })}
+              placeholder="Descreva o incidente..."
+              rows={3}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Motorista</label>
+            <select
+              value={form.driverId}
+              onChange={e => setForm({ ...form, driverId: e.target.value })}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+            >
+              <option value="">Selecionar motorista</option>
+              {drivers.map(d => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Status</label>
+            <select
+              value={form.status}
+              onChange={e => setForm({ ...form, status: e.target.value })}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+            >
+              <option value="pending">Em análise</option>
+              <option value="resolved">Resolvido</option>
+              <option value="completed">Concluído</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-2">Fotos</label>
+            {/* Existing Photos */}
+            {existingPhotos.length > 0 && (
+              <div className="mb-2">
+                <p className="text-[10px] text-slate-400 mb-1">Fotos existentes:</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {existingPhotos.map((photo, index) => (
+                    <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200 group">
+                      <img
+                        src={getFileUrl(photo)}
+                        alt={`Photo ${index + 1}`}
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={() => openPhotoViewer(photo)}
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer" onClick={() => openPhotoViewer(photo)}>
+                        <Icon name="eye" size={20} className="text-white" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeExistingPhoto(photo);
+                        }}
+                        className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-sm hover:bg-red-600 transition-colors shadow-lg z-10"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* New Photos */}
+            {photos.length > 0 && (
+              <div className="mb-2">
+                <p className="text-[10px] text-slate-400 mb-1">Novas fotos:</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {photos.map((photo, index) => (
+                    <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200 group">
+                      <img
+                        src={URL.createObjectURL(photo)}
+                        alt={photo.name}
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(index)}
+                        className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-sm hover:bg-red-600 transition-colors shadow-lg z-10"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-slate-500 text-xs font-semibold cursor-pointer hover:border-orange-300 hover:text-orange-600 transition-colors">
+                <Icon name="camera" size={16} />
+                Adicionar Fotos
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => setPhotos(prev => [...prev, ...Array.from(e.target.files)])}
+                  className="hidden"
+                />
+              </label>
+              {isNative && (
+                <button
+                  type="button"
+                  onClick={() => setCameraOpen(true)}
+                  className="px-4 py-3 rounded-xl bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition-colors flex items-center gap-2 shrink-0"
+                >
+                  <Icon name="camera" size={16} />
+                  Tirar Foto
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-2">Documentos</label>
+            {/* Existing Documents */}
+            {existingDocuments.length > 0 && (
+              <div className="space-y-2 mb-2">
+                <p className="text-[10px] text-slate-400 mb-1">Documentos existentes:</p>
+                {existingDocuments.map((doc, index) => (
+                  <div key={index} className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 border border-slate-200">
+                    <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                      <Icon name="file" size={18} className="text-red-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-slate-700 truncate">{doc}</p>
+                    </div>
+                    <a
+                      href={getFileUrl(doc)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:text-blue-600 p-1"
+                    >
+                      <Icon name="eye" size={16} />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => removeExistingDocument(doc)}
+                      className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 shrink-0"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* New Documents */}
+            {documents.length > 0 && (
+              <div className="space-y-2 mb-2">
+                <p className="text-[10px] text-slate-400 mb-1">Novos documentos:</p>
+                {documents.map((doc, index) => (
+                  <div key={index} className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 border border-slate-200">
+                    <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                      <Icon name="file" size={18} className="text-red-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-slate-700 truncate">{doc.name}</p>
+                      <p className="text-[10px] text-slate-400">{(doc.size / 1024).toFixed(1)} KB</p>
                     </div>
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeExistingPhoto(photo);
-                      }}
-                      className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-sm hover:bg-red-600 transition-colors shadow-lg z-10"
+                      onClick={() => removeDocument(index)}
+                      className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 shrink-0"
                     >
                       ×
                     </button>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* New Photos */}
-          {photos.length > 0 && (
-            <div className="mb-2">
-              <p className="text-[10px] text-slate-400 mb-1">Novas fotos:</p>
-              <div className="grid grid-cols-3 gap-2">
-                {photos.map((photo, index) => (
-                  <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200 group">
-                    <img
-                      src={URL.createObjectURL(photo)}
-                      alt={photo.name}
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removePhoto(index)}
-                      className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-sm hover:bg-red-600 transition-colors shadow-lg z-10"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+            <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-slate-500 text-xs font-semibold cursor-pointer hover:border-orange-300 hover:text-orange-600 transition-colors">
+              <Icon name="upload" size={16} />
+              Adicionar Documentos
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                multiple
+                onChange={(e) => setDocuments(prev => [...prev, ...Array.from(e.target.files)])}
+                className="hidden"
+              />
+            </label>
+          </div>
 
-          <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-slate-500 text-xs font-semibold cursor-pointer hover:border-orange-300 hover:text-orange-600 transition-colors">
-            <Icon name="camera" size={16} />
-            Adicionar Fotos
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => setPhotos(prev => [...prev, ...Array.from(e.target.files)])}
-              className="hidden"
-            />
-          </label>
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-2">Documentos</label>
-          {/* Existing Documents */}
-          {existingDocuments.length > 0 && (
-            <div className="space-y-2 mb-2">
-              <p className="text-[10px] text-slate-400 mb-1">Documentos existentes:</p>
-              {existingDocuments.map((doc, index) => (
-                <div key={index} className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 border border-slate-200">
-                  <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-                    <Icon name="file" size={18} className="text-red-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-slate-700 truncate">{doc}</p>
-                  </div>
-                  <a
-                    href={getFileUrl(doc)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 hover:text-blue-600 p-1"
-                  >
-                    <Icon name="eye" size={16} />
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => removeExistingDocument(doc)}
-                    className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 shrink-0"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* New Documents */}
-          {documents.length > 0 && (
-            <div className="space-y-2 mb-2">
-              <p className="text-[10px] text-slate-400 mb-1">Novos documentos:</p>
-              {documents.map((doc, index) => (
-                <div key={index} className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 border border-slate-200">
-                  <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-                    <Icon name="file" size={18} className="text-red-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-slate-700 truncate">{doc.name}</p>
-                    <p className="text-[10px] text-slate-400">{(doc.size / 1024).toFixed(1)} KB</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeDocument(index)}
-                    className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 shrink-0"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-slate-500 text-xs font-semibold cursor-pointer hover:border-orange-300 hover:text-orange-600 transition-colors">
-            <Icon name="upload" size={16} />
-            Adicionar Documentos
-            <input
-              type="file"
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              multiple
-              onChange={(e) => setDocuments(prev => [...prev, ...Array.from(e.target.files)])}
-              className="hidden"
-            />
-          </label>
-        </div>
-
-        <div className="flex gap-2 pt-2">
-          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
-            Cancelar
-          </button>
-          <button type="submit" disabled={submitting} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-            {submitting ? "A atualizar..." : "Atualizar"}
-          </button>
-        </div>
-      </form>
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
+              Cancelar
+            </button>
+            <button type="submit" disabled={submitting} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              {submitting ? "A atualizar..." : "Atualizar"}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Photo Viewer Modal */}
       {showPhotoViewer && selectedPhoto && (
@@ -533,7 +714,7 @@ const EditIncidentModal = ({ isOpen, onClose, onUpdate, incident, drivers = [] }
           </div>
         </div>
       )}
-    </Modal>
+    </>
   );
 };
 
@@ -614,7 +795,7 @@ const IncidentDetailModal = ({ isOpen, onClose, incident }) => {
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} title={incident.title}>
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${getIncidentColor(incident.type)}`}>
               {INCIDENT_TYPE_LABELS[incident.type] || incident.type}

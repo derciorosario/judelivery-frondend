@@ -1,5 +1,10 @@
+// frontend/src/components/admin/AdminFinance.js
 import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
+import { Capacitor } from "@capacitor/core";
+import { Filesystem, Directory } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
+import { Browser } from "@capacitor/browser";
 import StatCard from "../common/StatCard";
 import PrintReport from "./PrintReport";
 import Modal from "../common/Modal";
@@ -658,6 +663,8 @@ const AdminFinance = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [activeTab, setActiveTab] = useState("list");
   const [submitting, setSubmitting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   const fetchCategories = async () => {
     try {
@@ -864,29 +871,295 @@ const AdminFinance = () => {
     };
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
+    if (exporting) return;
+    setExporting(true);
+
+    try {
+      const filtered = filterTransactions();
+      const reportData = [
+        ["ID", "Tipo", "Categoria", "Descrição", "Valor", "Data", "Hora", "Status", "Método Pagamento"],
+        ...filtered.map(t => [
+          t.id.slice(0, 8),
+          t.type === "receita" ? "Receita" : "Despesa",
+          t.category?.name || "Sem categoria",
+          t.description,
+          t.amount,
+          t.date,
+          t.time || "",
+          t.status,
+          t.paymentMethod || "—"
+        ])
+      ];
+
+      const worksheet = XLSX.utils.aoa_to_sheet(reportData);
+      worksheet["!cols"] = [{ wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 30 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 20 }];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Transações");
+
+      const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+      const fileName = `financeiro_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+      if (Capacitor.isNativePlatform()) {
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: btoa(String.fromCharCode(...new Uint8Array(excelBuffer))),
+          directory: Directory.Documents,
+          recursive: true,
+        });
+
+        await Share.share({
+          title: 'Relatório Financeiro',
+          text: `Relatório Financeiro - ${dateRange.start || 'Todas as datas'}`,
+          url: result.uri,
+          dialogTitle: 'Compartilhar relatório',
+        });
+      } else {
+        const blob = new Blob([excelBuffer], { type: "application/octet-stream" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+      }
+
+      toast.success("Relatório exportado com sucesso");
+    } catch (error) {
+      console.error("Error exporting:", error);
+      toast.error("Erro ao exportar relatório");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const generateHTMLContent = () => {
     const filtered = filterTransactions();
-    const reportData = [
-      ["ID", "Tipo", "Categoria", "Descrição", "Valor", "Data", "Hora", "Status", "Método Pagamento"],
-      ...filtered.map(t => [
-        t.id.slice(0, 8),
-        t.type === "receita" ? "Receita" : "Despesa",
-        t.category?.name || "Sem categoria",
-        t.description,
-        t.amount,
-        t.date,
-        t.time || "",
-        t.status,
-        t.paymentMethod || "—"
-      ])
-    ];
+    
+    let html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Relatório Financeiro</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            font-family: Arial, sans-serif; 
+            padding: 40px 20px; 
+            max-width: 1200px; 
+            margin: 0 auto;
+            color: #1e293b;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f97316;
+          }
+          .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #f97316;
+            margin-bottom: 8px;
+          }
+          .subtitle {
+            font-size: 14px;
+            color: #64748b;
+          }
+          .table-section {
+            margin-bottom: 30px;
+          }
+          .table-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 12px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+          }
+          th {
+            background-color: #f8fafc;
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: #475569;
+            border-bottom: 2px solid #e2e8f0;
+          }
+          td {
+            padding: 8px 12px;
+            font-size: 13px;
+            color: #1e293b;
+            border-bottom: 1px solid #e2e8f0;
+          }
+          tr:last-child td {
+            border-bottom: none;
+          }
+          .badge-success { background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+          .badge-warning { background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+          .badge-danger { background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+          .badge-info { background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+          .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+          }
+          .summary-card {
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+          }
+          .summary-label {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            font-weight: 600;
+          }
+          .summary-value {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 4px;
+          }
+          .green { color: #16a34a; }
+          .red { color: #dc2626; }
+          .amber { color: #d97706; }
+          .blue { color: #2563eb; }
+          .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 12px;
+            color: #94a3b8;
+          }
+          @media print {
+            body { padding: 20px; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="title">Relatório Financeiro</div>
+          <div class="subtitle">${dateRange.start && dateRange.end ? `Período: ${dateRange.start} a ${dateRange.end}` : "Todas as transações"}</div>
+        </div>
+    `;
 
-    const worksheet = XLSX.utils.aoa_to_sheet(reportData);
-    worksheet["!cols"] = [{ wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 30 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 20 }];
+    if (stats) {
+      html += `
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="summary-label">Receita Total</div>
+            <div class="summary-value green">${(stats.totalRevenue || 0).toLocaleString()} MZN</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Despesas Totais</div>
+            <div class="summary-value red">${(stats.totalExpenses || 0).toLocaleString()} MZN</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">${(stats.netProfit || 0) >= 0 ? "Lucro Líquido" : "Prejuízo Líquido"}</div>
+            <div class="summary-value ${(stats.netProfit || 0) >= 0 ? 'green' : 'red'}">${Math.abs(stats.netProfit || 0).toLocaleString()} MZN</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Pendente Receber</div>
+            <div class="summary-value amber">${(stats.pendingRevenue || 0).toLocaleString()} MZN</div>
+          </div>
+        </div>
+      `;
+    }
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Transações");
-    XLSX.writeFile(workbook, `financeiro_${new Date().toISOString().split('T')[0]}.xlsx`);
+    html += `
+        <div class="table-section">
+          <div class="table-title">Transações Financeiras (${filtered.length})</div>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Tipo</th>
+                <th>Categoria</th>
+                <th>Descrição</th>
+                <th>Valor (MZN)</th>
+                <th>Data</th>
+                <th>Hora</th>
+                <th>Status</th>
+                <th>Método Pagamento</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+
+    filtered.forEach(t => {
+      html += `
+        <tr>
+          <td>${t.id.slice(0, 8)}</td>
+          <td><span class="${t.type === 'receita' ? 'badge-success' : 'badge-danger'}">${t.type === 'receita' ? 'Receita' : 'Despesa'}</span></td>
+          <td>${t.category?.name || 'Sem categoria'}</td>
+          <td>${t.description}</td>
+          <td>${t.amount.toLocaleString()}</td>
+          <td>${t.date}</td>
+          <td>${t.time || ''}</td>
+          <td><span class="${t.status === 'pago' ? 'badge-success' : t.status === 'pendente' ? 'badge-warning' : 'badge-danger'}">${t.status}</span></td>
+          <td>${t.paymentMethod || '—'}</td>
+        </tr>
+      `;
+    });
+
+    html += `
+            </tbody>
+          </table>
+        </div>
+        <div class="footer">
+          Relatório gerado em ${new Date().toLocaleString()}
+        </div>
+      </body>
+      </html>
+    `;
+
+    return html;
+  };
+
+  const exportToPDF = async () => {
+    if (printing) return;
+    setPrinting(true);
+
+    try {
+      const htmlContent = generateHTMLContent();
+      const fileName = `financeiro_${new Date().toISOString().split('T')[0]}.html`;
+
+      if (Capacitor.isNativePlatform()) {
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: htmlContent,
+          directory: Directory.Documents,
+          recursive: true,
+        });
+
+        await Browser.open({ url: result.uri });
+        toast.info("Arquivo aberto no navegador para impressão");
+      } else {
+        const printWindow = window.open('', '_blank', 'width=1200,height=800');
+        if (printWindow) {
+          printWindow.document.write(htmlContent);
+          printWindow.document.close();
+          printWindow.focus();
+          printWindow.print();
+        }
+      }
+    } catch (error) {
+      console.error("Error printing:", error);
+      toast.error("Erro ao imprimir relatório");
+    } finally {
+      setPrinting(false);
+    }
   };
 
   const pendingTransactions = transactions.filter(t => t.status === "pendente");
@@ -907,11 +1180,31 @@ const AdminFinance = () => {
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-slate-700">Gestão Financeira</p>
         <div className="flex gap-1">
-          <button onClick={exportToExcel} className="p-2 rounded-xl bg-green-100 text-green-600 hover:bg-green-200" title="Exportar Excel">
+          <button 
+            onClick={exportToExcel} 
+            disabled={exporting}
+            className={`p-2 rounded-xl transition-all ${
+              exporting 
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                : 'bg-green-100 text-green-600 hover:bg-green-200'
+            }`}
+            title={Capacitor.isNativePlatform() ? "Compartilhar Excel" : "Exportar Excel"}
+          >
             <Icon name="file" size={16} />
+            {exporting && <span className="ml-1 text-xs">...</span>}
           </button>
-          <button onClick={() => window.print()} className="p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200" title="Exportar PDF">
+          <button 
+            onClick={exportToPDF} 
+            disabled={printing}
+            className={`p-2 rounded-xl transition-all ${
+              printing
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-red-100 text-red-600 hover:bg-red-200'
+            }`}
+            title={Capacitor.isNativePlatform() ? "Abrir para impressão" : "Exportar PDF"}
+          >
             <Icon name="printer" size={16} />
+            {printing && <span className="ml-1 text-xs">...</span>}
           </button>
         </div>
       </div>

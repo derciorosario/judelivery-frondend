@@ -43,10 +43,13 @@ const MotoristaApp = () => {
   const location = useDriverLocation({ autoStart: true });
 
   useEffect(() => {
+
+    if(location?.gpsPermission!="granted") return
+
     if (user && !data.pushRegistered) {
       registerPush(user?.id, navigate, data);
     }
-  }, [user, data, navigate]);
+  }, [user, data, navigate, location])
 
   const tabs = useRef([
     { id: "home", label: "Início", icon: "home", path: "/" },

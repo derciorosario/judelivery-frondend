@@ -1,6 +1,10 @@
 // frontend/src/components/admin/AdminReports.js
 import { useState, useEffect, useCallback } from "react";
 import * as XLSX from "xlsx";
+import { Capacitor } from "@capacitor/core";
+import { Filesystem, Directory } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
+import { Browser } from "@capacitor/browser";
 import StatCard from "../common/StatCard";
 import Icon from "../common/Icon";
 import PrintReport from "./PrintReport";
@@ -27,6 +31,8 @@ const AdminReports = () => {
   const [performanceData, setPerformanceData] = useState(null);
   const [financialData, setFinancialData] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
 
   // Set default dates on mount
   useEffect(() => {
@@ -162,77 +168,81 @@ const AdminReports = () => {
     setDateTo(today.toISOString().split('T')[0]);
   };
 
+  const generateExcelData = () => {
+    let reportData = [];
+    
+    if (reportType === "operacional" && operationalData) {
+      reportData = [
+        ["RELATÓRIO OPERACIONAL"],
+        [`Período: ${dateFrom} a ${dateTo}`],
+        [],
+        ["Métrica", "Valor"],
+        ["Total de Pedidos", operationalData.totalOrders || 0],
+        ["Pedidos Concluídos", operationalData.completedOrders || 0],
+        ["Pedidos em Andamento", operationalData.inProgressOrders || 0],
+        ["Pedidos Pendentes", operationalData.pendingOrders || 0],
+        ["Pedidos Cancelados", operationalData.cancelledOrders || 0],
+        ["Taxa de Cancelamento", `${(operationalData.cancellationRate || 0).toFixed(1)}%`],
+        ["Tempo Médio de Entrega", `${operationalData.avgDeliveryTime || 0} min`],
+        ["Distância Total", `${(operationalData.totalDistance || 0).toFixed(1)} km`],
+        ["Consumo Estimado", `${(operationalData.estimatedFuelConsumption || 0).toFixed(1)} L`],
+        ["Receita Total", `${(operationalData.totalRevenue || 0).toFixed(2)} MZN`]
+      ];
+    } else if (reportType === "financeiro" && financialData) {
+      reportData = [
+        ["RELATÓRIO FINANCEIRO"],
+        [`Período: ${dateFrom} a ${dateTo}`],
+        [],
+        ["Métrica", "Valor"],
+        ["Receita Total", `${(financialData.totalRevenue || 0).toFixed(2)} MZN`],
+        ["Despesas Totais", `${(financialData.totalExpenses || 0).toFixed(2)} MZN`],
+        ["Lucro Líquido", `${(financialData.netProfit || 0).toFixed(2)} MZN`],
+        ["Receitas Pendentes", `${(financialData.pendingRevenue || 0).toFixed(2)} MZN`],
+        ["Despesas Pendentes", `${(financialData.pendingExpenses || 0).toFixed(2)} MZN`]
+      ];
+    } else if (reportType === "desempenho" && performanceData) {
+      reportData = [
+        ["RELATÓRIO DE DESEMPENHO"],
+        [`Período: ${dateFrom} a ${dateTo}`],
+        [],
+        ["Métrica", "Valor"],
+        ["Total Pedidos", performanceData.overall?.totalOrders || 0],
+        ["Pedidos Concluídos", performanceData.overall?.completedOrders || 0],
+        ["Taxa de Conclusão", `${(performanceData.overall?.completionRate || 0).toFixed(1)}%`],
+        ["Avaliação Média", `${(performanceData.overall?.avgRating || 0).toFixed(1)}`],
+        ["Tempo Médio Entrega", `${performanceData.overall?.avgDeliveryTime || 0} min`],
+        [],
+        ["🏆 TOP MOTORISTAS"],
+        ["Posição", "Nome", "Entregas", "Avaliação", "Taxa Conclusão"],
+        ...(performanceData.drivers || []).map((d, i) => [
+          i + 1,
+          d.name,
+          d.completedOrders || 0,
+          (d.avgRating || 0).toFixed(1),
+          `${(d.completionRate || 0).toFixed(1)}%`
+        ]),
+        [],
+        ["👥 TOP CLIENTES"],
+        ["Posição", "Nome", "Pedidos", "Avaliação"],
+        ...(performanceData.customers || []).map((c, i) => [
+          i + 1,
+          c.name,
+          c.totalOrders || 0,
+          (c.avgRating || 0).toFixed(1)
+        ])
+      ];
+    }
+
+    return reportData;
+  };
+
   const exportToExcel = async () => {
     if (exporting) return;
     setExporting(true);
     
     try {
-      let reportData = [];
+      const reportData = generateExcelData();
       
-      if (reportType === "operacional" && operationalData) {
-
-        reportData = [
-          ["RELATÓRIO OPERACIONAL"],
-          [`Período: ${dateFrom} a ${dateTo}`],
-          [],
-          ["Métrica", "Valor"],
-          ["Total de Pedidos", operationalData.totalOrders || 0],
-          ["Pedidos Concluídos", operationalData.completedOrders || 0],
-          ["Pedidos em Andamento", operationalData.inProgressOrders || 0],
-          ["Pedidos Pendentes", operationalData.pendingOrders || 0],
-          ["Pedidos Cancelados", operationalData.cancelledOrders || 0],
-          ["Taxa de Cancelamento", `${(operationalData.cancellationRate || 0).toFixed(1)}%`],
-          ["Tempo Médio de Entrega", `${operationalData.avgDeliveryTime || 0} min`],
-          ["Distância Total", `${(operationalData.totalDistance || 0).toFixed(1)} km`],
-          ["Consumo Estimado", `${(operationalData.estimatedFuelConsumption || 0).toFixed(1)} L`],
-          ["Receita Total", `${(operationalData.totalRevenue || 0).toFixed(2)} MZN`]
-        ];
-
-      } else if (reportType === "financeiro" && financialData) {
-        reportData = [
-          ["RELATÓRIO FINANCEIRO"],
-          [`Período: ${dateFrom} a ${dateTo}`],
-          [],
-          ["Métrica", "Valor"],
-          ["Receita Total", `${(financialData.totalRevenue || 0).toFixed(2)} MZN`],
-          ["Despesas Totais", `${(financialData.totalExpenses || 0).toFixed(2)} MZN`],
-          ["Lucro Líquido", `${(financialData.netProfit || 0).toFixed(2)} MZN`],
-          ["Receitas Pendentes", `${(financialData.pendingRevenue || 0).toFixed(2)} MZN`],
-          ["Despesas Pendentes", `${(financialData.pendingExpenses || 0).toFixed(2)} MZN`]
-        ];
-      } else if (reportType === "desempenho" && performanceData) {
-        reportData = [
-          ["RELATÓRIO DE DESEMPENHO"],
-          [`Período: ${dateFrom} a ${dateTo}`],
-          [],
-          ["Métrica", "Valor"],
-          ["Total Pedidos", performanceData.overall?.totalOrders || 0],
-          ["Pedidos Concluídos", performanceData.overall?.completedOrders || 0],
-          ["Taxa de Conclusão", `${(performanceData.overall?.completionRate || 0).toFixed(1)}%`],
-          ["Avaliação Média", `${(performanceData.overall?.avgRating || 0).toFixed(1)}`],
-          ["Tempo Médio Entrega", `${performanceData.overall?.avgDeliveryTime || 0} min`],
-          [],
-          ["🏆 TOP MOTORISTAS"],
-          ["Posição", "Nome", "Entregas", "Avaliação", "Taxa Conclusão"],
-          ...(performanceData.drivers || []).map((d, i) => [
-            i + 1,
-            d.name,
-            d.completedOrders || 0,
-            (d.avgRating || 0).toFixed(1),
-            `${(d.completionRate || 0).toFixed(1)}%`
-          ]),
-          [],
-          ["👥 TOP CLIENTES"],
-          ["Posição", "Nome", "Pedidos", "Avaliação"],
-          ...(performanceData.customers || []).map((c, i) => [
-            i + 1,
-            c.name,
-            c.totalOrders || 0,
-            (c.avgRating || 0).toFixed(1)
-          ])
-        ];
-      }
-
       const worksheet = XLSX.utils.aoa_to_sheet(reportData);
       worksheet["!cols"] = [{ wch: 30 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
 
@@ -240,7 +250,37 @@ const AdminReports = () => {
       const sheetName = reportType === "operacional" ? "Operacional" : reportType === "financeiro" ? "Financeiro" : "Desempenho";
       XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
-      XLSX.writeFile(workbook, `relatorio_${reportType}_${dateFrom}_${dateTo}.xlsx`);
+      const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+      const fileName = `relatorio_${reportType}_${dateFrom}_${dateTo}.xlsx`;
+
+      // Check if running on Capacitor
+      if (Capacitor.isNativePlatform()) {
+        // Save file using Capacitor Filesystem
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: btoa(String.fromCharCode(...new Uint8Array(excelBuffer))),
+          directory: Directory.Documents,
+          recursive: true,
+        });
+
+        // Share the file
+        await Share.share({
+          title: 'Relatório',
+          text: `Relatório ${reportType} - ${dateFrom} a ${dateTo}`,
+          url: result.uri,
+          dialogTitle: 'Compartilhar relatório',
+        });
+      } else {
+        // Web download
+        const blob = new Blob([excelBuffer], { type: "application/octet-stream" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+      }
 
       toast.success("Relatório exportado com sucesso");
     } catch (error) {
@@ -248,6 +288,189 @@ const AdminReports = () => {
       toast.error("Erro ao exportar relatório");
     } finally {
       setExporting(false);
+    }
+  };
+
+  const generateHTMLContent = () => {
+    const { title, subtitle, tables } = buildReportTables();
+    
+    let html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${title}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            font-family: Arial, sans-serif; 
+            padding: 40px 20px; 
+            max-width: 1200px; 
+            margin: 0 auto;
+            color: #1e293b;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f97316;
+          }
+          .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #f97316;
+            margin-bottom: 8px;
+          }
+          .subtitle {
+            font-size: 14px;
+            color: #64748b;
+          }
+          .table-section {
+            margin-bottom: 30px;
+          }
+          .table-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 12px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+          }
+          th {
+            background-color: #f8fafc;
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: #475569;
+            border-bottom: 2px solid #e2e8f0;
+          }
+          td {
+            padding: 8px 12px;
+            font-size: 13px;
+            color: #1e293b;
+            border-bottom: 1px solid #e2e8f0;
+          }
+          tr:last-child td {
+            border-bottom: none;
+          }
+          .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 12px;
+            color: #94a3b8;
+          }
+          .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+          }
+          .badge-success { background: #dcfce7; color: #166534; }
+          .badge-warning { background: #fef3c7; color: #92400e; }
+          .badge-danger { background: #fee2e2; color: #991b1b; }
+          .badge-info { background: #dbeafe; color: #1e40af; }
+          @media print {
+            body { padding: 20px; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="title">${title}</div>
+          <div class="subtitle">${subtitle}</div>
+        </div>
+    `;
+
+    tables.forEach((table, index) => {
+      html += `
+        <div class="table-section">
+          <div class="table-title">${table.title}</div>
+          <table>
+            <thead>
+              <tr>
+      `;
+      
+      table.headers.forEach(header => {
+        html += `<th>${header}</th>`;
+      });
+      
+      html += `
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      
+      table.rows.forEach(row => {
+        html += `<tr>`;
+        row.forEach(cell => {
+          html += `<td>${cell}</td>`;
+        });
+        html += `</tr>`;
+      });
+      
+      html += `
+            </tbody>
+          </table>
+        </div>
+      `;
+    });
+
+    html += `
+        <div class="footer">
+          Relatório gerado em ${new Date().toLocaleString()}
+        </div>
+      </body>
+      </html>
+    `;
+
+    return html;
+  };
+
+  const exportToPDF = async () => {
+    if (printing) return;
+    setPrinting(true);
+
+    try {
+      const htmlContent = generateHTMLContent();
+      const fileName = `relatorio_${reportType}_${dateFrom}_${dateTo}.html`;
+
+      if (Capacitor.isNativePlatform()) {
+        // Save HTML file
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: htmlContent,
+          directory: Directory.Documents,
+          recursive: true,
+        });
+
+        // Open in browser for printing
+        await Browser.open({ url: result.uri });
+        
+        toast.info("Arquivo aberto no navegador para impressão");
+      } else {
+        // Web - open in new window for printing
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        if (printWindow) {
+          printWindow.document.write(htmlContent);
+          printWindow.document.close();
+          printWindow.focus();
+          printWindow.print();
+        }
+      }
+    } catch (error) {
+      console.error("Error printing:", error);
+      toast.error("Erro ao imprimir relatório");
+    } finally {
+      setPrinting(false);
     }
   };
 
@@ -333,10 +556,6 @@ const AdminReports = () => {
     return { title, subtitle, tables };
   };
 
-  const exportToPDF = () => {
-    window.print();
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -365,17 +584,24 @@ const AdminReports = () => {
                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                 : 'bg-green-100 text-green-600 hover:bg-green-200'
             }`}
-            title="Exportar Excel"
+            title={Capacitor.isNativePlatform() ? "Compartilhar Excel" : "Exportar Excel"}
           >
             <Icon name="file" size={16} />
+            {exporting && <span className="ml-1 text-xs">...</span>}
           </button>
-          <button 
+          {!Capacitor.isNativePlatform() && <button 
             onClick={exportToPDF} 
-            className="p-2 rounded-xl bg-red-100 text-red-600 hover:bg-red-200 transition-all"
-            title="Exportar PDF"
+            disabled={printing}
+            className={`p-2 rounded-xl transition-all ${
+              printing
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-red-100 text-red-600 hover:bg-red-200'
+            }`}
+            title={Capacitor.isNativePlatform() ? "Abrir para impressão" : "Exportar PDF"}
           >
             <Icon name="printer" size={16} />
-          </button>
+            {printing && <span className="ml-1 text-xs">...</span>}
+          </button>}
         </div>
       </div>
 

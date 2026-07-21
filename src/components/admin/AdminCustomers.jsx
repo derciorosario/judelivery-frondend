@@ -5,9 +5,147 @@ import { getCustomers, createCustomer, updateCustomer, deleteCustomer, getCustom
 import { toast } from "../../lib/toast";
 import ImageViewer from "../common/ImageViewer";
 import OrderDetailModal from "../modals/OrderDetailModal";
+import { Capacitor } from '@capacitor/core';
+import { useRef } from "react";
 
+// Camera Modal for native devices
+const CameraModal = ({ isOpen, onClose, onTakePhoto }) => {
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const [facingMode, setFacingMode] = useState('environment');
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [error, setError] = useState(null);
 
-const FileUploadInput = ({ label, setViewerOpen, setSelectedImage, fieldName, file, onFileChange, onRemove, existingUrl, accept = "image/*,.pdf", isProfile = false, isRemoved = false }) => {
+  useEffect(() => {
+    if (!isOpen) {
+      // Stop camera when modal closes
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+      setIsCameraReady(false);
+      setError(null);
+      return;
+    }
+
+    startCamera();
+
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    };
+  }, [isOpen, facingMode]);
+
+  const startCamera = async () => {
+    try {
+      setError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facingMode }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        setIsCameraReady(true);
+      }
+    } catch (err) {
+      console.error("Camera error:", err);
+      setError("Não foi possível acessar a câmera. Verifique as permissões.");
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+          onTakePhoto(file);
+          onClose();
+        }
+      }, 'image/jpeg', 0.9);
+    }
+  };
+
+  const switchCamera = () => {
+    setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black flex flex-col">
+      <div className="flex items-center justify-between p-4 bg-black/90">
+        <button onClick={onClose} className="text-white p-2">
+          <Icon name="x" size={24} />
+        </button>
+        <button onClick={switchCamera} className="text-white p-2">
+          <Icon name="refreshCw" size={20} />
+        </button>
+      </div>
+      
+      <div className="flex-1 relative bg-black flex items-center justify-center">
+        {error ? (
+          <div className="text-center text-white p-6">
+            <Icon name="alertCircle" size={48} className="mx-auto mb-4 text-red-400" />
+            <p className="text-sm">{error}</p>
+            <button 
+              onClick={startCamera}
+              className="mt-4 px-6 py-2 bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        ) : (
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        )}
+        <canvas ref={canvasRef} className="hidden" />
+      </div>
+      
+      <div className="p-6 bg-black/90 flex justify-center">
+        <button
+          onClick={capturePhoto}
+          disabled={!isCameraReady}
+          className={`w-16 h-16 rounded-full border-4 border-white ${
+            isCameraReady ? 'bg-white hover:bg-gray-200' : 'bg-gray-500'
+          } transition-colors flex items-center justify-center`}
+        >
+          <div className="w-12 h-12 rounded-full bg-transparent border-2 border-black" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const FileUploadInput = ({ 
+  label, 
+  setViewerOpen, 
+  setSelectedImage, 
+  fieldName, 
+  file, 
+  onFileChange, 
+  onRemove, 
+  existingUrl, 
+  accept = "image/*,.pdf", 
+  isProfile = false, 
+  isRemoved = false,
+  isNative = false,
+  onTakePhoto
+}) => {
+  const fileInputRef = useRef(null);
   const hasFile = !!file;
   const hasExisting = !!existingUrl && !file && !isRemoved;
 
@@ -26,6 +164,20 @@ const FileUploadInput = ({ label, setViewerOpen, setSelectedImage, fieldName, fi
     }
   };
 
+  const handleFileInputChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      onFileChange(fieldName, { target: { files: [file] } });
+    }
+    e.target.value = "";
+  };
+
+  const handleTakePhoto = () => {
+    if (onTakePhoto) {
+      onTakePhoto(fieldName);
+    }
+  };
+
   if (isProfile) {
     const previewUrl = file ? URL.createObjectURL(file) : (isRemoved ? null : existingUrl);
     
@@ -37,8 +189,9 @@ const FileUploadInput = ({ label, setViewerOpen, setSelectedImage, fieldName, fi
             type="file"
             id={fieldName}
             accept={accept}
-            onChange={(e) => onFileChange(fieldName, e)}
+            onChange={handleFileInputChange}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            ref={fileInputRef}
           />
           <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-orange-200 bg-orange-50 flex items-center justify-center cursor-pointer hover:bg-orange-100 transition-colors">
             {previewUrl ? (
@@ -48,6 +201,16 @@ const FileUploadInput = ({ label, setViewerOpen, setSelectedImage, fieldName, fi
             )}
           </div>
         </div>
+        {isNative && !hasFile && !hasExisting && (
+          <button
+            type="button"
+            onClick={handleTakePhoto}
+            className="mt-2 px-3 py-1.5 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            <Icon name="camera" size={14} className="inline mr-1" />
+            Tirar Foto
+          </button>
+        )}
         {(hasFile || hasExisting) && (
           <button
             type="button"
@@ -71,8 +234,9 @@ const FileUploadInput = ({ label, setViewerOpen, setSelectedImage, fieldName, fi
             type="file"
             id={fieldName}
             accept={accept}
-            onChange={(e) => onFileChange(fieldName, e)}
+            onChange={handleFileInputChange}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            ref={fileInputRef}
           />
           <div className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm transition-all duration-200 ${
             hasFile || hasExisting
@@ -88,6 +252,16 @@ const FileUploadInput = ({ label, setViewerOpen, setSelectedImage, fieldName, fi
             <Icon name="chevronRight" size={14} className="text-slate-400" />
           </div>
         </div>
+        {isNative && !hasFile && !hasExisting && (
+          <button
+            type="button"
+            onClick={handleTakePhoto}
+            className="p-2.5 rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+            title="Tirar foto"
+          >
+            <Icon name="camera" size={16} />
+          </button>
+        )}
         {(hasFile || hasExisting) && (
           <button
             type="button"
@@ -109,6 +283,20 @@ const FileUploadInput = ({ label, setViewerOpen, setSelectedImage, fieldName, fi
           Visualizar
         </div>
       )}
+
+      {hasFile && !isImageFile(file.name) && (
+        <div
+          onClick={() => {
+            const fileUrl = URL.createObjectURL(file);
+            handleOpenFile(fileUrl);
+            setTimeout(() => URL.revokeObjectURL(fileUrl), 100);
+          }}
+          className="inline-flex cursor-pointer items-center gap-1 text-xs text-blue-500 hover:text-blue-700 transition-colors"
+        >
+          <Icon name="externalLink" size={12} />
+          Abrir arquivo
+        </div>
+      )}
     </div>
   );
 };
@@ -126,6 +314,13 @@ const AddCustomerModal = ({ isOpen, onClose, onAdd }) => {
   });
   const [autoGeneratePassword, setAutoGeneratePassword] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraField, setCameraField] = useState(null);
+  const [isNative, setIsNative] = useState(false);
+
+  useEffect(() => {
+    setIsNative(Capacitor.isNativePlatform());
+  }, []);
 
   useEffect(() => {
     if (!isOpen) {
@@ -144,6 +339,17 @@ const AddCustomerModal = ({ isOpen, onClose, onAdd }) => {
 
   const handleRemoveFile = (fieldName) => {
     setFiles(prev => ({ ...prev, [fieldName]: null }));
+  };
+
+  const handleTakePhoto = (fieldName) => {
+    setCameraField(fieldName);
+    setCameraOpen(true);
+  };
+
+  const handleCameraCapture = (file) => {
+    if (cameraField) {
+      setFiles(prev => ({ ...prev, [cameraField]: file }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -185,102 +391,114 @@ const AddCustomerModal = ({ isOpen, onClose, onAdd }) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Adicionar Cliente">
-      <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
-        <FileUploadInput
-          label="Foto"
-          fieldName="profilePhoto"
-          file={files.profilePhoto}
-          onFileChange={handleFileChange}
-          onRemove={handleRemoveFile}
-          accept="image/*"
-          isProfile={true}
-        />
+    <>
+      <CameraModal 
+        isOpen={cameraOpen} 
+        onClose={() => {
+          setCameraOpen(false);
+          setCameraField(null);
+        }}
+        onTakePhoto={handleCameraCapture}
+      />
+      <Modal isOpen={isOpen} onClose={onClose} title="Adicionar Cliente">
+        <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+          <FileUploadInput
+            label="Foto"
+            fieldName="profilePhoto"
+            file={files.profilePhoto}
+            onFileChange={handleFileChange}
+            onRemove={handleRemoveFile}
+            accept="image/*"
+            isProfile={true}
+            isNative={isNative}
+            onTakePhoto={handleTakePhoto}
+          />
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Nome Completo</label>
-          <input
-            type="text"
-            value={form.name}
-            onChange={e => setForm({ ...form, name: e.target.value })}
-            placeholder="Ex: João Silva"
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-            required
-          />
-        </div>
-        
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Telefone</label>
-          <input
-            type="tel"
-            value={form.phone}
-            onChange={e => setForm({ ...form, phone: e.target.value })}
-            placeholder="+258 84 000 0000"
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-            required
-          />
-        </div>
-        
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Email</label>
-          <input
-            type="email"
-            value={form.email}
-            onChange={e => setForm({ ...form, email: e.target.value })}
-            placeholder="email@exemplo.com"
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-          />
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="auto-gen-pass"
-            checked={autoGeneratePassword}
-            onChange={(e) => setAutoGeneratePassword(e.target.checked)}
-            className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
-          />
-          <label htmlFor="auto-gen-pass" className="text-sm text-slate-600">
-            Gerar password automaticamente
-          </label>
-        </div>
-
-        {!autoGeneratePassword && (
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Password</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Nome Completo</label>
             <input
-              type="password"
-              value={form.password}
-              onChange={e => setForm({ ...form, password: e.target.value })}
-              placeholder="********"
+              type="text"
+              value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value })}
+              placeholder="Ex: João Silva"
               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
               required
             />
           </div>
-        )}
+          
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Telefone</label>
+            <input
+              type="tel"
+              value={form.phone}
+              onChange={e => setForm({ ...form, phone: e.target.value })}
+              placeholder="+258 84 000 0000"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Email</label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={e => setForm({ ...form, email: e.target.value })}
+              placeholder="email@exemplo.com"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            />
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="auto-gen-pass"
+              checked={autoGeneratePassword}
+              onChange={(e) => setAutoGeneratePassword(e.target.checked)}
+              className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
+            />
+            <label htmlFor="auto-gen-pass" className="text-sm text-slate-600">
+              Gerar password automaticamente
+            </label>
+          </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Endereço</label>
-          <input
-            type="text"
-            value={form.address}
-            onChange={e => setForm({ ...form, address: e.target.value })}
-            placeholder="Bairro, Rua, Nº"
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-          />
-        </div>
+          {!autoGeneratePassword && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Password</label>
+              <input
+                type="password"
+                value={form.password}
+                onChange={e => setForm({ ...form, password: e.target.value })}
+                placeholder="********"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                required
+              />
+            </div>
+          )}
 
-        <div className="flex gap-2 pt-2">
-          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors">
-            Cancelar
-          </button>
-          <button type="submit" disabled={isSubmitting} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors">
-            {isSubmitting ? <Icon name="refreshCw" size={16} className="animate-spin" /> : <Icon name="plus" size={16} />}
-            {isSubmitting ? "Criando..." : "Adicionar"}
-          </button>
-        </div>
-      </form>
-    </Modal>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Endereço</label>
+            <input
+              type="text"
+              value={form.address}
+              onChange={e => setForm({ ...form, address: e.target.value })}
+              placeholder="Bairro, Rua, Nº"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            />
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors">
+              Cancelar
+            </button>
+            <button type="submit" disabled={isSubmitting} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors">
+              {isSubmitting ? <Icon name="refreshCw" size={16} className="animate-spin" /> : <Icon name="plus" size={16} />}
+              {isSubmitting ? "Criando..." : "Adicionar"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    </>
   );
 };
 
@@ -299,6 +517,13 @@ const EditCustomerModal = ({ isOpen, onClose, onEdit, customer, setSelectedImage
     profilePhoto: false
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraField, setCameraField] = useState(null);
+  const [isNative, setIsNative] = useState(false);
+
+  useEffect(() => {
+    setIsNative(Capacitor.isNativePlatform());
+  }, []);
 
   useEffect(() => {
     if (customer && isOpen) {
@@ -332,6 +557,18 @@ const EditCustomerModal = ({ isOpen, onClose, onEdit, customer, setSelectedImage
     if (file) {
       setFiles(prev => ({ ...prev, [fieldName]: file }));
       setFilesToRemove(prev => ({ ...prev, [fieldName]: false }));
+    }
+  };
+
+  const handleTakePhoto = (fieldName) => {
+    setCameraField(fieldName);
+    setCameraOpen(true);
+  };
+
+  const handleCameraCapture = (file) => {
+    if (cameraField) {
+      setFiles(prev => ({ ...prev, [cameraField]: file }));
+      setFilesToRemove(prev => ({ ...prev, [cameraField]: false }));
     }
   };
 
@@ -376,90 +613,102 @@ const EditCustomerModal = ({ isOpen, onClose, onEdit, customer, setSelectedImage
   if (!customer) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Editar Cliente">
-      <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
-        <FileUploadInput
-          label="Foto"
-          setSelectedImage={setSelectedImage} 
-          setViewerOpen={setViewerOpen}
-          fieldName="profilePhoto"
-          file={files.profilePhoto}
-          onFileChange={handleFileChange}
-          onRemove={handleRemoveFile}
-          existingUrl={customer.profilePhotoUrl}
-          isRemoved={filesToRemove.profilePhoto}
-          accept="image/*"
-          isProfile={true}
-        />
+    <>
+      <CameraModal 
+        isOpen={cameraOpen} 
+        onClose={() => {
+          setCameraOpen(false);
+          setCameraField(null);
+        }}
+        onTakePhoto={handleCameraCapture}
+      />
+      <Modal isOpen={isOpen} onClose={onClose} title="Editar Cliente">
+        <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+          <FileUploadInput
+            label="Foto"
+            setSelectedImage={setSelectedImage} 
+            setViewerOpen={setViewerOpen}
+            fieldName="profilePhoto"
+            file={files.profilePhoto}
+            onFileChange={handleFileChange}
+            onRemove={handleRemoveFile}
+            existingUrl={customer.profilePhotoUrl}
+            isRemoved={filesToRemove.profilePhoto}
+            accept="image/*"
+            isProfile={true}
+            isNative={isNative}
+            onTakePhoto={handleTakePhoto}
+          />
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Nome Completo</label>
-          <input
-            type="text"
-            value={form.name}
-            onChange={e => setForm({ ...form, name: e.target.value })}
-            placeholder="Ex: João Silva"
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-            required
-          />
-        </div>
-        
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Telefone</label>
-          <input
-            type="tel"
-            value={form.phone}
-            onChange={e => setForm({ ...form, phone: e.target.value })}
-            placeholder="+258 84 000 0000"
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-            required
-          />
-        </div>
-        
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Email</label>
-          <input
-            type="email"
-            value={form.email}
-            onChange={e => setForm({ ...form, email: e.target.value })}
-            placeholder="email@exemplo.com"
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-          />
-        </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Nome Completo</label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value })}
+              placeholder="Ex: João Silva"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Telefone</label>
+            <input
+              type="tel"
+              value={form.phone}
+              onChange={e => setForm({ ...form, phone: e.target.value })}
+              placeholder="+258 84 000 0000"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Email</label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={e => setForm({ ...form, email: e.target.value })}
+              placeholder="email@exemplo.com"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            />
+          </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Nova Password</label>
-          <input
-            type="password"
-            value={form.password}
-            onChange={e => setForm({ ...form, password: e.target.value })}
-            placeholder="Deixe em branco para manter"
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-          />
-        </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Nova Password</label>
+            <input
+              type="password"
+              value={form.password}
+              onChange={e => setForm({ ...form, password: e.target.value })}
+              placeholder="Deixe em branco para manter"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            />
+          </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Endereço</label>
-          <input
-            type="text"
-            value={form.address}
-            onChange={e => setForm({ ...form, address: e.target.value })}
-            placeholder="Bairro, Rua, Nº"
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-          />
-        </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Endereço</label>
+            <input
+              type="text"
+              value={form.address}
+              onChange={e => setForm({ ...form, address: e.target.value })}
+              placeholder="Bairro, Rua, Nº"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            />
+          </div>
 
-        <div className="flex gap-2 pt-2">
-          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors">
-            Cancelar
-          </button>
-          <button type="submit" disabled={isSubmitting} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors">
-            {isSubmitting ? <Icon name="refreshCw" size={16} className="animate-spin" /> : <Icon name="save" size={16} />}
-            {isSubmitting ? "Atualizando..." : "Atualizar"}
-          </button>
-        </div>
-      </form>
-    </Modal>
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors">
+              Cancelar
+            </button>
+            <button type="submit" disabled={isSubmitting} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors">
+              {isSubmitting ? <Icon name="refreshCw" size={16} className="animate-spin" /> : <Icon name="save" size={16} />}
+              {isSubmitting ? "Atualizando..." : "Atualizar"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    </>
   );
 };
 

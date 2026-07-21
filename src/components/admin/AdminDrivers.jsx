@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSocket } from "../../contexts/SocketContext";
 import Icon from "../common/Icon";
 import Modal from "../common/Modal";
@@ -7,9 +7,25 @@ import "react-datepicker/dist/react-datepicker.css";
 import { getDrivers, createDriver, updateDriver, deleteDriver } from "../../api/client";
 import { toast } from "../../lib/toast";
 import ImageViewer from "../common/ImageViewer";
-import { useRef } from "react";
+import { Capacitor } from '@capacitor/core';
 
-const FileUploadInput = ({ label, setViewerOpen, setSelectedImage, fieldName, file, onFileChange, onRemove, existingUrl, accept = "image/*,.pdf", isProfile = false, isRemoved = false }) => {
+// FileUploadInput component with camera support
+const FileUploadInput = ({ 
+  label, 
+  setViewerOpen, 
+  setSelectedImage, 
+  fieldName, 
+  file, 
+  onFileChange, 
+  onRemove, 
+  existingUrl, 
+  accept = "image/*,.pdf", 
+  isProfile = false, 
+  isRemoved = false,
+  isNative = false,
+  onTakePhoto
+}) => {
+  const fileInputRef = useRef(null);
   const hasFile = !!file;
   const hasExisting = !!existingUrl && !file && !isRemoved;
 
@@ -27,6 +43,20 @@ const FileUploadInput = ({ label, setViewerOpen, setSelectedImage, fieldName, fi
     window.open(fileUrl, "_blank", "noopener,noreferrer");
   };
 
+  const handleFileInputChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      onFileChange(fieldName, { target: { files: [file] } });
+    }
+    e.target.value = "";
+  };
+
+  const handleTakePhoto = () => {
+    if (onTakePhoto) {
+      onTakePhoto(fieldName);
+    }
+  };
+
   if (isProfile) {
     const previewUrl = file ? URL.createObjectURL(file) : isRemoved ? null : existingUrl;
     return (
@@ -37,8 +67,9 @@ const FileUploadInput = ({ label, setViewerOpen, setSelectedImage, fieldName, fi
             type="file"
             id={fieldName}
             accept={accept}
-            onChange={(e) => onFileChange(fieldName, e)}
+            onChange={handleFileInputChange}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            ref={fileInputRef}
           />
           <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-orange-200 bg-orange-50 flex items-center justify-center cursor-pointer hover:bg-orange-100 transition-colors">
             {previewUrl ? (
@@ -48,6 +79,16 @@ const FileUploadInput = ({ label, setViewerOpen, setSelectedImage, fieldName, fi
             )}
           </div>
         </div>
+        {isNative && !hasFile && !hasExisting && (
+          <button
+            type="button"
+            onClick={handleTakePhoto}
+            className="mt-2 px-3 py-1.5 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            <Icon name="camera" size={14} className="inline mr-1" />
+            Tirar Foto
+          </button>
+        )}
         {(hasFile || hasExisting) && (
           <button
             type="button"
@@ -71,8 +112,9 @@ const FileUploadInput = ({ label, setViewerOpen, setSelectedImage, fieldName, fi
             type="file"
             id={fieldName}
             accept={accept}
-            onChange={(e) => onFileChange(fieldName, e)}
+            onChange={handleFileInputChange}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            ref={fileInputRef}
           />
           <div
             className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm transition-all duration-200 ${
@@ -88,6 +130,16 @@ const FileUploadInput = ({ label, setViewerOpen, setSelectedImage, fieldName, fi
             <Icon name="chevronRight" size={14} className="text-slate-400" />
           </div>
         </div>
+        {isNative && !hasFile && !hasExisting && (
+          <button
+            type="button"
+            onClick={handleTakePhoto}
+            className="p-2.5 rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+            title="Tirar foto"
+          >
+            <Icon name="camera" size={16} />
+          </button>
+        )}
         {(hasFile || hasExisting) && (
           <button
             type="button"
@@ -124,11 +176,137 @@ const FileUploadInput = ({ label, setViewerOpen, setSelectedImage, fieldName, fi
   );
 };
 
+// Camera Modal for native devices
+const CameraModal = ({ isOpen, onClose, onTakePhoto }) => {
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const [facingMode, setFacingMode] = useState('environment');
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      // Stop camera when modal closes
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+      setIsCameraReady(false);
+      setError(null);
+      return;
+    }
+
+    startCamera();
+
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    };
+  }, [isOpen, facingMode]);
+
+  const startCamera = async () => {
+    try {
+      setError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facingMode }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        setIsCameraReady(true);
+      }
+    } catch (err) {
+      console.error("Camera error:", err);
+      setError("Não foi possível acessar a câmera. Verifique as permissões.");
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+          onTakePhoto(file);
+          onClose();
+        }
+      }, 'image/jpeg', 0.9);
+    }
+  };
+
+  const switchCamera = () => {
+    setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black flex flex-col">
+      <div className="flex items-center justify-between p-4 bg-black/90">
+        <button onClick={onClose} className="text-white p-2">
+          <Icon name="x" size={24} />
+        </button>
+        <button onClick={switchCamera} className="text-white p-2">
+          <Icon name="refreshCw" size={20} />
+        </button>
+      </div>
+      
+      <div className="flex-1 relative bg-black flex items-center justify-center">
+        {error ? (
+          <div className="text-center text-white p-6">
+            <Icon name="alertCircle" size={48} className="mx-auto mb-4 text-red-400" />
+            <p className="text-sm">{error}</p>
+            <button 
+              onClick={startCamera}
+              className="mt-4 px-6 py-2 bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        ) : (
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        )}
+        <canvas ref={canvasRef} className="hidden" />
+      </div>
+      
+      <div className="p-6 bg-black/90 flex justify-center">
+        <button
+          onClick={capturePhoto}
+          disabled={!isCameraReady}
+          className={`w-16 h-16 rounded-full border-4 border-white ${
+            isCameraReady ? 'bg-white hover:bg-gray-200' : 'bg-gray-500'
+          } transition-colors flex items-center justify-center`}
+        >
+          <div className="w-12 h-12 rounded-full bg-transparent border-2 border-black" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// AddDriverModal with camera support
 const AddDriverModal = ({ isOpen, onClose, onAdd }) => {
   const [form, setForm] = useState({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "", zone: "", admissionDate: "" });
   const [files, setFiles] = useState({ profilePhoto: null, biCopy: null, driverLicenseCopy: null, vehicleRegistration: null, insuranceDocument: null, trainingCertificateCopy: null });
   const [autoGeneratePassword, setAutoGeneratePassword] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraField, setCameraField] = useState(null);
+  const isNative = Capacitor.isNativePlatform();
 
   useEffect(() => {
     if (!isOpen) {
@@ -144,6 +322,17 @@ const AddDriverModal = ({ isOpen, onClose, onAdd }) => {
   };
 
   const handleRemoveFile = (fieldName) => setFiles((prev) => ({ ...prev, [fieldName]: null }));
+
+  const handleTakePhoto = (fieldName) => {
+    setCameraField(fieldName);
+    setCameraOpen(true);
+  };
+
+  const handleCameraCapture = (file) => {
+    if (cameraField) {
+      setFiles((prev) => ({ ...prev, [cameraField]: file }));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -184,100 +373,164 @@ const AddDriverModal = ({ isOpen, onClose, onAdd }) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Adicionar Motorista">
-      <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
-        <FileUploadInput label="Foto" fieldName="profilePhoto" file={files.profilePhoto} onFileChange={handleFileChange} onRemove={handleRemoveFile} accept="image/*" isProfile />
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Nome Completo</label>
-          <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="João Silva" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" required />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Telefone</label>
-          <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+258 84 000 0000" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" required />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Email</label>
-          <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@exemplo.com" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" required />
-        </div>
-        <label className="flex items-center gap-2 text-sm text-slate-600">
-          <input type="checkbox" checked={autoGeneratePassword} onChange={(e) => setAutoGeneratePassword(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500" />
-          Gerar password automaticamente
-        </label>
-        {!autoGeneratePassword && (
+    <>
+      <CameraModal 
+        isOpen={cameraOpen} 
+        onClose={() => {
+          setCameraOpen(false);
+          setCameraField(null);
+        }}
+        onTakePhoto={handleCameraCapture}
+      />
+      <Modal isOpen={isOpen} onClose={onClose} title="Adicionar Motorista">
+        <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+          <FileUploadInput 
+            label="Foto" 
+            fieldName="profilePhoto" 
+            file={files.profilePhoto} 
+            onFileChange={handleFileChange} 
+            onRemove={handleRemoveFile} 
+            accept="image/*" 
+            isProfile
+            isNative={isNative}
+            onTakePhoto={handleTakePhoto}
+          />
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Password</label>
-            <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="********" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" required />
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Nome Completo</label>
+            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="João Silva" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" required />
           </div>
-        )}
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Contacto de Emergência</label>
-          <input type="tel" value={form.emergencyContact} onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })} placeholder="+258 84 000 0000" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Veículo</label>
-          <input type="text" value={form.vehicle} onChange={(e) => setForm({ ...form, vehicle: e.target.value })} placeholder="Ex: Toyota Corolla" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Matrícula</label>
-          <input type="text" value={form.licensePlate} onChange={(e) => setForm({ ...form, licensePlate: e.target.value })} placeholder="MC-1234-MZ" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">BI/Passaporte</label>
-          <input type="text" value={form.bi} onChange={(e) => setForm({ ...form, bi: e.target.value })} placeholder="1234567" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Data de Nascimento</label>
-          <DatePicker selected={form.birthDate ? new Date(form.birthDate) : null} onChange={(date) => setForm({ ...form, birthDate: date ? date.toISOString().split("T")[0] : "" })} dateFormat="yyyy-MM-dd" placeholderText="Selecionar data" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-        </div>
-       <div>
-         <label className="block text-xs font-semibold text-slate-500 mb-1">Endereço</label>
-         <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Bairro, Rua, Nº" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-       </div>
-       <div className="grid grid-cols-2 gap-2">
-         <div>
-           <label className="block text-xs font-semibold text-slate-500 mb-1">Zona</label>
-           <input type="text" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} placeholder="Ex: Centro" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-         </div>
-         <div>
-           <label className="block text-xs font-semibold text-slate-500 mb-1">Data de Admissão</label>
-           <DatePicker selected={form.admissionDate ? new Date(form.admissionDate) : null} onChange={(date) => setForm({ ...form, admissionDate: date ? date.toISOString().split("T")[0] : "" })} dateFormat="yyyy-MM-dd" placeholderText="Selecionar data" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-         </div>
-       </div>
-       <div className="border-t border-slate-200 pt-4">
-          <p className="text-xs font-semibold text-slate-500 mb-3">Documentos</p>
-          <div className="space-y-3">
-            <FileUploadInput label="Cópia do BI" fieldName="biCopy" file={files.biCopy} onFileChange={handleFileChange} onRemove={handleRemoveFile} />
-            <FileUploadInput label="Carta de Condução" fieldName="driverLicenseCopy" file={files.driverLicenseCopy} onFileChange={handleFileChange} onRemove={handleRemoveFile} />
-            <FileUploadInput label="Registo do Veículo" fieldName="vehicleRegistration" file={files.vehicleRegistration} onFileChange={handleFileChange} onRemove={handleRemoveFile} />
-            <FileUploadInput label="Seguro" fieldName="insuranceDocument" file={files.insuranceDocument} onFileChange={handleFileChange} onRemove={handleRemoveFile} />
-            <FileUploadInput label="Certificado de Formação" fieldName="trainingCertificateCopy" file={files.trainingCertificateCopy} onFileChange={handleFileChange} onRemove={handleRemoveFile} />
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Telefone</label>
+            <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+258 84 000 0000" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" required />
           </div>
-        </div>
-        <div className="flex gap-2 pt-2">
-          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors">
-            Cancelar
-          </button>
-          <button type="submit" disabled={isSubmitting} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors">
-            {isSubmitting ? <Icon name="refreshCw" size={16} className="animate-spin" /> : <Icon name="plus" size={16} />}
-            {isSubmitting ? "Criando..." : "Adicionar"}
-          </button>
-        </div>
-      </form>
-    </Modal>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Email</label>
+            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@exemplo.com" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" required />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" checked={autoGeneratePassword} onChange={(e) => setAutoGeneratePassword(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500" />
+            Gerar password automaticamente
+          </label>
+          {!autoGeneratePassword && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Password</label>
+              <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="********" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" required />
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Contacto de Emergência</label>
+            <input type="tel" value={form.emergencyContact} onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })} placeholder="+258 84 000 0000" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Veículo</label>
+            <input type="text" value={form.vehicle} onChange={(e) => setForm({ ...form, vehicle: e.target.value })} placeholder="Ex: Toyota Corolla" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Matrícula</label>
+            <input type="text" value={form.licensePlate} onChange={(e) => setForm({ ...form, licensePlate: e.target.value })} placeholder="MC-1234-MZ" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">BI/Passaporte</label>
+            <input type="text" value={form.bi} onChange={(e) => setForm({ ...form, bi: e.target.value })} placeholder="1234567" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Data de Nascimento</label>
+            <DatePicker selected={form.birthDate ? new Date(form.birthDate) : null} onChange={(date) => setForm({ ...form, birthDate: date ? date.toISOString().split("T")[0] : "" })} dateFormat="yyyy-MM-dd" placeholderText="Selecionar data" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Endereço</label>
+            <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Bairro, Rua, Nº" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Zona</label>
+              <input type="text" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} placeholder="Ex: Centro" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Data de Admissão</label>
+              <DatePicker selected={form.admissionDate ? new Date(form.admissionDate) : null} onChange={(date) => setForm({ ...form, admissionDate: date ? date.toISOString().split("T")[0] : "" })} dateFormat="yyyy-MM-dd" placeholderText="Selecionar data" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            </div>
+          </div>
+          <div className="border-t border-slate-200 pt-4">
+            <p className="text-xs font-semibold text-slate-500 mb-3">Documentos</p>
+            <div className="space-y-3">
+              <FileUploadInput 
+                label="Cópia do BI" 
+                fieldName="biCopy" 
+                file={files.biCopy} 
+                onFileChange={handleFileChange} 
+                onRemove={handleRemoveFile}
+                isNative={isNative}
+                onTakePhoto={handleTakePhoto}
+              />
+              <FileUploadInput 
+                label="Carta de Condução" 
+                fieldName="driverLicenseCopy" 
+                file={files.driverLicenseCopy} 
+                onFileChange={handleFileChange} 
+                onRemove={handleRemoveFile}
+                isNative={isNative}
+                onTakePhoto={handleTakePhoto}
+              />
+              <FileUploadInput 
+                label="Registo do Veículo" 
+                fieldName="vehicleRegistration" 
+                file={files.vehicleRegistration} 
+                onFileChange={handleFileChange} 
+                onRemove={handleRemoveFile}
+                isNative={isNative}
+                onTakePhoto={handleTakePhoto}
+              />
+              <FileUploadInput 
+                label="Seguro" 
+                fieldName="insuranceDocument" 
+                file={files.insuranceDocument} 
+                onFileChange={handleFileChange} 
+                onRemove={handleRemoveFile}
+                isNative={isNative}
+                onTakePhoto={handleTakePhoto}
+              />
+              <FileUploadInput 
+                label="Certificado de Formação" 
+                fieldName="trainingCertificateCopy" 
+                file={files.trainingCertificateCopy} 
+                onFileChange={handleFileChange} 
+                onRemove={handleRemoveFile}
+                isNative={isNative}
+                onTakePhoto={handleTakePhoto}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors">
+              Cancelar
+            </button>
+            <button type="submit" disabled={isSubmitting} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors">
+              {isSubmitting ? <Icon name="refreshCw" size={16} className="animate-spin" /> : <Icon name="plus" size={16} />}
+              {isSubmitting ? "Criando..." : "Adicionar"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    </>
   );
 };
 
+// EditDriverModal with camera support
 const EditDriverModal = ({ isOpen, onClose, onEdit, driver, setSelectedImage, setViewerOpen }) => {
- const [form, setForm] = useState({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "", zone: "", admissionDate: "", accountStatus: "active" });
- const [files, setFiles] = useState({ profilePhoto: null, biCopy: null, driverLicenseCopy: null, vehicleRegistration: null, insuranceDocument: null, trainingCertificateCopy: null });
- const [filesToRemove, setFilesToRemove] = useState({ profilePhoto: false, biCopy: false, driverLicenseCopy: false, vehicleRegistration: false, insuranceDocument: false, trainingCertificateCopy: false });
+  const [form, setForm] = useState({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "", zone: "", admissionDate: "", accountStatus: "active" });
+  const [files, setFiles] = useState({ profilePhoto: null, biCopy: null, driverLicenseCopy: null, vehicleRegistration: null, insuranceDocument: null, trainingCertificateCopy: null });
+  const [filesToRemove, setFilesToRemove] = useState({ profilePhoto: false, biCopy: false, driverLicenseCopy: false, vehicleRegistration: false, insuranceDocument: false, trainingCertificateCopy: false });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraField, setCameraField] = useState(null);
+  const isNative = Capacitor.isNativePlatform();
 
   useEffect(() => {
     if (!isOpen) {
-     setForm({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "", zone: "", admissionDate: "", accountStatus: "active" });
-     setFiles({ profilePhoto: null, biCopy: null, driverLicenseCopy: null, vehicleRegistration: null, insuranceDocument: null, trainingCertificateCopy: null });
-     setFilesToRemove({ profilePhoto: false, biCopy: false, driverLicenseCopy: false, vehicleRegistration: false, insuranceDocument: false, trainingCertificateCopy: false });
+      setForm({ name: "", phone: "", email: "", vehicle: "", licensePlate: "", bi: "", birthDate: "", address: "", emergencyContact: "", password: "", zone: "", admissionDate: "", accountStatus: "active" });
+      setFiles({ profilePhoto: null, biCopy: null, driverLicenseCopy: null, vehicleRegistration: null, insuranceDocument: null, trainingCertificateCopy: null });
+      setFilesToRemove({ profilePhoto: false, biCopy: false, driverLicenseCopy: false, vehicleRegistration: false, insuranceDocument: false, trainingCertificateCopy: false });
     }
   }, [isOpen]);
 
@@ -291,12 +544,12 @@ const EditDriverModal = ({ isOpen, onClose, onEdit, driver, setSelectedImage, se
         licensePlate: driver.licensePlate || "",
         bi: driver.bi || "",
         birthDate: driver.birthDate || "",
-       address: driver.address || "",
-       emergencyContact: driver.emergencyContact || "",
-       zone: driver.zone || "",
-       admissionDate: driver.admissionDate || "",
-       accountStatus: driver.accountStatus || "active",
-       password: "",
+        address: driver.address || "",
+        emergencyContact: driver.emergencyContact || "",
+        zone: driver.zone || "",
+        admissionDate: driver.admissionDate || "",
+        accountStatus: driver.accountStatus || "active",
+        password: "",
       });
     }
   }, [driver, isOpen]);
@@ -312,6 +565,18 @@ const EditDriverModal = ({ isOpen, onClose, onEdit, driver, setSelectedImage, se
   const handleRemoveFile = (fieldName) => {
     setFilesToRemove((prev) => ({ ...prev, [fieldName]: true }));
     setFiles((prev) => ({ ...prev, [fieldName]: null }));
+  };
+
+  const handleTakePhoto = (fieldName) => {
+    setCameraField(fieldName);
+    setCameraOpen(true);
+  };
+
+  const handleCameraCapture = (file) => {
+    if (cameraField) {
+      setFiles((prev) => ({ ...prev, [cameraField]: file }));
+      setFilesToRemove((prev) => ({ ...prev, [cameraField]: false }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -358,103 +623,187 @@ const EditDriverModal = ({ isOpen, onClose, onEdit, driver, setSelectedImage, se
   if (!driver) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Editar Motorista">
-      <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
-        <FileUploadInput label="Foto" fieldName="profilePhoto" file={files.profilePhoto} onFileChange={handleFileChange} onRemove={handleRemoveFile} existingUrl={driver.profilePhotoUrl} isRemoved={filesToRemove.profilePhoto} accept="image/*" isProfile setSelectedImage={setSelectedImage} setViewerOpen={setViewerOpen} />
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Nome Completo</label>
-          <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="João Silva" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" required />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Telefone</label>
-          <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+258 84 000 0000" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" required />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Email</label>
-          <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@exemplo.com" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Nova Password</label>
-          <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Deixe em branco para manter" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Contacto de Emergência</label>
-          <input type="tel" value={form.emergencyContact} onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })} placeholder="+258 84 000 0000" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Veículo</label>
-          <input type="text" value={form.vehicle} onChange={(e) => setForm({ ...form, vehicle: e.target.value })} placeholder="Ex: Toyota Corolla" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Matrícula</label>
-          <input type="text" value={form.licensePlate} onChange={(e) => setForm({ ...form, licensePlate: e.target.value })} placeholder="MC-1234-MZ" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">BI/Passaporte</label>
-          <input type="text" value={form.bi} onChange={(e) => setForm({ ...form, bi: e.target.value })} placeholder="1234567" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Data de Nascimento</label>
-          <DatePicker selected={form.birthDate ? new Date(form.birthDate) : null} onChange={(date) => setForm({ ...form, birthDate: date ? date.toISOString().split("T")[0] : "" })} dateFormat="yyyy-MM-dd" placeholderText="Selecionar data" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-        </div>
-       <div>
-         <label className="block text-xs font-semibold text-slate-500 mb-1">Endereço</label>
-         <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Bairro, Rua, Nº" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-       </div>
-       <div>
-         <label className="block text-xs font-semibold text-slate-500 mb-1">Status da Conta</label>
-         <select
-           value={form.accountStatus}
-           onChange={(e) => setForm({ ...form, accountStatus: e.target.value })}
-           className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-         >
-           <option value="active">Ativo</option>
-           <option value="inactive">Inativo</option>
-           <option value="suspended">Suspenso</option>
-         </select>
-         <p className="text-xs text-slate-400 mt-1">
-           Status atual: <span className={`font-semibold ${
-             form.accountStatus === 'active' ? 'text-green-600' : 
-             form.accountStatus === 'inactive' ? 'text-yellow-600' : 
-             'text-red-600'
-           }`}>
-             {form.accountStatus === 'active' ? 'Ativo' : 
-              form.accountStatus === 'inactive' ? 'Inativo' : 
-              'Suspenso'}
-           </span>
-         </p>
-       </div>
-       <div className="grid grid-cols-2 gap-2">
-         <div>
-           <label className="block text-xs font-semibold text-slate-500 mb-1">Zona</label>
-           <input type="text" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} placeholder="Ex: Centro" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-         </div>
-         <div>
-           <label className="block text-xs font-semibold text-slate-500 mb-1">Data de Admissão</label>
-           <DatePicker selected={form.admissionDate ? new Date(form.admissionDate) : null} onChange={(date) => setForm({ ...form, admissionDate: date ? date.toISOString().split("T")[0] : "" })} dateFormat="yyyy-MM-dd" placeholderText="Selecionar data" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-         </div>
-       </div>
-       <div className="border-t border-slate-200 pt-4">
-          <p className="text-xs font-semibold text-slate-500 mb-3">Documentos</p>
-          <div className="space-y-3">
-            <FileUploadInput label="Cópia do BI" fieldName="biCopy" file={files.biCopy} onFileChange={handleFileChange} onRemove={handleRemoveFile} existingUrl={driver.biCopyUrl} isRemoved={filesToRemove.biCopy} setSelectedImage={setSelectedImage} setViewerOpen={setViewerOpen} />
-           <FileUploadInput label="Carta de Condução" fieldName="driverLicenseCopy" file={files.driverLicenseCopy} onFileChange={handleFileChange} onRemove={handleRemoveFile} existingUrl={driver.driverLicenseCopyUrl} isRemoved={filesToRemove.driverLicenseCopy} setSelectedImage={setSelectedImage} setViewerOpen={setViewerOpen} />
-           <FileUploadInput label="Registo do Veículo" fieldName="vehicleRegistration" file={files.vehicleRegistration} onFileChange={handleFileChange} onRemove={handleRemoveFile} existingUrl={driver.vehicleRegistrationUrl} isRemoved={filesToRemove.vehicleRegistration} setSelectedImage={setSelectedImage} setViewerOpen={setViewerOpen} />
-           <FileUploadInput label="Seguro" fieldName="insuranceDocument" file={files.insuranceDocument} onFileChange={handleFileChange} onRemove={handleRemoveFile} existingUrl={driver.insuranceDocumentUrl} isRemoved={filesToRemove.insuranceDocument} setSelectedImage={setSelectedImage} setViewerOpen={setViewerOpen} />
-           <FileUploadInput label="Certificado de Formação" fieldName="trainingCertificateCopy" file={files.trainingCertificateCopy} onFileChange={handleFileChange} onRemove={handleRemoveFile} existingUrl={driver.trainingCertificateCopyUrl} isRemoved={filesToRemove.trainingCertificateCopy} setSelectedImage={setSelectedImage} setViewerOpen={setViewerOpen} />
+    <>
+      <CameraModal 
+        isOpen={cameraOpen} 
+        onClose={() => {
+          setCameraOpen(false);
+          setCameraField(null);
+        }}
+        onTakePhoto={handleCameraCapture}
+      />
+      <Modal isOpen={isOpen} onClose={onClose} title="Editar Motorista">
+        <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+          <FileUploadInput 
+            label="Foto" 
+            fieldName="profilePhoto" 
+            file={files.profilePhoto} 
+            onFileChange={handleFileChange} 
+            onRemove={handleRemoveFile} 
+            existingUrl={driver.profilePhotoUrl} 
+            isRemoved={filesToRemove.profilePhoto} 
+            accept="image/*" 
+            isProfile 
+            setSelectedImage={setSelectedImage} 
+            setViewerOpen={setViewerOpen}
+            isNative={isNative}
+            onTakePhoto={handleTakePhoto}
+          />
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Nome Completo</label>
+            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="João Silva" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" required />
           </div>
-        </div>
-        <div className="flex gap-2 pt-2">
-          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors">
-            Cancelar
-          </button>
-          <button type="submit" disabled={isSubmitting} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors">
-            {isSubmitting ? <Icon name="refreshCw" size={16} className="animate-spin" /> : <Icon name="save" size={16} />}
-            {isSubmitting ? "Atualizando..." : "Atualizar"}
-          </button>
-        </div>
-      </form>
-    </Modal>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Telefone</label>
+            <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+258 84 000 0000" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" required />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Email</label>
+            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@exemplo.com" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Nova Password</label>
+            <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Deixe em branco para manter" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Contacto de Emergência</label>
+            <input type="tel" value={form.emergencyContact} onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })} placeholder="+258 84 000 0000" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Veículo</label>
+            <input type="text" value={form.vehicle} onChange={(e) => setForm({ ...form, vehicle: e.target.value })} placeholder="Ex: Toyota Corolla" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Matrícula</label>
+            <input type="text" value={form.licensePlate} onChange={(e) => setForm({ ...form, licensePlate: e.target.value })} placeholder="MC-1234-MZ" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">BI/Passaporte</label>
+            <input type="text" value={form.bi} onChange={(e) => setForm({ ...form, bi: e.target.value })} placeholder="1234567" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Data de Nascimento</label>
+            <DatePicker selected={form.birthDate ? new Date(form.birthDate) : null} onChange={(date) => setForm({ ...form, birthDate: date ? date.toISOString().split("T")[0] : "" })} dateFormat="yyyy-MM-dd" placeholderText="Selecionar data" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Endereço</label>
+            <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Bairro, Rua, Nº" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Status da Conta</label>
+            <select
+              value={form.accountStatus}
+              onChange={(e) => setForm({ ...form, accountStatus: e.target.value })}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            >
+              <option value="active">Ativo</option>
+              <option value="inactive">Inativo</option>
+              <option value="suspended">Suspenso</option>
+            </select>
+            <p className="text-xs text-slate-400 mt-1">
+              Status atual: <span className={`font-semibold ${
+                form.accountStatus === 'active' ? 'text-green-600' : 
+                form.accountStatus === 'inactive' ? 'text-yellow-600' : 
+                'text-red-600'
+              }`}>
+                {form.accountStatus === 'active' ? 'Ativo' : 
+                 form.accountStatus === 'inactive' ? 'Inativo' : 
+                 'Suspenso'}
+              </span>
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Zona</label>
+              <input type="text" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} placeholder="Ex: Centro" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Data de Admissão</label>
+              <DatePicker selected={form.admissionDate ? new Date(form.admissionDate) : null} onChange={(date) => setForm({ ...form, admissionDate: date ? date.toISOString().split("T")[0] : "" })} dateFormat="yyyy-MM-dd" placeholderText="Selecionar data" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            </div>
+          </div>
+          <div className="border-t border-slate-200 pt-4">
+            <p className="text-xs font-semibold text-slate-500 mb-3">Documentos</p>
+            <div className="space-y-3">
+              <FileUploadInput 
+                label="Cópia do BI" 
+                fieldName="biCopy" 
+                file={files.biCopy} 
+                onFileChange={handleFileChange} 
+                onRemove={handleRemoveFile} 
+                existingUrl={driver.biCopyUrl} 
+                isRemoved={filesToRemove.biCopy} 
+                setSelectedImage={setSelectedImage} 
+                setViewerOpen={setViewerOpen}
+                isNative={isNative}
+                onTakePhoto={handleTakePhoto}
+              />
+              <FileUploadInput 
+                label="Carta de Condução" 
+                fieldName="driverLicenseCopy" 
+                file={files.driverLicenseCopy} 
+                onFileChange={handleFileChange} 
+                onRemove={handleRemoveFile} 
+                existingUrl={driver.driverLicenseCopyUrl} 
+                isRemoved={filesToRemove.driverLicenseCopy} 
+                setSelectedImage={setSelectedImage} 
+                setViewerOpen={setViewerOpen}
+                isNative={isNative}
+                onTakePhoto={handleTakePhoto}
+              />
+              <FileUploadInput 
+                label="Registo do Veículo" 
+                fieldName="vehicleRegistration" 
+                file={files.vehicleRegistration} 
+                onFileChange={handleFileChange} 
+                onRemove={handleRemoveFile} 
+                existingUrl={driver.vehicleRegistrationUrl} 
+                isRemoved={filesToRemove.vehicleRegistration} 
+                setSelectedImage={setSelectedImage} 
+                setViewerOpen={setViewerOpen}
+                isNative={isNative}
+                onTakePhoto={handleTakePhoto}
+              />
+              <FileUploadInput 
+                label="Seguro" 
+                fieldName="insuranceDocument" 
+                file={files.insuranceDocument} 
+                onFileChange={handleFileChange} 
+                onRemove={handleRemoveFile} 
+                existingUrl={driver.insuranceDocumentUrl} 
+                isRemoved={filesToRemove.insuranceDocument} 
+                setSelectedImage={setSelectedImage} 
+                setViewerOpen={setViewerOpen}
+                isNative={isNative}
+                onTakePhoto={handleTakePhoto}
+              />
+              <FileUploadInput 
+                label="Certificado de Formação" 
+                fieldName="trainingCertificateCopy" 
+                file={files.trainingCertificateCopy} 
+                onFileChange={handleFileChange} 
+                onRemove={handleRemoveFile} 
+                existingUrl={driver.trainingCertificateCopyUrl} 
+                isRemoved={filesToRemove.trainingCertificateCopy} 
+                setSelectedImage={setSelectedImage} 
+                setViewerOpen={setViewerOpen}
+                isNative={isNative}
+                onTakePhoto={handleTakePhoto}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors">
+              Cancelar
+            </button>
+            <button type="submit" disabled={isSubmitting} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors">
+              {isSubmitting ? <Icon name="refreshCw" size={16} className="animate-spin" /> : <Icon name="save" size={16} />}
+              {isSubmitting ? "Atualizando..." : "Atualizar"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    </>
   );
 };
 

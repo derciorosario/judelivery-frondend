@@ -78,46 +78,74 @@ const parseCoords = (coords) => {
   return null;
 };
 
-// Custom marker icons
+// FIXED: Safe marker icon creation with proper checks
 const createMarkerIcon = (color, scale = 8) => {
-  if (!window.google) return null;
-  return {
-    path: window.google.maps.SymbolPath.CIRCLE,
-    fillColor: color,
-    fillOpacity: 1,
-    strokeColor: "#ffffff",
-    strokeWeight: 2,
-    scale: scale,
-    anchor: new window.google.maps.Point(0, 0)
-  };
+  // Check if google.maps is fully loaded with Point constructor
+  if (!window.google || !window.google.maps || typeof window.google.maps.Point !== 'function') {
+    console.warn('Google Maps Point not available yet');
+    return null;
+  }
+  
+  try {
+    return {
+      path: window.google.maps.SymbolPath.CIRCLE,
+      fillColor: color,
+      fillOpacity: 1,
+      strokeColor: "#ffffff",
+      strokeWeight: 2,
+      scale: scale,
+      anchor: new window.google.maps.Point(0, 0)
+    };
+  } catch (error) {
+    console.error('Error creating marker icon:', error);
+    return null;
+  }
 };
 
-// Car icon for driver
+// FIXED: Safe car icon creation with proper checks
 const getDriverCarIcon = () => {
-  if (!window.google) return null;
-  return {
-    path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
-    fillColor: "#3b82f6",
-    fillOpacity: 1,
-    strokeColor: "#ffffff",
-    strokeWeight: 2,
-    scale: 1.5,
-    anchor: new window.google.maps.Point(12, 12)
-  };
+  if (!window.google || !window.google.maps || typeof window.google.maps.Point !== 'function') {
+    console.warn('Google Maps Point not available yet');
+    return null;
+  }
+  
+  try {
+    return {
+      path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
+      fillColor: "#3b82f6",
+      fillOpacity: 1,
+      strokeColor: "#ffffff",
+      strokeWeight: 2,
+      scale: 1.5,
+      anchor: new window.google.maps.Point(12, 12)
+    };
+  } catch (error) {
+    console.error('Error creating driver car icon:', error);
+    return null;
+  }
 };
 
-// Motorcycle icon for driver (alternative)
+// FIXED: Safe motorcycle icon creation with proper checks
 const getDriverMotoIcon = () => {
-  if (!window.google) return null;
-  return {
-    path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
-    fillColor: "#f59e0b",
-    fillOpacity: 1,
-    strokeColor: "#ffffff",
-    strokeWeight: 2,
-    scale: 1.3,
-    anchor: new window.google.maps.Point(12, 12)
-  };
+  if (!window.google || !window.google.maps || typeof window.google.maps.Point !== 'function') {
+    console.warn('Google Maps Point not available yet');
+    return null;
+  }
+  
+  try {
+    return {
+      path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
+      fillColor: "#f59e0b",
+      fillOpacity: 1,
+      strokeColor: "#ffffff",
+      strokeWeight: 2,
+      scale: 1.3,
+      anchor: new window.google.maps.Point(12, 12)
+    };
+  } catch (error) {
+    console.error('Error creating driver moto icon:', error);
+    return null;
+  }
 };
 
 const TrackOrderModal = ({ isOpen, onClose, order }) => {
@@ -204,7 +232,7 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
 
   // Get address from coordinates
   const getAddressFromCoords = useCallback(async (coords) => {
-    if (!coords || !isLoaded || !window.google) return null;
+    if (!coords || !isLoaded || !window.google || !window.google.maps) return null;
     
     if (!geocoderRef.current) {
       geocoderRef.current = new window.google.maps.Geocoder();
@@ -291,42 +319,54 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
 
   // Calculate route
   const calculateRoute = useCallback(() => {
-    if (!isLoaded || !window.google || !originCoords || !destCoords) return;
-
-    if (!directionsServiceRef.current) {
-      directionsServiceRef.current = new window.google.maps.DirectionsService();
+    if (!isLoaded || !window.google || !window.google.maps || !originCoords || !destCoords) {
+      console.warn('Cannot calculate route: Google Maps not ready or coordinates missing');
+      return;
     }
 
-    directionsServiceRef.current.route(
-      {
-        origin: new window.google.maps.LatLng(originCoords.lat, originCoords.lng),
-        destination: new window.google.maps.LatLng(destCoords.lat, destCoords.lng),
-        travelMode: window.google.maps.TravelMode.DRIVING,
-        language:'pt'
-      },
-      (result, status) => {
-        if (status === "OK" && result) {
-          setDirections(result);
-          const route = result.routes[0];
-          const leg = route.legs[0];
-          setRouteInfo({
-            distance: leg.distance?.text,
-            distanceValue: leg.distance?.value,
-            duration: leg.duration?.text,
-            durationValue: leg.duration?.value,
-            startAddress: leg.start_address,
-            endAddress: leg.end_address,
-            steps: leg.steps.map(step => ({
-              instruction: step.instructions,
-              distance: step.distance.text,
-              duration: step.duration.text
-            }))
-          });
-        } else {
-          console.error("Directions request failed:", status);
-        }
+    if (!directionsServiceRef.current) {
+      try {
+        directionsServiceRef.current = new window.google.maps.DirectionsService();
+      } catch (error) {
+        console.error('Error creating DirectionsService:', error);
+        return;
       }
-    );
+    }
+
+    try {
+      directionsServiceRef.current.route(
+        {
+          origin: new window.google.maps.LatLng(originCoords.lat, originCoords.lng),
+          destination: new window.google.maps.LatLng(destCoords.lat, destCoords.lng),
+          travelMode: window.google.maps.TravelMode.DRIVING,
+          language:'pt'
+        },
+        (result, status) => {
+          if (status === "OK" && result) {
+            setDirections(result);
+            const route = result.routes[0];
+            const leg = route.legs[0];
+            setRouteInfo({
+              distance: leg.distance?.text,
+              distanceValue: leg.distance?.value,
+              duration: leg.duration?.text,
+              durationValue: leg.duration?.value,
+              startAddress: leg.start_address,
+              endAddress: leg.end_address,
+              steps: leg.steps.map(step => ({
+                instruction: step.instructions,
+                distance: step.distance.text,
+                duration: step.duration.text
+              }))
+            });
+          } else {
+            console.error("Directions request failed:", status);
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Error calculating route:', error);
+    }
   }, [isLoaded, originCoords, destCoords]);
 
   useEffect(() => {
@@ -389,7 +429,12 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
 
   // Fit bounds
   const fitBounds = useCallback(() => {
-    if (mapRef.current && window.google) {
+    if (!mapRef.current || !window.google || !window.google.maps) {
+      console.warn('Cannot fit bounds: Map or Google Maps not ready');
+      return;
+    }
+    
+    try {
       const bounds = new window.google.maps.LatLngBounds();
       let hasPoints = false;
       
@@ -418,33 +463,58 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
         mapRef.current.setCenter(new window.google.maps.LatLng(originCoords.lat, originCoords.lng));
         mapRef.current.setZoom(13);
       }
+    } catch (error) {
+      console.error('Error fitting bounds:', error);
     }
   }, [originCoords, destCoords, driverPosition]);
 
   const centerOnDriver = () => {
-    if (mapRef.current && driverPosition) {
+    if (!mapRef.current || !driverPosition || !window.google || !window.google.maps) {
+      console.warn('Cannot center on driver: Map or driver position not ready');
+      return;
+    }
+    
+    try {
       mapRef.current.panTo(new window.google.maps.LatLng(driverPosition.lat, driverPosition.lng));
       mapRef.current.setZoom(15);
+    } catch (error) {
+      console.error('Error centering on driver:', error);
     }
   };
 
   const centerOnOrigin = () => {
-    if (mapRef.current && originCoords) {
+    if (!mapRef.current || !originCoords || !window.google || !window.google.maps) {
+      console.warn('Cannot center on origin: Map or origin coordinates not ready');
+      return;
+    }
+    
+    try {
       mapRef.current.panTo(new window.google.maps.LatLng(originCoords.lat, originCoords.lng));
       mapRef.current.setZoom(16);
+    } catch (error) {
+      console.error('Error centering on origin:', error);
     }
   };
 
   const centerOnDestination = () => {
-    if (mapRef.current && destCoords) {
+    if (!mapRef.current || !destCoords || !window.google || !window.google.maps) {
+      console.warn('Cannot center on destination: Map or destination coordinates not ready');
+      return;
+    }
+    
+    try {
       mapRef.current.panTo(new window.google.maps.LatLng(destCoords.lat, destCoords.lng));
       mapRef.current.setZoom(16);
+    } catch (error) {
+      console.error('Error centering on destination:', error);
     }
   };
 
   const onMapLoad = useCallback((map) => {
     mapRef.current = map;
-    fitBounds();
+    setTimeout(() => {
+      fitBounds();
+    }, 100);
   }, [fitBounds]);
 
   useEffect(() => {
@@ -480,6 +550,8 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
   const showLoading = !driverPosition && !requestedInitialLocation && loadingDriverLocation;
   const estimatedProgress = calculateProgress();
   const StatusIcon = displayStatus.icon;
+  
+  // FIXED: Only get icons when Google Maps is fully loaded
   const DriverIcon = useMotoIcon ? getDriverMotoIcon() : getDriverCarIcon();
 
   return (
@@ -535,29 +607,23 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
                   zoom={zoom}
                   onLoad={onMapLoad}
                   options={{
-                    // Updated options for better mobile interaction
                     disableDefaultUI: true,
-                    zoomControl: false, // Disabled to use custom controls
+                    zoomControl: false,
                     mapTypeControl: false,
                     streetViewControl: false,
                     fullscreenControl: false,
-                    gestureHandling: 'auto', // Changed from 'cooperative' to 'auto'
-                    // These options improve touch interaction
+                    gestureHandling: 'auto',
                     draggable: true,
                     draggableCursor: 'grab',
                     draggableCursor: 'grabbing',
-                    // Disable scrollwheel to prevent conflict with modal scrolling
                     scrollwheel: false,
-                    // Touch controls
                     touchZoom: true,
                     doubleClickZoom: true,
-                    // Allow single finger pan on mobile
                     disableDoubleClickZoom: false,
                     clickableIcons: false,
-                    // Zoom control position
-                    zoomControlOptions: {
-                      position: window.google?.maps?.ControlPosition?.RIGHT_BOTTOM
-                    }
+                    zoomControlOptions: window.google?.maps?.ControlPosition ? {
+                      position: window.google.maps.ControlPosition.RIGHT_BOTTOM
+                    } : undefined
                   }}
                 >
                   {directions && (
@@ -577,7 +643,8 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
                     />
                   )}
 
-                  {originCoords && (
+                  {/* FIXED: Only render markers if icon is available */}
+                  {originCoords && window.google && window.google.maps && (
                     <Marker
                       position={new window.google.maps.LatLng(originCoords.lat, originCoords.lng)}
                       icon={createMarkerIcon("#10b981", 10)}
@@ -598,7 +665,7 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
                     </Marker>
                   )}
 
-                  {destCoords && (
+                  {destCoords && window.google && window.google.maps && (
                     <Marker
                       position={new window.google.maps.LatLng(destCoords.lat, destCoords.lng)}
                       icon={createMarkerIcon("#ef4444", 10)}
@@ -619,7 +686,8 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
                     </Marker>
                   )}
 
-                  {driverPosition && DriverIcon && (
+                  {/* FIXED: Only render driver marker if icon is available */}
+                  {driverPosition && DriverIcon && window.google && window.google.maps && (
                     <Marker
                       position={new window.google.maps.LatLng(driverPosition.lat, driverPosition.lng)}
                       icon={DriverIcon}
