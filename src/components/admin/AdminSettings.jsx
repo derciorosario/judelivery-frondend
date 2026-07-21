@@ -550,6 +550,19 @@ const AdminSettings = () => {
                 <Field label="Duração (dias)">
                   <NumberInput value={settings.promotion?.daysDuration || 0} onChange={(value) => update("promotion", "daysDuration", value)} suffix="dias" />
                 </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Valor mínimo do pedido">
+                    <NumberInput value={settings.promotion?.minOrderValue || 0} onChange={(value) => update("promotion", "minOrderValue", value)} suffix={settings.app.currency} />
+                  </Field>
+                  <Field label="Valor máximo do pedido">
+                    <NumberInput value={settings.promotion?.maxOrderValue || 0} onChange={(value) => update("promotion", "maxOrderValue", value)} suffix={settings.app.currency} />
+                  </Field>
+                </div>
+                <Field label="Limite total de usos">
+                  <NumberInput value={settings.promotion?.totalUsageLimit || 0} onChange={(value) => update("promotion", "totalUsageLimit", value)} suffix="pedidos" />
+                </Field>
+                <SwitchField checked={settings.promotion?.newCustomersOnly} onChange={(value) => update("promotion", "newCustomersOnly", value)} label="Apenas novos clientes" hint="Clientes sem pedidos anteriores" disabled={disabled} />
+                <SwitchField checked={settings.promotion?.firstOrderOnly} onChange={(value) => update("promotion", "firstOrderOnly", value)} label="Apenas primeiro pedido" hint="Válido só no primeiro pedido do cliente" disabled={disabled} />
               </div>
             </SectionCard>
           </div>

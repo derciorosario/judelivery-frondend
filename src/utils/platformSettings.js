@@ -81,6 +81,11 @@ export const defaultPlatformSettings = {
     startDate: "",
     endDate: "",
     daysDuration: 15,
+    minOrderValue: 0,
+    maxOrderValue: 0,
+    totalUsageLimit: 0,
+    newCustomersOnly: false,
+    firstOrderOnly: true,
   },
 };
 
