@@ -14,6 +14,7 @@ import GuestOrderBar from '../components/common/GuestOrderBar';
 import Footer from '../components/common/Footer';
 import FullLogo from '../assets/full-logo.png'
 import Logo from '../assets/logo.png'
+import { getPublicSettings } from '../api/client';
 
 
 const LandingPage = () => {
@@ -24,11 +25,28 @@ const LandingPage = () => {
   const { scrollYProgress } = useScroll();
   const y = useTransform(scrollYProgress, [0, 1], [0, -50]);
   const [hasOrder,setHasOrder] = useState(false)
+  const [promotion, setPromotion] = useState(null)
+  const [promotionLoading, setPromotionLoading] = useState(true)
 
 
   useEffect(()=>{
        document.body.scrollIntoView({ behavior:'instant' })
   },[])
+
+  useEffect(() => {
+    const fetchPromotion = async () => {
+      setPromotionLoading(true)
+      try {
+        const { data } = await getPublicSettings()
+        setPromotion(data?.settings?.promotion || null)
+      } catch {
+        setPromotion(null)
+      } finally {
+        setPromotionLoading(false)
+      }
+    }
+    fetchPromotion()
+  }, [])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -422,29 +440,31 @@ const LandingPage = () => {
                   }}
                 />
                 <div className="relative bg-white/10 backdrop-blur-2xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 border border-white/20 shadow-2xl">
-                  <div className="text-center">
-                    {/* Discount Badge */}
-                    <motion.div 
-                      className="inline-block bg-gradient-to-r from-gold-500 to-gold-400 px-4 sm:px-6 md:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl shadow-2xl mb-4 sm:mb-6 md:mb-8 w-full sm:w-auto"
-                      whileHover={{ scale: 1.03 }}
-                    >
-                      <p className="text-[10px] sm:text-xs font-bold text-secondary-900 tracking-wider">PROMOÇÃO DE LANÇAMENTO</p>
-                      <p className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-secondary-900">40% OFF</p>
-                      <p className="text-[10px] sm:text-xs font-bold text-secondary-900">EM TODOS OS PEDIDOS</p>
-                      <motion.div 
-                        className="mt-1 sm:mt-2 text-[8px] sm:text-[10px] text-secondary-800 bg-white/20 rounded-full px-2 sm:px-3 py-0.5 sm:py-1 inline-block"
-                        animate={{ 
-                          scale: [1, 1.05, 1],
-                        }}
-                        transition={{ 
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: "easeInOut"
-                        }}
-                      >
-                        VÁLIDO DURANTE OS PRIMEIROS 15 DIAS
-                      </motion.div>
-                    </motion.div>
+                    <div className="text-center">
+                      {/* Discount Badge */}
+                      {!promotionLoading && promotion?.enabled && (
+                        <motion.div 
+                          className="inline-block bg-gradient-to-r from-gold-500 to-gold-400 px-4 sm:px-6 md:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl shadow-2xl mb-4 sm:mb-6 md:mb-8 w-full sm:w-auto"
+                          whileHover={{ scale: 1.03 }}
+                        >
+                          <p className="text-[10px] sm:text-xs font-bold text-secondary-900 tracking-wider">{promotion.title || "PROMOÇÃO"}</p>
+                          <p className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-secondary-900">{promotion.discountPercentage ?? 0}% OFF</p>
+                          <p className="text-[10px] sm:text-xs font-bold text-secondary-900">{promotion.subtitle || ""}</p>
+                          <motion.div 
+                            className="mt-1 sm:mt-2 text-[8px] sm:text-[10px] text-secondary-800 bg-white/20 rounded-full px-2 sm:px-3 py-0.5 sm:py-1 inline-block"
+                            animate={{ 
+                              scale: [1, 1.05, 1],
+                            }}
+                            transition={{ 
+                              duration: 2,
+                              repeat: Infinity,
+                              ease: "easeInOut"
+                            }}
+                          >
+                            {promotion.validityText || ""}
+                          </motion.div>
+                        </motion.div>
+                      )}
                     
                     {/* Features List - Responsive */}
                     <div className="space-y-2 sm:space-y-3 md:space-y-4 text-left">

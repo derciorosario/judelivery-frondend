@@ -150,6 +150,7 @@ const AdminSettings = () => {
     { id: "orders", label: "Pedidos", icon: "package" },
     { id: "pricing", label: "Preços", icon: "dollar" },
     { id: "payments", label: "Pagamentos", icon: "creditCard" },
+    { id: "promotion", label: "Promoção", icon: "gift" },
     { id: "app", label: "App", icon: "settings" },
   ];
 
@@ -513,6 +514,42 @@ const AdminSettings = () => {
                 <button type="button" onClick={addPayment} disabled={disabled} className={`w-full py-2.5 rounded-xl text-white text-sm font-bold shadow-lg shadow-orange-300 ${disabled ? "bg-orange-300 cursor-not-allowed" : "bg-orange-500 hover:bg-orange-600"}`}>
                   Adicionar ao formulário
                 </button>
+              </div>
+            </SectionCard>
+          </div>
+        )}
+
+        {activeTab === "promotion" && (
+          <div className="space-y-4 pb-10">
+            <SectionCard icon="gift" title="Promoção da landing page" description="Conteúdo do destaque amarelo exibido na página inicial.">
+              <div className="grid grid-cols-1 gap-3">
+                <SwitchField checked={settings.promotion?.enabled} onChange={(value) => update("promotion", "enabled", value)} label="Mostrar promoção" hint="Exibir o bloco promocional na landing page" disabled={disabled} />
+                <Field label="Título">
+                  <input type="text" value={settings.promotion?.title || ""} onChange={(event) => update("promotion", "title", event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300" />
+                </Field>
+                <Field label="Desconto (%)">
+                  <NumberInput value={settings.promotion?.discountPercentage ?? 0} onChange={(value) => update("promotion", "discountPercentage", value)} suffix="%" />
+                </Field>
+                <Field label="Texto do desconto">
+                  <input type="text" value={settings.promotion?.discountText || ""} onChange={(event) => update("promotion", "discountText", event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300" />
+                </Field>
+                <Field label="Subtítulo">
+                  <input type="text" value={settings.promotion?.subtitle || ""} onChange={(event) => update("promotion", "subtitle", event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300" />
+                </Field>
+                <Field label="Texto de validade">
+                  <input type="text" value={settings.promotion?.validityText || ""} onChange={(event) => update("promotion", "validityText", event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300" />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Data de início">
+                    <input type="date" value={settings.promotion?.startDate || ""} onChange={(event) => update("promotion", "startDate", event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300" />
+                  </Field>
+                  <Field label="Data de fim">
+                    <input type="date" value={settings.promotion?.endDate || ""} onChange={(event) => update("promotion", "endDate", event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300" />
+                  </Field>
+                </div>
+                <Field label="Duração (dias)">
+                  <NumberInput value={settings.promotion?.daysDuration || 0} onChange={(value) => update("promotion", "daysDuration", value)} suffix="dias" />
+                </Field>
               </div>
             </SectionCard>
           </div>

@@ -71,6 +71,17 @@ export const defaultPlatformSettings = {
     allowDriverToAcceptScheduledOrders: true,
     maxDistanceFromPickupKm: 15,
   },
+  promotion: {
+    enabled: false,
+    title: "PROMOÇÃO DE LANÇAMENTO",
+    discountPercentage: 40,
+    discountText: "40% OFF",
+    subtitle: "EM TODOS OS PEDIDOS",
+    validityText: "VÁLIDO DURANTE OS PRIMEIROS 15 DIAS",
+    startDate: "",
+    endDate: "",
+    daysDuration: 15,
+  },
 };
 
 export const cloneSettings = (value = defaultPlatformSettings) => JSON.parse(JSON.stringify(value));
