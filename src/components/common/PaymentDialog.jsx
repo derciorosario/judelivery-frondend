@@ -38,7 +38,7 @@ const PaymentDialog = ({
   const onlinePaymentOptions = [
     { id: "mpesa", name: "M-Pesa", icon: Smartphone, fee: 3 },
     { id: "emola", name: "E-Mola", icon: Smartphone, fee: 3 },
-    { id: "card", name: "Cartão", icon: CreditCard, fee: 5 }
+    //{ id: "card", name: "Cartão", icon: CreditCard, fee: 5 }
   ];
 
   // Map existing payment method to display name
@@ -280,7 +280,7 @@ const PaymentDialog = ({
         {paymentType === "online" && (
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-2">Selecione o método de pagamento online</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {onlinePaymentOptions.map(option => {
                 const Icon = option.icon;
                 const isSelected = paymentMethod === option.id;

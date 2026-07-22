@@ -1193,7 +1193,7 @@ const AdminFinance = () => {
             <Icon name="file" size={16} />
             {exporting && <span className="ml-1 text-xs">...</span>}
           </button>
-          <button 
+          {!Capacitor.isNativePlatform() && <button 
             onClick={exportToPDF} 
             disabled={printing}
             className={`p-2 rounded-xl transition-all ${
@@ -1205,7 +1205,7 @@ const AdminFinance = () => {
           >
             <Icon name="printer" size={16} />
             {printing && <span className="ml-1 text-xs">...</span>}
-          </button>
+          </button>}
         </div>
       </div>
 

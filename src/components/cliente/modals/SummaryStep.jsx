@@ -28,6 +28,35 @@ const SummaryStep = ({
   const returnTripFee = Number(pricing.returnTripFee ?? 120);
   const waitingFeePerMinute = Number(pricing.waitingFeePerMinute ?? 4);
 
+  const promotion = settings?.promotion || {};
+  const isPromotionEnabled =
+    promotion.enabled &&
+    Boolean(promotion.title || promotion.discountText || promotion.discountPercentage);
+
+  const today = new Date();
+  const startDate = promotion.startDate ? new Date(promotion.startDate) : null;
+  const endDate = promotion.endDate ? new Date(promotion.endDate) : null;
+  const isWithinDateRange =
+    !startDate || today >= startDate
+      ? !endDate || today <= endDate
+      : false;
+
+  const minOrderValue = Number(promotion.minOrderValue ?? 0);
+  const maxOrderValue = Number(promotion.maxOrderValue ?? 0);
+  const totalUsageLimit = Number(promotion.totalUsageLimit ?? 0);
+  const discountPercentage = Number(promotion.discountPercentage ?? 0);
+
+  const meetsValueRange =
+    price >= (minOrderValue || 0) &&
+    (maxOrderValue === 0 || price <= maxOrderValue);
+
+  const discountAmount =
+    isPromotionEnabled && isWithinDateRange && meetsValueRange
+      ? Number((price * (discountPercentage / 100)).toFixed(2))
+      : 0;
+
+  const finalPrice = Number((price - discountAmount).toFixed(2));
+
   const formatAmount = (value) => `${Number(value) || 0} ${currency}`;
 
   const formatDuration = (minutes) => {
@@ -177,9 +206,21 @@ const SummaryStep = ({
           <div className="flex items-center justify-between">
             <span className="text-sm font-bold text-slate-700">Valor Total:</span>
             <span className="text-xl font-bold text-blue-500">
-              {formatAmount(price)}
+              {formatAmount(finalPrice)}
             </span>
           </div>
+          {discountAmount > 0 && (
+            <div className="mt-2 pt-2 border-t border-blue-200">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-600">Subtotal:</span>
+                <span className="font-medium text-black">{formatAmount(price)}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-green-600">Promoção ({promotion.title || discountPercentage + "% OFF"}):</span>
+                <span className="font-medium text-green-600">-{formatAmount(discountAmount)}</span>
+              </div>
+            </div>
+          )}
           <p className="text-xs text-slate-400 mt-1">
             *Preço fixo garantido. Sem surpresas!
           </p>
@@ -312,8 +353,14 @@ const SummaryStep = ({
           )}
           <div className="flex justify-between text-xs font-semibold mt-1 pt-1 border-t border-orange-200">
             <span className="text-slate-700">Total a pagar:</span>
-            <span className="text-orange-700">{formatAmount(price)}</span>
+            <span className="text-orange-700">{formatAmount(finalPrice)}</span>
           </div>
+          {discountAmount > 0 && (
+            <div className="flex justify-between text-xs mt-1">
+              <span className="text-green-600">Promoção ({promotion.title || discountPercentage + "% OFF"}):</span>
+              <span className="font-medium text-green-600">-{formatAmount(discountAmount)}</span>
+            </div>
+          )}
         </div>
         <p className="text-xs text-slate-400 mt-2">
           *O valor final será confirmado após análise do pedido

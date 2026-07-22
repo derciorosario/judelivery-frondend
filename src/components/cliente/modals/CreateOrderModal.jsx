@@ -909,6 +909,34 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
       const paymentMethodCode = selectedPaymentMethod ? normalizePaymentMethod(selectedPaymentMethod, platformSettings) : normalizePaymentMethod(form.paymentMethod, platformSettings);
       const isScheduled = form.isScheduled || form.isScheduledRide;
 
+      const promotion = platformSettings?.promotion || {};
+      const isPromotionEnabled =
+        promotion.enabled &&
+        Boolean(promotion.title || promotion.discountText || promotion.discountPercentage);
+
+      const now = new Date();
+      const startDate = promotion.startDate ? new Date(promotion.startDate) : null;
+      const endDate = promotion.endDate ? new Date(promotion.endDate) : null;
+      const isWithinDateRange =
+        !startDate || now >= startDate
+          ? !endDate || now <= endDate
+          : false;
+
+      const minOrderValue = Number(promotion.minOrderValue ?? 0);
+      const maxOrderValue = Number(promotion.maxOrderValue ?? 0);
+      const discountPercentage = Number(promotion.discountPercentage ?? 0);
+
+      const meetsValueRange =
+        total >= (minOrderValue || 0) &&
+        (maxOrderValue === 0 || total <= maxOrderValue);
+
+      const discountAmount =
+        isPromotionEnabled && isWithinDateRange && meetsValueRange
+          ? Number((total * (discountPercentage / 100)).toFixed(2))
+          : 0;
+
+      const discountedTotal = Number((total - discountAmount).toFixed(2));
+
       if (distance > maxDistanceKm) {
         toast.error(`A distância máxima permitida é de ${maxDistanceKm} km.`);
         setSaving(false);
@@ -974,7 +1002,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
         scheduledTime: form.isScheduledRide ? form.scheduledRideTime : null,
         contactOrigin: form.contactOrigin,
         contactDest: form.contactDest,
-        total,
+        total: discountedTotal,
         dist: `${distance} km`,
         duration: duration,
         time: new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }),
@@ -1002,7 +1030,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
         scheduledTime: form.isScheduled ? form.scheduledTime : null,
         contactOrigin: form.contactOrigin,
         contactDest: form.contactDest,
-        total,
+        total: discountedTotal,
         dist: `${distance} km`,
         duration: duration,
         time: new Date().toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" }),

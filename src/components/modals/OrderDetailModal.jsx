@@ -1035,7 +1035,7 @@ const OrderDetailModal = ({
           disabled={isSubmitting || form.status === localOrder?.status}
           className="w-full mt-2 py-2 rounded-lg bg-orange-500 text-white font-semibold text-sm hover:bg-orange-600 disabled:opacity-50 transition-colors"
         >
-          Aplicar Mudança de Statuss=
+          Aplicar Mudança de Status
         </button>
       </div>
 

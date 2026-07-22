@@ -1,5 +1,5 @@
 import axios from "axios";
-export const env = "pro";
+export const env = "dev";
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 export const isNative = Capacitor.isNativePlatform();
 export const API_URL = 
