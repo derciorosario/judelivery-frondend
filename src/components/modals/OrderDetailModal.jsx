@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { updateOrder, getDrivers, getOrder, cancelOrder, getOrderIncidents, createIncident, updateIncidentWithFiles, deleteIncident, deleteFeedback } from "../../api/client";
 import { toast } from "../../lib/toast";
+import { usePlatformSettings } from "../../contexts/SettingsContext";
 import {
   X,
   Package,
@@ -56,6 +57,7 @@ const OrderDetailModal = ({
   updating, // For driver role loading state
   initialTab = "details" // Initial tab to show when modal opens
 }) => {
+   const { settings: platformSettings } = usePlatformSettings();
    const [activeTab, setActiveTab] = useState(initialTab);
    const [loadingOrder, setLoadingOrder] = useState(false);
    const [localOrder, setLocalOrder] = useState(order);
@@ -1793,6 +1795,7 @@ const OrderDetailModal = ({
           defaultPaymentType={defaultPaymentData.paymentType}
           defaultPaymentMethod={defaultPaymentData.paymentMethodId}
           existingPaymentMethod={existingPaymentMethod}
+          settings={platformSettings}
           onPaymentSuccess={(paymentData) => {
             // Payment was successfully recorded in backend
             console.log("Payment successful:", paymentData);

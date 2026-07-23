@@ -52,6 +52,8 @@ const normalizeSettingsForSave = (settings) => {
     enabled: Boolean(method.enabled),
     primary: Boolean(method.primary),
     instructions: String(method.instructions || "").trim(),
+    number: String(method.number || "").trim(),
+    holder: String(method.holder || "").trim(),
   }));
 
   return normalized;
@@ -132,7 +134,7 @@ const NumberInput = ({ value, onChange, suffix, ...props }) => (
       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 pr-12 text-sm text-slate-800 outline-none transition focus:border-orange-400 focus:ring-1 focus:ring-orange-300"
       {...props}
     />
-    {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">{suffix}</span>}
+    {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs !text-slate-400">{suffix}</span>}
   </div>
 );
 
@@ -155,6 +157,8 @@ const AdminSettings = () => {
   ];
 
   const formatMoney = (amount) => {
+
+    return `${amount} MZN`
     try {
       return new Intl.NumberFormat("pt-MZ", {
         style: "currency",
@@ -488,7 +492,13 @@ const AdminSettings = () => {
                       <SwitchField checked={method.enabled} onChange={(value) => updatePayment(method.id, "enabled", value)} label="Activo" hint="Mostrar no pedido" disabled={disabled} />
                       <SwitchField checked={method.primary} onChange={(value) => updatePayment(method.id, "primary", value)} label="Principal" hint="Destaque no resumo" disabled={disabled} />
                     </div>
-                    <div className="mt-3">
+                    <div className="mt-3 grid grid-cols-1 gap-3">
+                      <Field label="Número / Conta">
+                        <input type="text" value={method.number || ''} onChange={(event) => updatePayment(method.id, "number", event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300" />
+                      </Field>
+                      <Field label="Titular">
+                        <input type="text" value={method.holder || ''} onChange={(event) => updatePayment(method.id, "holder", event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300" />
+                      </Field>
                       <Field label="Instruções">
                         <input type="text" value={method.instructions} onChange={(event) => updatePayment(method.id, "instructions", event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300" />
                       </Field>
@@ -506,6 +516,14 @@ const AdminSettings = () => {
                   </Field>
                   <Field label="Nome">
                     <input type="text" value={newPayment.name} onChange={(event) => setNewPayment((previous) => ({ ...previous, name: event.target.value }))} placeholder="ex: Mola" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300" />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 gap-3">
+                  <Field label="Número / Conta">
+                    <input type="text" value={newPayment.number || ''} onChange={(event) => setNewPayment((previous) => ({ ...previous, number: event.target.value }))} placeholder="ex: 84 123 4567" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300" />
+                  </Field>
+                  <Field label="Titular">
+                    <input type="text" value={newPayment.holder || ''} onChange={(event) => setNewPayment((previous) => ({ ...previous, holder: event.target.value }))} placeholder="ex: Empresa Logística MZ" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300" />
                   </Field>
                 </div>
                 <Field label="Instruções">

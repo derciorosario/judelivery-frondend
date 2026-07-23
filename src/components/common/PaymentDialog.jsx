@@ -16,6 +16,7 @@ const PaymentDialog = ({
   defaultPaymentType = null,
   defaultPaymentMethod = null,
   existingPaymentMethod = null,
+  settings,
   onPaymentSuccess
 }) => {
   const [paymentMethod, setPaymentMethod] = useState(defaultPaymentMethod);
@@ -28,17 +29,19 @@ const PaymentDialog = ({
   const [checkoutUrl, setCheckoutUrl] = useState(null);
   const [payWithPaySuite, setPayWithPaySuite] = useState(true);
 
-  const directTransferOptions = [
-    { id: "cash", name: "Dinheiro", number: "Pagar em dinheiro na entrega", holder: "Pague ao motorista" },
-    { id: "mpesa", name: "M-Pesa", number: "84 123 4567", holder: "Empresa Logística MZ" },
-    { id: "emola", name: "E-Mola", number: "84 765 4321", holder: "Empresa Logística MZ" },
-    { id: "bic", name: "Conta BIC", number: "12345678901", holder: "Empresa Logística MZ" }
-  ];
+  const directTransferOptions = (settings?.payments?.methods || [])
+    .filter((method) => method.enabled)
+    .map((method) => ({
+      id: method.id || method.code,
+      name: method.name,
+      number: method.number || '',
+      holder: method.holder || ''
+    }));
 
   const onlinePaymentOptions = [
-    { id: "mpesa", name: "M-Pesa", icon: Smartphone, fee: 3 },
-    { id: "emola", name: "E-Mola", icon: Smartphone, fee: 3 },
-    //{ id: "card", name: "Cartão", icon: CreditCard, fee: 5 }
+    { id: "mpesa", name: "M-Pesa", icon: Smartphone, fee: 6 },
+    { id: "emola", name: "E-Mola", icon: Smartphone, fee: 6 },
+  //{ id: "card", name: "Cartão", icon: CreditCard, fee: 6 }
   ];
 
   // Map existing payment method to display name
