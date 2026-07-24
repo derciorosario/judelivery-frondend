@@ -77,6 +77,17 @@ const GuestOrderPage = () => {
     setOrder(null);
   };
 
+  const getPaymentMethodLabel = (method) => {
+    const labels = {
+      cash: "Dinheiro",
+      mpesa: "M-Pesa",
+      emola: "E-Mola",
+      card: "Cartão",
+      bank_transfer: "Transferência Bancária"
+    };
+    return labels[method] || method || "—";
+  };
+
   const getStatusConfig = (status) => {
     const s = status?.toLowerCase() || "";
     if (s === "in_transit") return { text: "Em entrega", color: "bg-blue-100 text-blue-700 border-blue-200", icon: FaTruck };
@@ -373,7 +384,7 @@ const GuestOrderPage = () => {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-secondary-600">Pagamento</span>
                 <div className="text-right">
-                  <p className="text-sm text-secondary-700">{order.paymentMethod || 'Transferência'}</p>
+                  <p className="text-sm text-secondary-700">{getPaymentMethodLabel(order.paymentMethod)}</p>
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
                     order.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' :
                     order.paymentStatus === 'pending' ? 'bg-amber-100 text-amber-700' :
@@ -433,7 +444,7 @@ const GuestOrderPage = () => {
         >
           <h3 className="text-lg font-bold text-secondary-900 mb-4">Precisa de ajuda?</h3>
           <p className="text-sm text-secondary-600 mb-4">
-            Se tiver alguma dúvida sobre o seu pedido, entre em contato conosco.
+            Se tiver alguma dúvida sobre o seu pedido, entre em contacto conosco.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <a
@@ -477,7 +488,7 @@ const GuestOrderPage = () => {
                 Pedido criado com sucesso!
               </h3>
               <p className="text-sm text-secondary-600 mb-2">
-                O seu pedido <span className="font-bold">#{orderId.slice(-8).toUpperCase()}</span> foi recebido e será contactado em breve. Caso precise de algo, utilize as informações de contato fornecidos.
+                O seu pedido <span className="font-bold">#{orderId.slice(-8).toUpperCase()}</span> foi recebido e será contactado em breve. Caso precise de algo, utilize as informações de contacto fornecidas.
               </p>
               <p className="text-xs text-secondary-500 mb-6">
                 {order.driver ? (

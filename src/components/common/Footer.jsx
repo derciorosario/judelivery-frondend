@@ -61,7 +61,7 @@ const Footer = () => {
           </div>
           
           <div className="text-center sm:text-left">
-            <h5 className="font-bold text-base sm:text-lg mb-3 sm:mb-4">Contato</h5>
+            <h5 className="font-bold text-base sm:text-lg mb-3 sm:mb-4">Contacto</h5>
             <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-gray-400">
               <li className="flex items-center justify-center sm:justify-start hover:text-white transition">
                 <FaPhone className="mr-2 sm:mr-3 text-primary-400 text-xs sm:text-sm" /> {appSettings.supportPhone || '+258 82 333 4455'}

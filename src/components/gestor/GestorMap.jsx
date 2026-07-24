@@ -578,7 +578,7 @@ const GestorMap = ({ initialDriverId }) => {
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* Contact Info */}
           <div className="space-y-3">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Informações de Contato</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Informações de Contacto</p>
             
             {selectedDriver?.phone && (
               <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">

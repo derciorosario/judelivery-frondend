@@ -190,7 +190,7 @@ const LandingPage = () => {
           }`}
           whileHover={{ y: -2 }}
         >
-          Contato
+          Contacto
         </motion.a>
         <Link 
           to="/login" 
@@ -273,7 +273,7 @@ const LandingPage = () => {
                 }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Contato
+                Contacto
               </a>
               <Link
                 to="/start"
