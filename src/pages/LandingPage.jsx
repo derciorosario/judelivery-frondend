@@ -193,6 +193,15 @@ const LandingPage = () => {
           Contacto
         </motion.a>
         <Link 
+          to="/faq" 
+          className={`transition font-medium ${
+            scrolled ? 'text-secondary-600 hover:text-primary-600' : '!text-white hover:text-white/80'
+          }`}
+          whileHover={{ y: -2 }}
+        >
+          FAQ
+        </Link>
+        <Link 
           to="/login" 
           className={`px-6 py-2.5 font-semibold transition ${
             scrolled ? 'text-secondary-700 hover:text-primary-600' : '!text-white hover:text-white/80'
@@ -275,6 +284,15 @@ const LandingPage = () => {
               >
                 Contacto
               </a>
+              <Link
+                to="/faq"
+                className={`transition font-medium py-2 px-4 rounded-lg ${
+                  scrolled ? 'text-secondary-600 hover:text-primary-600 hover:bg-secondary-50' : '!text-white hover:text-white/80 hover:bg-white/10'
+                }`}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                FAQ
+              </Link>
               <Link
                 to="/start"
                 className="px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 !text-white font-semibold rounded-full text-center hover:shadow-xl transition-all duration-300 mx-4"

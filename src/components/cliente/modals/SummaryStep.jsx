@@ -223,9 +223,7 @@ const SummaryStep = ({
               </div>
             </div>
           )}
-          <p className="text-xs text-slate-400 mt-1">
-            *Preço fixo garantido. Sem surpresas!
-          </p>
+        
         </div>
       </div>
     );

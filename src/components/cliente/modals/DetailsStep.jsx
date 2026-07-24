@@ -376,7 +376,10 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
       <div className="space-y-4">
         <div>
           <label className="block text-xs font-semibold text-slate-500 mb-1">Número de Passageiros</label>
-          <div className="flex items-center gap-3">
+          
+          {/*** Leave it Hidden */}
+          <div className="hidden flex items-center gap-3">
+         
             <button
               type="button"
               onClick={() => onFormChange({ ...form, passengerCount: Math.max(1, form.passengerCount - 1) })}
@@ -429,7 +432,7 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
           <input
             type="number"
             value={form.waitingTime}
-            onChange={e => onFormChange({ ...form, waitingTime: parseInt(e.target.value) || 0 })}
+            onChange={e => onFormChange({ ...form, waitingTime: e.target.value === "" ? "" : parseInt(e.target.value) || 0 })}
             min="0"
             step="1"
             max={maxWaitingTime}

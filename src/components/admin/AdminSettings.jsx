@@ -452,11 +452,7 @@ const AdminSettings = () => {
                   <NumberInput value={settings.pricing.extraPassengerFee} onChange={(value) => update("pricing", "extraPassengerFee", value)} suffix={settings.app.currency} />
                 </Field>
               </div>
-              <div className="mt-4 rounded-2xl bg-blue-50 border border-blue-100 p-3">
-                <p className="text-xs font-semibold text-blue-700">Exemplo</p>
-                <p className="text-sm font-bold text-blue-800 mt-1">Corrida estimada: {taxiPreview}</p>
-                <p className="text-[11px] text-blue-600 mt-0.5">5 km · sem extras · cálculo local apenas.</p>
-              </div>
+             
             </SectionCard>
           </div>
         )}
