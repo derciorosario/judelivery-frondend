@@ -70,7 +70,8 @@ const OrdersList = ({
   const [showTrackOrder, setShowTrackOrder] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showEditOrder, setShowEditOrder] = useState(false);
+   const [showEditOrder, setShowEditOrder] = useState(false);
+   const [repeatOrderData, setRepeatOrderData] = useState(null);
   const [showClientSelect, setShowClientSelect] = useState(false);
   const [showIncidentModal, setShowIncidentModal] = useState(false);
   const [showIncidentList, setShowIncidentList] = useState(false);
@@ -356,17 +357,19 @@ const OrdersList = ({
     setMenuOpenId(null);
   };
 
-  const handleRepeatOrder = () => {
-    setShowEditOrder(true);
-    setShowOrderDetails(false);
-    setMenuOpenId(null);
-  };
+   const handleRepeatOrder = (order) => {
+     setRepeatOrderData(order);
+     setShowEditOrder(true);
+     setShowOrderDetails(false);
+     setMenuOpenId(null);
+   };
 
-  const handleEditOrder = (order) => {
-    setSelectedOrder(order);
-    setShowEditOrder(true);
-    setMenuOpenId(null);
-  };
+   const handleEditOrder = (order) => {
+     setRepeatOrderData(null);
+     setSelectedOrder(order);
+     setShowEditOrder(true);
+     setMenuOpenId(null);
+   };
 
   const handleTrackOrder = () => {
     setShowTrackOrder(true);
@@ -821,10 +824,10 @@ const OrdersList = ({
                             handleTrackOrder();
                           } else if (btn.action === "feedback") {
                             handleGiveFeedback(order);
-                          } else if (btn.action === "repeat") {
-                            setSelectedOrder(order);
-                            handleRepeatOrder();
-                          }
+                           } else if (btn.action === "repeat") {
+                             setSelectedOrder(order);
+                             handleRepeatOrder(order);
+                           }
                         }}
                         className={`flex-1 text-xs font-semibold py-2 rounded-lg ${btn.color}`}
                       >
@@ -863,10 +866,10 @@ const OrdersList = ({
                                     handleTrackOrder();
                                   } else if (btn.action === "feedback") {
                                     handleGiveFeedback(order);
-                                  } else if (btn.action === "repeat") {
-                                    setSelectedOrder(order);
-                                    handleRepeatOrder();
-                                  }
+                                   } else if (btn.action === "repeat") {
+                                     setSelectedOrder(order);
+                                     handleRepeatOrder(order);
+                                   }
                                 }}
                                 className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                               >
@@ -1007,36 +1010,46 @@ const OrdersList = ({
         </div>
       )}
 
-      {/* Edit Order Modal */}
-      {showEditOrder && selectedOrder && (
-        <CreateOrderModal
-          isOpen={showEditOrder}
-          onClose={() => {
-            setShowEditOrder(false);
-            setSelectedOrder(null);
-            setSelectedClientForEdit(null);
-          }}
-          editOrder={selectedOrder}
-          serviceType={selectedOrder.serviceType || "delivery"}
-          clientId={selectedClientForEdit?.userId || selectedClientForEdit?.id || selectedOrder.clientId}
-          selectedClient={selectedClientForEdit || (selectedOrder.client && {
-            id: selectedOrder.clientId,
-            userId: selectedOrder.clientId,
-            name: typeof selectedOrder.client === 'string' ? selectedOrder.client : selectedOrder.client?.name,
-            phone: selectedOrder.client?.phone
-          })}
-          onClientSelectClick={() => {
-            setShowEditOrder(false);
-            setShowClientSelect(true);
-          }}
-          onOrderUpdated={(updatedOrder) => {
-            setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-            if (onOrderUpdate) onOrderUpdate(updatedOrder);
-            setShowEditOrder(false);
-            setSelectedOrder(null);
-          }}
-        />
-      )}
+       {/* Edit/Repeat Order Modal */}
+       {showEditOrder && selectedOrder && (
+         <CreateOrderModal
+           isOpen={showEditOrder}
+           onClose={() => {
+             setShowEditOrder(false);
+             setSelectedOrder(null);
+             setSelectedClientForEdit(null);
+             setRepeatOrderData(null);
+           }}
+           repeatOrder={repeatOrderData}
+           editOrder={!repeatOrderData ? selectedOrder : undefined}
+           serviceType={selectedOrder.serviceType || "delivery"}
+           clientId={selectedClientForEdit?.userId || selectedClientForEdit?.id || selectedOrder.clientId}
+           selectedClient={selectedClientForEdit || (selectedOrder.client && {
+             id: selectedOrder.clientId,
+             userId: selectedOrder.clientId,
+             name: typeof selectedOrder.client === 'string' ? selectedOrder.client : selectedOrder.client?.name,
+             phone: selectedOrder.client?.phone
+           })}
+           onClientSelectClick={() => {
+             setShowEditOrder(false);
+             setShowClientSelect(true);
+           }}
+           onOrderCreated={(newOrder) => {
+             setOrders(prev => [newOrder, ...prev]);
+             if (onOrderUpdate) onOrderUpdate(newOrder);
+             setShowEditOrder(false);
+             setSelectedOrder(null);
+             setRepeatOrderData(null);
+           }}
+           onOrderUpdated={(updatedOrder) => {
+             setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+             if (onOrderUpdate) onOrderUpdate(updatedOrder);
+             setShowEditOrder(false);
+             setSelectedOrder(null);
+             setRepeatOrderData(null);
+           }}
+         />
+       )}
 
       {/* Client Select Modal for Admin/Manager editing */}
       {showClientSelect && (

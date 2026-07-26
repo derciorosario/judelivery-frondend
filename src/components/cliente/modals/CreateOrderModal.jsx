@@ -21,7 +21,6 @@ const libraries = ["places"];
 const USE_DIRECTIONS_DISTANCE = true;
 
 const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated, onOrderUpdated, repeatOrder, editOrder, serviceType, clientId, onClientSelectClick, selectedClient, settings, settingsLoading }) => {
-  console.log({a:customerData})
   const {user:authUser} = useAuth()
   const { settings: contextSettings, loading: contextSettingsLoading } = usePlatformSettings();
   const platformSettings = settings || contextSettings;
