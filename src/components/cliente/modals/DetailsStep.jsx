@@ -103,8 +103,9 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
           dropoffCoords: form.dropoffCoords ? `${form.dropoffCoords.lat},${form.dropoffCoords.lng}` : undefined,
           scheduledTime:  form.scheduledTime ||  form.scheduledRideTime || undefined,
           isScheduled: form.isScheduled || form.isScheduledRide,
-          estimatedDuration: getEstimatedDuration(),
-          maxActiveOrdersPerDriver: drivers.maxActiveOrdersPerDriver
+         urgencyLevel: form.urgencyLevel,
+           estimatedDuration: getEstimatedDuration(),
+           maxActiveOrdersPerDriver: drivers.maxActiveOrdersPerDriver
         };
 
       const response = await getAvailableDrivers(params);
@@ -175,7 +176,7 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [serviceType, form.originCoords, form.destCoords, form.pickupCoords, form.dropoffCoords, form.isScheduled, form.scheduledTime, allowScheduledOrders]);
+  }, [serviceType, form.originCoords, form.destCoords, form.pickupCoords, form.dropoffCoords, form.isScheduled, form.scheduledTime, form.urgencyLevel, allowScheduledOrders]);
 
   // Auto-start search for taxi details step
   useEffect(() => {
@@ -185,7 +186,7 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [serviceType, form.pickupCoords, form.dropoffCoords, form.isScheduledRide, form.scheduledRideTime, allowScheduledOrders]);
+  }, [serviceType, form.pickupCoords, form.dropoffCoords, form.isScheduledRide, form.scheduledRideTime, form.urgencyLevel, allowScheduledOrders]);
 
   // Socket listener for real-time driver updates
   useEffect(() => {
