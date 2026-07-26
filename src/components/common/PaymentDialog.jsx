@@ -350,8 +350,9 @@ const PaymentDialog = ({
               </div>
             )}
             
+               {/***Leave this session hidden */}
             {paymentMethod && !isMpesaSelected && (
-              <div className="mt-3 p-2 bg-amber-50 rounded-lg border border-amber-100">
+              <div className="mt-3 p-2 bg-amber-50 hidden rounded-lg border border-amber-100">
                 <div className="flex items-start gap-2">
                   <Info size={14} className="text-amber-500 mt-0.5" />
                   <p className="text-xs text-amber-700">
@@ -371,7 +372,7 @@ const PaymentDialog = ({
           <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
             <p className="text-xs text-slate-600 flex items-center gap-1">
               <Info size={12} />
-              Taxas aplicadas: 3% para M-Pesa e E-Mola, 5% para Cartão
+              Taxas aplicadas: 6% para M-Pesa e E-Mola
             </p>
           </div>
         )}

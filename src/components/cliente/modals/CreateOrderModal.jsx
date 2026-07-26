@@ -383,6 +383,14 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     if (form.passengerCount > Number(pricing.extraPassengerThreshold ?? 3)) total += Number(pricing.extraPassengerFee ?? 30);
     return Math.round(total);
   }, [calculateDistance, form.returnTrip, form.waitingTime, form.hasLuggage, form.passengerCount, platformSettings.pricing]);
+
+  const calculateRideBasePrice = useCallback(() => {
+    const distance = calculateDistance();
+    const pricing = platformSettings.pricing || {};
+    const basePrice = Number(pricing.taxiBasePrice ?? 80);
+    const perKm = Number(pricing.taxiPerKm ?? 20);
+    return Math.round(basePrice + (distance * perKm));
+  }, [calculateDistance, platformSettings.pricing]);
   
   const calculateDeliveryPrice = useCallback(() => {
     const distance = calculateDistance();
@@ -397,6 +405,14 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     }
     return Math.round(total);
   }, [calculateDistance, form.urgencyLevel, platformSettings.pricing]);
+
+  const calculateDeliveryBasePrice = useCallback(() => {
+    const distance = calculateDistance();
+    const pricing = platformSettings.pricing || {};
+    const basePrice = Number(pricing.deliveryBasePrice ?? 50);
+    const perKm = Number(pricing.deliveryPerKm ?? 12);
+    return Math.round(basePrice + (distance * perKm));
+  }, [calculateDistance, platformSettings.pricing]);
 
   const calculateRoute = useCallback(async () => {
     if (!isLoaded || !window.google) return;
@@ -1074,7 +1090,9 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
   const distance = calculateDistance();
   const duration = resolvedServiceType === "taxi" ? calculateDuration() : calculateDeliveryDuration();
   const ridePrice = resolvedServiceType === "taxi" ? calculateRidePrice() : 0;
+  const baseRidePrice = resolvedServiceType === "taxi" ? calculateRideBasePrice() : 0;
   const deliveryPrice = resolvedServiceType === "delivery" ? calculateDeliveryPrice() : 0;
+  const baseDeliveryPrice = resolvedServiceType === "delivery" ? calculateDeliveryBasePrice() : 0;
   const currency = platformSettings.app?.currency || "MZN";
   const countryRestriction = platformSettings.app?.countryRestriction || "mz";
   const enabledPaymentMethods = getEnabledPaymentMethods(platformSettings);
@@ -1139,7 +1157,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                 onCalculateRoute={calculateRoute}
                 distance={distance}
                 duration={duration}
-                price={ridePrice}
+                price={baseRidePrice}
                 loadingRoute={loadingRoute}
                 loadingLocations={loadingLocations}
                 settings={platformSettings}
@@ -1194,7 +1212,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                 onCalculateRoute={calculateRoute}
                 distance={distance}
                 duration={duration}
-                price={deliveryPrice}
+                price={baseDeliveryPrice}
                 loadingRoute={loadingRoute}
                 loadingLocations={loadingLocations}
                 settings={platformSettings}
@@ -1249,7 +1267,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                   Voltar
                 </button>
               )}
-              {step === 1 && onClientSelectClick && (
+              {step === 1 && onClientSelectClick && (authUser?.role!="customer" && authUser?.role!="driver") && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1595,6 +1613,24 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                     </p>
                     <p className="text-xs text-amber-600 mt-2 font-medium">
                       📱 Acesse o histórico do pedido para ver a localização em tempo real.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Taxi Tracking Info */}
+            {resolvedServiceType === "taxi" && (
+              <div className="bg-blue-50 rounded-xl p-4 mb-4 text-left border border-blue-200">
+                <div className="flex items-start gap-3">
+                 
+                  <div>
+                    <h4 className="text-sm font-semibold text-blue-800">Acompanhamento em Tempo Real</h4>
+                    <p className="text-xs text-blue-700 mt-1">
+                      Será notificado assim que o motorista estiver a caminho.
+                    </p>
+                    <p className="text-xs text-blue-600 mt-2 font-medium">
+                      📱 Acompanhe a localização do motorista em tempo real pelo histórico da corrida.
                     </p>
                   </div>
                 </div>

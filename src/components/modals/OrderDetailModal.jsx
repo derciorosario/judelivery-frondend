@@ -1149,7 +1149,7 @@ const OrderDetailModal = ({
             className="py-3 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
           >
             <Truck size={16} />
-            Iniciar Entrega
+            {!isDelivery ? 'Iniciar Corrida' : 'Iniciar Entrega'}
           </button>
           
           <button
