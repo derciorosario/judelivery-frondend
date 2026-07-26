@@ -1537,7 +1537,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
             <h3 className="text-base font-bold text-slate-800 mb-1">
               {editOrder ? "Pedido atualizado com sucesso!" : (form.driverId ? "Motorista atribuído!" : "Pedido enviado com sucesso!")}
             </h3>
-            <p className="text-xs text-slate-500 mb-4">
+             <p className="text-xs text-slate-500 mb-4">
               {editOrder
                 ? "O seu pedido foi atualizado com sucesso."
                 : form.driverId
@@ -1545,6 +1545,40 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                   : "O seu pedido foi recebido e está a ser processado. Um motorista será atribuído em breve."
               }
             </p>
+
+            {form.urgencyLevel === 'urgent' && (
+              <div className="bg-amber-50 rounded-xl p-3 mb-3 text-left border border-amber-200">
+                <p className="text-xs font-semibold text-amber-800">Pedido Urgente</p>
+                <p className="text-xs text-amber-700 mt-1">Este pedido tem prioridade elevada e será tratado com urgência pela equipa.</p>
+              </div>
+            )}
+
+            {form.urgencyLevel === 'very_urgent' && (
+              <div className="bg-red-50 rounded-xl p-3 mb-3 text-left border border-red-200">
+                <p className="text-xs font-semibold text-red-800">Pedido Muito Urgente</p>
+                <p className="text-xs text-red-700 mt-1">Este pedido tem prioridade máxima e será tratado com máxima urgência pela equipa.</p>
+              </div>
+            )}
+
+            {!form.driverId && !editOrder && (
+              <div className="bg-slate-50 rounded-xl p-3 mb-4 text-left border border-slate-200">
+                <p className="text-xs font-semibold text-slate-700">Nenhum motorista disponível no momento</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Se precisar de assistência imediata, entre em contacto com o suporte:
+                </p>
+                {supportContact.supportPhone || supportContact.phone ? (
+                  <button
+                    type="button"
+                    onClick={() => handleCall(supportContact.supportPhone || supportContact.phone)}
+                    className="mt-2 text-xs font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1"
+                  >
+                    <Icon name="phone" size={12} /> Contactar suporte
+                  </button>
+                ) : (
+                  <p className="text-xs text-slate-400 mt-1">Contacto de suporte indisponível</p>
+                )}
+              </div>
+            )}
 
             {/* Show order ID if available */}
             {createdOrder && (
