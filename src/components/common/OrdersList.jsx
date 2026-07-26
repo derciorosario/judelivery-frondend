@@ -160,6 +160,10 @@ const OrdersList = ({
     }
   };
 
+  const urgentOrdersCount = orders.filter(
+    (o) => o.urgencyLevel === "urgent" || o.urgencyLevel === "very_urgent"
+  ).length;
+
   const filterMap = useMemo(() => ({
     "Todos": null,
     "Em andamento": "in_transit,assigned,scheduled",
@@ -655,6 +659,22 @@ const OrdersList = ({
               {f}
             </button>
           ))}
+        </div>
+      )}
+
+      {urgentOrdersCount > 0 && !isTrackingView && (
+        <div className="bg-red-50 rounded-xl p-3 border border-red-200 flex items-start gap-3">
+          <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <Icon name="alertTriangle" size={16} className="text-red-600" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-red-800">
+              {urgentOrdersCount} {urgentOrdersCount === 1 ? "pedido urgente" : "pedidos urgentes"}
+            </p>
+            <p className="text-xs text-red-700 mt-0.5">
+              Atenção: estes pedidos requerem prioridade elevada. Por favor, trate-os com urgência.
+            </p>
+          </div>
         </div>
       )}
 

@@ -69,6 +69,12 @@ const MotoristaOrders = ({ initialOrderId }) => {
 
   const backendToFrontend = (status) => BACKEND_STATUS_LABELS[status] || status || "Pendente";
 
+  const urgentOrdersCount = myOrders.filter(
+    (o) => o.urgencyLevel === "urgent" || o.urgencyLevel === "very_urgent"
+  ).length;
+
+  console.log({myOrders})
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
@@ -134,6 +140,22 @@ const MotoristaOrders = ({ initialOrderId }) => {
         </button>
       </div>
 
+      {urgentOrdersCount > 0 && (
+        <div className="bg-red-50 rounded-xl p-3 border border-red-200 flex items-start gap-3">
+          <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <Icon name="alertTriangle" size={16} className="text-red-600" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-red-800">
+              {urgentOrdersCount} {urgentOrdersCount === 1 ? "pedido urgente" : "pedidos urgentes"}
+            </p>
+            <p className="text-xs text-red-700 mt-0.5">
+              Atenção: estes pedidos requerem prioridade elevada. Por favor, trate-os com urgência.
+            </p>
+          </div>
+        </div>
+      )}
+
       {myOrders.length === 0 ? (
         <div className="text-center py-10">
           <Icon name="package" size={48} className="text-slate-300 mx-auto mb-2" />
@@ -144,6 +166,7 @@ const MotoristaOrders = ({ initialOrderId }) => {
           {myOrders.map((o) => {
             const displayStatus = backendToFrontend(o.status);
             const isDelivery = o.serviceType !== "taxi";
+            const isUrgent = o.urgencyLevel === "urgent" || o.urgencyLevel === "very_urgent";
             const statusBadge =
               displayStatus === "Em entrega"
                 ? "bg-blue-100 text-blue-700"
@@ -160,11 +183,16 @@ const MotoristaOrders = ({ initialOrderId }) => {
                           : "bg-amber-100 text-amber-700";
 
             return (
-              <div key={o.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+              <div key={o.id} className={`bg-white rounded-2xl p-4 border shadow-sm ${isUrgent ? "border-red-200 ring-1 ring-red-100" : "border-slate-100"}`}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-bold text-slate-800">{toShortId(o.id)}</span>
                     <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${statusBadge}`}>{displayStatus}</span>
+                    {isUrgent && (
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${o.urgencyLevel === "very_urgent" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                        {o.urgencyLevel === "very_urgent" ? "Muito Urgente" : "Urgente"}
+                      </span>
+                    )}
                     <span
                       className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                         isDelivery ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"
