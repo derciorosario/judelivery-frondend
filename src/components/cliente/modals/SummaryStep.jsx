@@ -33,8 +33,6 @@ const SummaryStep = ({
     promotion.enabled &&
     Boolean(promotion.title || promotion.discountText || promotion.discountPercentage);
 
-    console.log({isPromotionEnabled, settings})
-
   const today = new Date();
   const startDate = promotion.startDate ? new Date(promotion.startDate) : null;
   const endDate = promotion.endDate ? new Date(promotion.endDate) : null;
