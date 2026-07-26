@@ -1034,13 +1034,10 @@ const OrdersList = ({
              setShowEditOrder(false);
              setShowClientSelect(true);
            }}
-           onOrderCreated={(newOrder) => {
-             setOrders(prev => [newOrder, ...prev]);
-             if (onOrderUpdate) onOrderUpdate(newOrder);
-             setShowEditOrder(false);
-             setSelectedOrder(null);
-             setRepeatOrderData(null);
-           }}
+            onOrderCreated={(newOrder) => {
+              setOrders(prev => [newOrder, ...prev]);
+              if (onOrderUpdate) onOrderUpdate(newOrder);
+            }}
            onOrderUpdated={(updatedOrder) => {
              setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
              if (onOrderUpdate) onOrderUpdate(updatedOrder);
