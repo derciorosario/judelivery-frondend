@@ -22,7 +22,7 @@ export const defaultPlatformSettings = {
     veryUrgentPercentage: 60,
     taxiBasePrice: 80,
     taxiPerKm: 20,
-    returnTripFee: 120,
+    returnTripFee: 100,
     waitingFeePerMinute: 4,
     luggageFee: 40,
     extraPassengerThreshold: 3,

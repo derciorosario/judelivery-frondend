@@ -436,8 +436,8 @@ const AdminSettings = () => {
                 <Field label="Preço por km">
                   <NumberInput value={settings.pricing.taxiPerKm} onChange={(value) => update("pricing", "taxiPerKm", value)} suffix={settings.app.currency} />
                 </Field>
-                <Field label="Ida e volta">
-                  <NumberInput value={settings.pricing.returnTripFee} onChange={(value) => update("pricing", "returnTripFee", value)} suffix={settings.app.currency} />
+                <Field label="Ida e volta" hint="Percentagem sobre o preço base">
+                  <NumberInput value={settings.pricing.returnTripFee} onChange={(value) => update("pricing", "returnTripFee", value)} suffix="%" />
                 </Field>
                 <Field label="Bagagem">
                   <NumberInput value={settings.pricing.luggageFee} onChange={(value) => update("pricing", "luggageFee", value)} suffix={settings.app.currency} />

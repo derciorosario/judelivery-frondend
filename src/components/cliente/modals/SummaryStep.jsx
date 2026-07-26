@@ -25,8 +25,12 @@ const SummaryStep = ({
   const urgentPercent = Number(pricing.urgentPercentage ?? 30);
   const veryUrgentPercent = Number(pricing.veryUrgentPercentage ?? 60);
   const luggageFee = Number(pricing.luggageFee ?? 40);
-  const returnTripFee = Number(pricing.returnTripFee ?? 120);
+  const returnTripPercent = Number(pricing.returnTripFee ?? 100);
   const waitingFeePerMinute = Number(pricing.waitingFeePerMinute ?? 4);
+  const taxiBasePrice = Number(pricing.taxiBasePrice ?? 80);
+  const taxiPerKm = Number(pricing.taxiPerKm ?? 20);
+  const baseTripTotal = taxiBasePrice + (distance * taxiPerKm);
+  const returnTripAmount = form.returnTrip ? Math.round(baseTripTotal * (returnTripPercent / 100)) : 0;
 
   const promotion = settings?.promotion || {};
   const isPromotionEnabled =
@@ -142,7 +146,7 @@ const SummaryStep = ({
               {form.returnTrip && (
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">Viagem de volta:</span>
-                  <span className="font-medium text-slate-800">+{formatAmount(returnTripFee)}</span>
+                  <span className="font-medium text-slate-800">+{formatAmount(returnTripAmount)}</span>
                 </div>
               )}
               {form.waitingTime > 0 && (
