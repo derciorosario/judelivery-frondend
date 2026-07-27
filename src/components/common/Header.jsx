@@ -3,13 +3,16 @@ import Icon from './Icon';
 import { useSocket } from '../../contexts/SocketContext';
 import client from '../../api/client';
 import { useNavigate } from 'react-router-dom';
+import ContactSupportModal from './modals/ContactSupportModal';
 
 // Import sound file
 import notificationSound from '../../assets/sound/notification-1.mp3';
 import { useAuth } from '../../contexts/AuthContext';
+import { Phone } from 'lucide-react';
 
 const Header = ({ user, onLogout, title, onNotificationClick, urgentOrdersCount }) => {
   const navigate = useNavigate();
+  const [showSupportModal, setShowSupportModal] = useState(false);
   const [unseenCount, setUnseenCount] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -208,14 +211,32 @@ const Header = ({ user, onLogout, title, onNotificationClick, urgentOrdersCount 
           </div>
           
         </div>
-           {/* Urgent Orders Banner */}
-        {urgentOrdersCount > 0  && (
+{/* Urgent Orders Banner for Drivers */}
+        {urgentOrdersCount > 0 && user?.role != 'customer' && (
           <div
-            className="bg-red-500/80 text-white text-center py-2 px-4 flex items-center justify-center gap-2 cursor-pointer"
+            className="bg-red-500 text-white text-center py-2 px-4 flex items-center justify-center gap-2 cursor-pointer"
             onClick={() => navigate('/orders')}
           >
             <Icon name="alert" size={16} className="animate-pulse" />
-            <span className="text-sm font-medium">{urgentOrdersCount} pedido(s) urgente(s) aguardando</span>
+            <span className="text-sm font-medium">
+              {urgentOrdersCount} {urgentOrdersCount === 1 ? 'pedido urgente' : 'pedidos urgentes'} aguardando
+            </span>
+          </div>
+        )}
+
+        {/* Urgent Orders Banner for Customers */}
+        {urgentOrdersCount > 0 && user?.role === 'customer' && (
+          <div className="bg-amber-500 text-white text-center py-2 px-4 flex items-center justify-center gap-3">
+            <Icon name="alert" size={16} className="animate-pulse" />
+            <span className="text-sm font-medium">
+              {urgentOrdersCount === 1 ? 'Existe' : 'Existem'} {urgentOrdersCount} {urgentOrdersCount === 1 ? 'pedido urgente' : 'pedidos urgentes'}
+            </span>
+            <button
+              onClick={() => setShowSupportModal(true)}
+              className="ml-2 px-3 py-0.5 flex items-center justify-center gap-2 bg-white text-amber-600 rounded-lg text-xs font-semibold hover:bg-slate-100 transition-colors"
+            >
+              <Phone className="w-4"/> Suporte
+            </button>
           </div>
         )}
 
@@ -291,6 +312,15 @@ const Header = ({ user, onLogout, title, onNotificationClick, urgentOrdersCount 
           }
         }
       `}</style>
+
+      {/* Support Modal for Customers */}
+      {showSupportModal && user?.role === 'customer' && (
+        <ContactSupportModal
+          isOpen={showSupportModal}
+          onClose={() => setShowSupportModal(false)}
+        />
+      )}
+
     </>
   );
 };
