@@ -425,3 +425,7 @@ export const getAuditStats = (params) => client.get('/audit-logs/stats/summary',
 
 // Get available filter options
 export const getAuditFilterOptions = () => client.get('/audit-logs/meta/options');
+
+export const getAvailableDriversForReassignment = (orderId, params) => client.get(`/orders/${orderId}/available-drivers`, { params });
+
+export const rejectOrder = (orderId, data) => client.post(`/orders/${orderId}/reject`, data);

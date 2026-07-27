@@ -1,6 +1,6 @@
 // src/components/common/OrderDetailModal.jsx
 import { useState, useEffect } from "react";
-import { updateOrder, getDrivers, getOrder, cancelOrder, getOrderIncidents, createIncident, updateIncidentWithFiles, deleteIncident, deleteFeedback } from "../../api/client";
+import { updateOrder, getDrivers, getOrder, cancelOrder, getOrderIncidents, createIncident, updateIncidentWithFiles, deleteIncident, deleteFeedback, getAvailableDriversForReassignment, rejectOrder } from "../../api/client";
 import { toast } from "../../lib/toast";
 import { usePlatformSettings } from "../../contexts/SettingsContext";
 import {
@@ -37,6 +37,7 @@ import TrackOrderModal from "../cliente/modals/TrackOrderModal";
 import NavigationModal from "../motorista/modals/NavigationModal";
 import ConfirmDialog from "../common/ConfirmDialog";
 import PaymentDialog from "../common/PaymentDialog";
+import ReassignOrderModal from "./ReassignOrderModal";
 import { uploadClient, API_URL } from "../../api/client";
 
 const INCIDENT_TYPE_LABELS = {
@@ -71,6 +72,8 @@ const OrderDetailModal = ({
     const [pendingAdminCompletion, setPendingAdminCompletion] = useState(false);
     const [showDeleteFeedbackDialog, setShowDeleteFeedbackDialog] = useState(false);
     const [feedbackToDelete, setFeedbackToDelete] = useState(null);
+    const [showReassignDialog, setShowReassignDialog] = useState(false);
+    const [pendingRejection, setPendingRejection] = useState(null);
 
    console.log({localOrder})
 
@@ -124,10 +127,18 @@ const OrderDetailModal = ({
         } catch (error) {
           console.error("Error fetching order:", error);
           toast.error("Erro ao carregar pedido");
-        } finally {
-          setLoadingOrder(false);
-        }
-      };
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReassignComplete = async (updatedOrder) => {
+    setLocalOrder(updatedOrder);
+    if (onUpdate) onUpdate(updatedOrder);
+    setShowReassignDialog(false);
+    setPendingRejection(null);
+    onClose();
+  };
       fetchOrder();
     } else if (order) {
       setLocalOrder(order);
@@ -502,6 +513,13 @@ const OrderDetailModal = ({
     if (!pendingAdminAction) return;
     
     if (pendingAdminAction.type === "status") {
+      if (pendingAdminAction.value === "rejected") {
+        setPendingRejection(pendingAdminAction.value);
+        setShowReassignDialog(true);
+        setPendingAdminAction(null);
+        setShowConfirmDialog(false);
+        return;
+      }
       await handleStatusChange(pendingAdminAction.value, true);
     } else if (pendingAdminAction.type === "assign") {
       await handleAssignDriver();
@@ -529,6 +547,14 @@ const OrderDetailModal = ({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleReassignComplete = async (updatedOrder) => {
+    setLocalOrder(updatedOrder);
+    if (onUpdate) onUpdate(updatedOrder);
+    setShowReassignDialog(false);
+    setPendingRejection(null);
+    onClose();
   };
 
   const handleAssignDriverWithConfirm = () => {
@@ -594,7 +620,14 @@ const OrderDetailModal = ({
 
   const confirmDriverStatusChange = async () => {
     if (!pendingDriverStatus) return;
-    
+
+    if (pendingDriverStatus === "rejected") {
+      setShowConfirmDialog(false);
+      setShowReassignDialog(true);
+      setPendingDriverStatus(null);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const payload = { status: pendingDriverStatus };
@@ -608,7 +641,7 @@ const OrderDetailModal = ({
       setShowConfirmDialog(false);
       setPendingDriverStatus(null);
       
-      if (pendingDriverStatus === "cancelled" || pendingDriverStatus === "rejected") {
+      if (pendingDriverStatus === "cancelled") {
         onClose();
       }
     } catch (error) {
@@ -1166,16 +1199,14 @@ const OrderDetailModal = ({
               setShowCancelDialog(true);
             }}
             disabled={updating || isCompleted || isCancelled || isRejected}
-            className="py-3 rounded-xl col-span-2 bg-red-500 text-white font-semibold text-sm hover:bg-red-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+            className="py-3 rounded-xl  bg-red-500 text-white font-semibold text-sm hover:bg-red-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
           >
             <XCircle size={16} />
             Cancelar
           </button>
 
 
-          {/****
-           * 
-           * 
+        
           
           <button
             onClick={() => handleDriverStatusChange("rejected")}
@@ -1187,7 +1218,6 @@ const OrderDetailModal = ({
           </button>
 
 
-           */}
           
         
         </div>
@@ -1800,6 +1830,20 @@ const OrderDetailModal = ({
             // Payment was successfully recorded in backend
             console.log("Payment successful:", paymentData);
           }}
+        />
+      )}
+
+      {/* Reassign Order Modal */}
+      {showReassignDialog && localOrder && (
+        <ReassignOrderModal
+          isOpen={showReassignDialog}
+          onClose={() => {
+            setShowReassignDialog(false);
+            setPendingRejection(null);
+          }}
+          order={localOrder}
+          onReassigned={handleReassignComplete}
+          role={role}
         />
       )}
 
