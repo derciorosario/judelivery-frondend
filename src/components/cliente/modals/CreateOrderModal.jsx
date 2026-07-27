@@ -6,6 +6,7 @@ import { GoogleMap, Marker, DirectionsRenderer, Autocomplete } from "@react-goog
 import LocationStep from "./LocationStep";
 import DetailsStep from "./DetailsStep";
 import SummaryStep from "./SummaryStep";
+import Modal from "../../common/Modal";
 import { toast } from "../../../lib/toast";
 import { useAuth } from "../../../contexts/AuthContext";
 import { usePlatformSettings } from "../../../contexts/SettingsContext";
@@ -50,6 +51,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
   const [accurateDuration, setAccurateDuration] = useState(null);
   const [isFetchingData, setIsFetchingData] = useState(false);
   const [createdOrder, setCreatedOrder] = useState(null);
+  const [locationError, setLocationError] = useState(null);
   
   // Map ref for controlling the map
   const mapRef = useRef(null);
@@ -633,8 +635,10 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
           lat: position.coords.latitude,
           lng: position.coords.longitude
         };
+       
       } catch (error) {
         console.error("Error getting location:", error);
+      
       } finally {
         setLoadingLocations(prev => ({ ...prev, [field]: false }));
       }
@@ -740,9 +744,16 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     setRouteInfo(null);
   };
 
+  const closeLocationErrorDialog = () => {
+    setLocationError(null);
+  };
+
   const useCurrentLocation = async (field) => {
+
+     
+
     if (!navigator.geolocation) {
-      toast.error("Geolocalização não é suportada pelo seu navegador.");
+      setLocationError("Geolocalização não é suportada pelo seu navegador.");
       return;
     }
     
@@ -793,11 +804,14 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
       },
       (err) => {
         console.error("Geolocation error:", err);
-        toast.error("Não foi possível obter a sua localização atual. Por favor, verifique as permissões.");
+         
+        setLocationError(`Não foi possível obter a sua localização atual: (${err.message}). Por favor, verifique as permissões de localização e tente novamente.`);
+     
         setLoadingLocations(prev => ({ ...prev, [field]: false }));
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
+    
   };
   
   const getUrgencyLabel = (level) => {
@@ -1753,6 +1767,27 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
             )}
           </div>
         </div>
+      )}
+{locationError && (
+        <Modal isOpen={!!locationError} onClose={closeLocationErrorDialog} title="Erro de Localização">
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <p className="text-sm text-slate-600">{locationError}</p>
+            </div>
+            <button
+              type="button"
+              onClick={closeLocationErrorDialog}
+              className="w-full py-2.5 rounded-xl bg-red-500 text-white font-bold text-sm shadow-lg shadow-red-500/30 hover:bg-red-600 transition-colors"
+            >
+              OK
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );
