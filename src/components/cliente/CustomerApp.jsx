@@ -19,7 +19,8 @@ import {
   deleteFeedback,
   getCustomerProfile,
   getCustomerOrders,
-  getCustomerDashboard
+  getCustomerDashboard,
+  getUrgentCount
 } from "../../api/client";
 import { toast } from "../../lib/toast";
 import { usePlatformSettings } from "../../contexts/SettingsContext";
@@ -51,6 +52,7 @@ const CustomerApp = () => {
   const [customerOrders, setCustomerOrders] = useState([]);
   const [dashboardData, setDashboardData] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [urgentOrdersCount, setUrgentOrdersCount] = useState(0);
   const { user, signOut } = useAuth();
   const { settings, loading: settingsLoading } = usePlatformSettings();
   const location = useLocation();
@@ -92,8 +94,19 @@ const CustomerApp = () => {
   };
 
   useEffect(() => {
-    if (refreshData) setRefreshData(false);
-  }, [refreshData]);
+    if (user?.role !== 'customer') return;
+    const fetchUrgentCount = async () => {
+      try {
+        const res = await getUrgentCount();
+        setUrgentOrdersCount(res.data?.count || 0);
+      } catch (err) {
+        console.error("Failed to fetch urgent orders count", err);
+      }
+    };
+    fetchUrgentCount();
+    const interval = setInterval(fetchUrgentCount, 7000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const loadCustomerData = async () => {
     if (!user?.id) return;
@@ -319,6 +332,7 @@ const CustomerApp = () => {
         onLogout={signOut}
         title="DeliveryMZ"
         onNotificationClick={() => setTab("notifications")}
+        urgentOrdersCount={urgentOrdersCount}
       />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
         {activeTab === "home" && (

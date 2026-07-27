@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getOrder, updateOrder, getDriverProfile, getDriverDashboard, getDriverOrders } from "../../api/client";
+import { getOrder, updateOrder, getDriverProfile, getDriverDashboard, getUrgentCount } from "../../api/client";
 import BottomNav from "../common/BottomNav";
 import Header from "../common/Header";
 import OrdersList from "../common/OrdersList";
@@ -165,16 +165,17 @@ const MotoristaApp = () => {
   useEffect(() => {
     const fetchUrgentCount = async () => {
       try {
-        const res = await getDriverOrders({ page: 1, limit: 100 });
-        const orders = res.data?.orders || res.data || [];
-        const count = orders.filter(o => (o.urgencyLevel === "urgent" || o.urgencyLevel === "very_urgent") && o.status !== "completed" && o.status !== "cancelled").length;
+        const res = await getUrgentCount();
+        const count = res.data?.count || 0;
         setUrgentOrdersCount(count);
       } catch (err) {
         console.error("Failed to fetch urgent orders count", err);
       }
     };
     fetchUrgentCount();
-  }, [orderRefreshKey]);
+    const interval = setInterval(fetchUrgentCount, 7000); //1000 - 1 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   // Memoize the render of each tab to prevent unnecessary re-renders
   const renderTabContent = useCallback(() => {
@@ -195,6 +196,7 @@ const MotoristaApp = () => {
             online={online} 
             onToggleOnline={setOnline} 
             location={location} 
+            
           />
         );
       case "orders":
@@ -203,6 +205,7 @@ const MotoristaApp = () => {
             refreshKey={orderRefreshKey}
             showNewOrderButton={false}
             title="Os Meus Pedidos"
+            urgentOrdersCount={urgentOrdersCount}
             onOrderUpdate={handleOrderUpdate}
           />
         );
@@ -233,6 +236,7 @@ const MotoristaApp = () => {
         onLogout={signOut}
         title="Painel Motorista"
         onNotificationClick={() => setTab("notifications")}
+        urgentOrdersCount={urgentOrdersCount}
       />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
         {renderTabContent()}

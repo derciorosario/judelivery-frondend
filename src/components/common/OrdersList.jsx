@@ -56,7 +56,8 @@ const OrdersList = ({
   showNewOrderButton = true,
   onNewOrderClick,
   initialOrderId,
-  onGiveFeedback
+  onGiveFeedback,
+  urgentOrdersCount = 0
 }) => {
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
@@ -160,9 +161,6 @@ const OrdersList = ({
     }
   };
 
-  const urgentOrdersCount = orders.filter(
-    (o) => (o.urgencyLevel === "urgent" || o.urgencyLevel === "very_urgent") && o.status !== "completed" && o.status !== "cancelled"
-  ).length;
 
   const filterMap = useMemo(() => ({
     "Todos": null,
@@ -662,7 +660,7 @@ const OrdersList = ({
         </div>
       )}
 
-      {urgentOrdersCount > 0 && !isTrackingView && (
+      {urgentOrdersCount > 0 && !isTrackingView && isDriver && (
         <div className="bg-red-50 rounded-xl p-3 border border-red-200 flex items-start gap-3">
           <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
             <Icon name="alertTriangle" size={16} className="text-red-600" />

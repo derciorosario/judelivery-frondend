@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getOrder } from "../../api/client";
+import { getOrder, getUrgentCount } from "../../api/client";
 import BottomNav from "../common/BottomNav";
 import Header from "../common/Header";
 import OrdersList from "../common/OrdersList";
@@ -41,13 +41,28 @@ const GestorApp = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [orderDetailTab, setOrderDetailTab] = useState("details");
+  const [urgentOrdersCount, setUrgentOrdersCount] = useState(0);
 
 
   useEffect(() => {
-       if(user && !data.pushRegistered){
-         registerPush(user?.id,navigate,data)
-       }
-  }, [user]);
+     if(user && !data.pushRegistered){
+       registerPush(user?.id,navigate,data)
+     }
+   }, [user]);
+
+  useEffect(() => {
+    const fetchUrgentCount = async () => {
+      try {
+        const res = await getUrgentCount();
+        setUrgentOrdersCount(res.data?.count || 0);
+      } catch (err) {
+        console.error("Failed to fetch urgent orders count", err);
+      }
+    };
+    fetchUrgentCount();
+    const interval = setInterval(fetchUrgentCount, 7000);
+    return () => clearInterval(interval);
+  }, []);
 
   const tabs = [
     { id: "home", label: "Início", icon: "home", path: "/" },
@@ -159,7 +174,8 @@ const GestorApp = () => {
         user={user} 
         onLogout={signOut} 
         title="Gestão Operacional" 
-        onNotificationClick={() => setTab("notifications")} 
+        onNotificationClick={() => setTab("notifications")}
+        urgentOrdersCount={urgentOrdersCount}
       />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
         {activeTab === "home" && <GestorHome refreshKey={orderRefreshKey} onOrderUpdate={handleOrderUpdate} />}

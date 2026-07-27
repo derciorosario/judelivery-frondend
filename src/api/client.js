@@ -350,6 +350,9 @@ export const getCustomerOrders = (params) => client.get('/orders/mine', { params
 
 export const getDriverOrders = (params) => client.get('/orders/driver',{ params });
 
+// Get urgent orders count for the authenticated driver
+export const getUrgentCount = () => client.get('/orders/urgent-count');
+
 export const getDriverStatuses = () => client.get('/drivers/statuses');
 
 // FEEDBACKS

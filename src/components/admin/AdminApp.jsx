@@ -16,7 +16,7 @@ import AdminSettings from "./AdminSettings";
 import AdminAuditLogs from "./AdminAuditLogs";
 import CreateOrderModal from "../cliente/modals/CreateOrderModal";
 import AdminClientSelectModal from "./AdminClientSelectModal";
-import { getOrder } from "../../api/client";
+import { getOrder, getUrgentCount } from "../../api/client";
 import Notifications from "../common/Notifications";
 import OrderDetailModal from "../modals/OrderDetailModal";
 
@@ -29,6 +29,7 @@ const AdminApp = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [orderDetailTab, setOrderDetailTab] = useState("details");
+  const [urgentOrdersCount, setUrgentOrdersCount] = useState(0);
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -121,6 +122,20 @@ const AdminApp = () => {
   }, [setTab]);
 
   useEffect(() => {
+    const fetchUrgentCount = async () => {
+      try {
+        const res = await getUrgentCount();
+        setUrgentOrdersCount(res.data?.count || 0);
+      } catch (err) {
+        console.error("Failed to fetch urgent orders count", err);
+      }
+    };
+    fetchUrgentCount();
+    const interval = setInterval(fetchUrgentCount, 7000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
     if (!user || (user.role !== 'superadmin' && user.role !== 'admin')) {
       navigate("/login");
     }
@@ -159,7 +174,7 @@ const AdminApp = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto">
-      <Header user={user} onLogout={signOut} title="Painel Admin" onNotificationClick={() => setTab("notifications")} />
+      <Header user={user} onLogout={signOut} title="Painel Admin" onNotificationClick={() => setTab("notifications")} urgentOrdersCount={urgentOrdersCount} />
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
         {activeTab === "home" && <AdminHome refreshKey={orderRefreshKey} onOrderUpdate={handleOrderUpdate} />}
         {activeTab === "orders" && (
