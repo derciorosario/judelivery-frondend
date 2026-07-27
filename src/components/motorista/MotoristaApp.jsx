@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getOrder, updateOrder, getDriverProfile, getDriverDashboard } from "../../api/client";
+import { getOrder, updateOrder, getDriverProfile, getDriverDashboard, getDriverOrders } from "../../api/client";
 import BottomNav from "../common/BottomNav";
 import Header from "../common/Header";
 import OrdersList from "../common/OrdersList";
@@ -38,6 +38,7 @@ const MotoristaApp = () => {
   const [driverProfile, setDriverProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [orderDetailTab, setOrderDetailTab] = useState("details");
+  const [urgentOrdersCount, setUrgentOrdersCount] = useState(0);
 
   // Use a single location instance at the app level
   const location = useDriverLocation({ autoStart: true });
@@ -161,6 +162,20 @@ const MotoristaApp = () => {
     setOrderDetailTab("details");
   }, []);
 
+  useEffect(() => {
+    const fetchUrgentCount = async () => {
+      try {
+        const res = await getDriverOrders({ page: 1, limit: 100 });
+        const orders = res.data?.orders || res.data || [];
+        const count = orders.filter(o => (o.urgencyLevel === "urgent" || o.urgencyLevel === "very_urgent") && o.status !== "completed" && o.status !== "cancelled").length;
+        setUrgentOrdersCount(count);
+      } catch (err) {
+        console.error("Failed to fetch urgent orders count", err);
+      }
+    };
+    fetchUrgentCount();
+  }, [orderRefreshKey]);
+
   // Memoize the render of each tab to prevent unnecessary re-renders
   const renderTabContent = useCallback(() => {
     switch (activeTab) {
@@ -222,7 +237,7 @@ const MotoristaApp = () => {
       <div className="flex-1 overflow-y-auto pb-20 px-4 pt-4 space-y-4">
         {renderTabContent()}
       </div>
-      <BottomNav tabs={tabs} active={activeTab} setActive={setTab} />
+      <BottomNav tabs={tabs} active={activeTab} setActive={setTab} urgentOrdersCount={urgentOrdersCount} />
 
       <OrderDetailModal
         isOpen={showOrderDetails}

@@ -161,7 +161,7 @@ const OrdersList = ({
   };
 
   const urgentOrdersCount = orders.filter(
-    (o) => o.urgencyLevel === "urgent" || o.urgencyLevel === "very_urgent"
+    (o) => (o.urgencyLevel === "urgent" || o.urgencyLevel === "very_urgent") && o.status !== "completed" && o.status !== "cancelled"
   ).length;
 
   const filterMap = useMemo(() => ({

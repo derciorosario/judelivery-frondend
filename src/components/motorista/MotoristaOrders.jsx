@@ -70,7 +70,7 @@ const MotoristaOrders = ({ initialOrderId }) => {
   const backendToFrontend = (status) => BACKEND_STATUS_LABELS[status] || status || "Pendente";
 
   const urgentOrdersCount = myOrders.filter(
-    (o) => o.urgencyLevel === "urgent" || o.urgencyLevel === "very_urgent"
+    (o) => (o.urgencyLevel === "urgent" || o.urgencyLevel === "very_urgent") && o.status !== "completed" && o.status !== "cancelled"
   ).length;
 
   console.log({myOrders})

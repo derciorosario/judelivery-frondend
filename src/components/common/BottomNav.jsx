@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import Icon from './Icon';
 
-const BottomNav = ({ tabs, active, setActive }) => {
+const BottomNav = ({ tabs, active, setActive, urgentOrdersCount = 0 }) => {
+  
   const [showDropdown, setShowDropdown] = useState(false);
   const visibleTabs = tabs.slice(0, 4);
   const hiddenTabs = tabs.slice(4);
@@ -12,7 +13,15 @@ const BottomNav = ({ tabs, active, setActive }) => {
       {visibleTabs.map(t => (
         <button key={t.id} onClick={() => setActive(t.id)}
           className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-colors ${active === t.id ? "text-orange-500" : "text-slate-400"}`}>
-          <Icon name={t.icon} size={22} />
+          <div className="relative">
+            <Icon name={t.icon} size={22} />
+            {t.id === "orders" && urgentOrdersCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+              </span>
+            )}
+          </div>
           <span className="text-[10px] font-medium">{t.label}</span>
         </button>
       ))}
