@@ -491,6 +491,25 @@ const OrdersList = ({
     setMenuOpenId(null);
   };
 
+  const handleConfirmOrder = async (order) => {
+    setSelectedOrder(order);
+    setUpdating(true);
+    try {
+      const response = await updateOrder(order.id, { confirmed: true });
+      const updatedOrder = response.data;
+      setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+      if (onOrderUpdate) onOrderUpdate(updatedOrder);
+      toast.success("Pedido confirmado com sucesso");
+      fetchAllStatusCounts();
+    } catch (err) {
+      const msg = err.response?.data?.message || "Erro ao confirmar pedido";
+      toast.error(msg);
+    } finally {
+      setUpdating(false);
+      setMenuOpenId(null);
+    }
+  };
+
   const handleReportIncident = async (order) => {
     setSelectedOrder(order);
     setLoadingIncidents(true);
@@ -820,12 +839,23 @@ const OrdersList = ({
                   className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm"
                 >
 
-              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-bold text-slate-800">{toShortId(order.id)}</span>
                   <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${statusBadge}`}>
                     {displayStatus}
                   </span>
+
+                  {/* Confirmation Badge - show for staff and drivers */}
+                  {(isAdmin || isManager || isDriver) && order.confirmed && (
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">
+                      {order.confirmedAt
+                        ? `Confirmado ${new Date(order.confirmedAt).toLocaleString("pt-MZ", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`
+                        : "Confirmado"}
+                    </span>
+                  )}
+
+
                   <span
                     className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                       isDelivery ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"
@@ -1037,6 +1067,20 @@ const OrdersList = ({
                               >
                                 <Icon name="alertOctagon" size={12} />
                                 Rejeitar
+                              </button>
+                            )}
+                            
+                            {isDriver && !order.confirmed && order.status !== "completed" && order.status !== "cancelled" && order.status !== "rejected" && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleConfirmOrder(order);
+                                }}
+                                disabled={updating}
+                                className="w-full text-left px-4 py-2 text-xs text-green-600 hover:bg-green-50 flex items-center gap-2 disabled:opacity-50"
+                              >
+                                <Icon name="checkCircle" size={12} />
+                                Confirmar
                               </button>
                             )}
                             

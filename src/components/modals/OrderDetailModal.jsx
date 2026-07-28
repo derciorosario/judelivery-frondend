@@ -47,6 +47,7 @@ const INCIDENT_TYPE_LABELS = {
 };
 
 const OrderDetailModal = ({
+  
   isOpen,
   onClose,
   order,
@@ -57,6 +58,7 @@ const OrderDetailModal = ({
   onStatusChange, // For driver role
   updating, // For driver role loading state
   initialTab = "details" // Initial tab to show when modal opens
+
 }) => {
    const { settings: platformSettings } = usePlatformSettings();
    const [activeTab, setActiveTab] = useState(initialTab);
@@ -127,19 +129,10 @@ const OrderDetailModal = ({
         } catch (error) {
           console.error("Error fetching order:", error);
           toast.error("Erro ao carregar pedido");
-    } finally {
-      setIsSubmitting(false);
-      setLoadingOrder(false)
-    }
-  };
-
-  const handleReassignComplete = async (updatedOrder) => {
-    setLocalOrder(updatedOrder);
-    if (onUpdate) onUpdate(updatedOrder);
-    setShowReassignDialog(false);
-    setPendingRejection(null);
-    onClose();
-  };
+        } finally {
+          setLoadingOrder(false);
+        }
+      };
       fetchOrder();
     } else if (order) {
       setLocalOrder(order);
@@ -609,15 +602,30 @@ const OrderDetailModal = ({
     }
   };
 
-  const handleDriverStatusChange = (newStatus) => {
-    if (newStatus === "completed") {
-      setPendingDriverStatus("completed");
-      setShowPaymentDialog(true);
-    } else {
-      setPendingDriverStatus(newStatus);
-      setShowConfirmDialog(true);
-    }
-  };
+   const handleDriverStatusChange = (newStatus) => {
+     if (newStatus === "completed") {
+       setPendingDriverStatus("completed");
+       setShowPaymentDialog(true);
+     } else {
+       setPendingDriverStatus(newStatus);
+       setShowConfirmDialog(true);
+     }
+   };
+
+   const handleDriverConfirm = async () => {
+     if (!localOrder) return;
+     setIsSubmitting(true);
+     try {
+       const response = await updateOrder(localOrder.id, { confirmed: true });
+       setLocalOrder(response.data);
+       if (onUpdate) onUpdate(response.data);
+       toast.success("Pedido confirmado com sucesso");
+     } catch (error) {
+       toast.error(error.response?.data?.message || "Erro ao confirmar pedido");
+     } finally {
+       setIsSubmitting(false);
+     }
+   };
 
   const confirmDriverStatusChange = async () => {
     if (!pendingDriverStatus) return;
@@ -764,15 +772,35 @@ const OrderDetailModal = ({
           <StatusIcon size={12} />
           <span className="text-xs font-semibold">{statusConfig.text}</span>
         </div>
-        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full ${
-          isDelivery ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"
-        }`}>
-          {isDelivery ? <Package size={12} /> : <Car size={12} />}
-          <span className="text-xs font-semibold">
-            {isDelivery ? "Entrega" : "Táxi"}
-          </span>
+<div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full ${
+           isDelivery ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"
+         }`}>
+           {isDelivery ? <Package size={12} /> : <Car size={12} />}
+           <span className="text-xs font-semibold">
+             {isDelivery ? "Entrega" : "Táxi"}
+           </span>
+         </div>
+         {localOrder?.confirmed && !isCustomer && (
+           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-100 text-teal-700">
+             <CheckCircle size={12} />
+             <span className="text-xs font-semibold">Confirmado</span>
+           </div>
+         )}
         </div>
-      </div>
+
+
+      {isDriver && !localOrder?.confirmed && !isCompleted && !isCancelled && !isRejected && (
+        <button
+          onClick={handleDriverConfirm}
+          disabled={updating}
+          className="w-full py-2.5 rounded-xl bg-teal-500 text-white font-semibold text-sm hover:bg-teal-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+        >
+          <CheckCircle size={16} />
+          Confirmar Pedido
+        </button>
+      )}
+
+   
 
       {/* Price Card */}
       <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-4 text-white">
@@ -862,21 +890,23 @@ const OrderDetailModal = ({
             </div>
           )}
 
-          {urgencyConfig && (
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-slate-600">Urgência</span>
-              <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${urgencyConfig.bgClass}`}>
-                <urgencyConfig.icon size={10} />
-                <span>{urgencyConfig.text}</span>
-              </div>
-            </div>
-          )}
+{urgencyConfig && (
+           <div className="flex justify-between items-center">
+             <span className="text-sm text-slate-600">Urgência</span>
+             <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${urgencyConfig.bgClass}`}>
+               <urgencyConfig.icon size={10} />
+               <span>{urgencyConfig.text}</span>
+             </div>
+           </div>
+         )}
 
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <CreditCard size={14} className="text-slate-400" />
-              <span className="text-sm text-slate-600">Pagamento</span>
-            </div>
+       
+
+         <div className="flex justify-between items-center">
+           <div className="flex items-center gap-2">
+             <CreditCard size={14} className="text-slate-400" />
+             <span className="text-sm text-slate-600">Pagamento</span>
+           </div>
             <div className="text-right">
               <p className="text-sm text-slate-700">{getPaymentMethodLabel(localOrder.paymentMethod)}</p>
               <p className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${paymentStatusConfig.bgClass}`}>
@@ -1208,17 +1238,17 @@ const OrderDetailModal = ({
 
 
         
-          
-          <button
-            onClick={() => handleDriverStatusChange("rejected")}
-            disabled={updating || isCompleted || isCancelled || isRejected || !platformSettings?.order?.driverCanReject}
-            className="py-3 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-          >
-            <UserX size={16} />
-            Rejeitar
-          </button>
 
+            <button
+              onClick={() => handleDriverStatusChange("rejected")}
+              disabled={updating || isCompleted || isCancelled || isRejected || !platformSettings?.order?.driverCanReject}
+              className="py-3 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+            >
+              <UserX size={16} />
+              Rejeitar
+            </button>
 
+         
           
         
         </div>
