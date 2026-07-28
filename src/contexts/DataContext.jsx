@@ -15,6 +15,7 @@ export const DataProvider = ({ children }) => {
     ]
     const [_openPopUps, _setOpenPopUps] = useState(initial_popups);
     const [pushRegistered,setPushRegistered]=useState(false)
+    const [updateData,setUpdateData] = useState(Math.random())
 
     // State for partner login status
     const [isPartner, setIsPartner] = useState(() => {
@@ -86,6 +87,7 @@ export const DataProvider = ({ children }) => {
     const env="test" //test || pro
     
     const value = {
+      updateData,setUpdateData,
       pushRegistered,setPushRegistered,
       postDialogOpen, setPostDialogOpen,
       env,

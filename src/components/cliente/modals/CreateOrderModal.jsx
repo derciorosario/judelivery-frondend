@@ -11,6 +11,7 @@ import { toast } from "../../../lib/toast";
 import { useAuth } from "../../../contexts/AuthContext";
 import { usePlatformSettings } from "../../../contexts/SettingsContext";
 import { getEnabledPaymentMethods, getPrimaryPaymentMethod, normalizePaymentMethod } from "../../../utils/platformSettings";
+import { useData } from "../../../contexts/DataContext";
 
 const GOOGLE_MAPS_KEY = "AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak";
 const MAPUTO_CENTER = { lat: -25.9653, lng: 32.5778 };
@@ -52,6 +53,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
   const [isFetchingData, setIsFetchingData] = useState(false);
   const [createdOrder, setCreatedOrder] = useState(null);
   const [locationError, setLocationError] = useState(null);
+  const data = useData()
   
   // Map ref for controlling the map
   const mapRef = useRef(null);
@@ -1077,11 +1079,16 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
         setCreatedOrder(response.data);
         if (onOrderUpdated) onOrderUpdated(response.data);
       } else {
+
         response = await apiCreateOrder(orderPayload);
         setSubmitStatus('success');
         setCreatedOrder(response.data);
         if (onOrderCreated) onOrderCreated(response.data);
+
       }
+
+      data.setUpdateData(Math.random())
+
     } catch (error) {
       console.error("Failed to save order:", error);
       setSubmitStatus('idle');
@@ -1586,7 +1593,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                     onClick={() => handleCall(supportContact.supportPhone || supportContact.phone)}
                     className="mt-2 text-xs font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1"
                   >
-                    <Icon name="phone" size={12} /> Contactar suporte
+                    <Icon name="phone" size={12} /> Contactar suporte ({supportContact.supportPhone || supportContact.phone})
                   </button>
                 ) : (
                   <p className="text-xs text-slate-400 mt-1">Contacto de suporte indisponível</p>

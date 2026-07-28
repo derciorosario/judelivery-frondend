@@ -129,6 +129,7 @@ const OrderDetailModal = ({
           toast.error("Erro ao carregar pedido");
     } finally {
       setIsSubmitting(false);
+      setLoadingOrder(false)
     }
   };
 
@@ -1198,7 +1199,7 @@ const OrderDetailModal = ({
             onClick={() =>{
               setShowCancelDialog(true);
             }}
-            disabled={updating || isCompleted || isCancelled || isRejected}
+            disabled={updating || isCompleted || isCancelled || isRejected || !platformSettings?.order?.driverCanCancel}
             className="py-3 rounded-xl  bg-red-500 text-white font-semibold text-sm hover:bg-red-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
           >
             <XCircle size={16} />
@@ -1210,7 +1211,7 @@ const OrderDetailModal = ({
           
           <button
             onClick={() => handleDriverStatusChange("rejected")}
-            disabled={updating || isCompleted || isCancelled || isRejected}
+            disabled={updating || isCompleted || isCancelled || isRejected || !platformSettings?.order?.driverCanReject}
             className="py-3 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
           >
             <UserX size={16} />

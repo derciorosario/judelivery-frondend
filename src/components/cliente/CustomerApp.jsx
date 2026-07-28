@@ -129,7 +129,7 @@ const CustomerApp = () => {
 
   useEffect(() => {
     loadCustomerData();
-  }, [user, refreshData, shouldRefreshOrders]);
+  }, [user, refreshData, shouldRefreshOrders, data.updateData]);
 
   useEffect(() => {
     if (activeTab === "home") {
@@ -236,10 +236,12 @@ const CustomerApp = () => {
   };
 
   const handleServiceSelect = (serviceType) => {
+
     if (serviceType === "delivery" && !settings.order.allowDelivery) {
       toast.error("Pedidos de entrega estão temporariamente indisponíveis.");
       return;
     }
+
     if (serviceType === "taxi" && !settings.order.allowTaxi) {
       toast.error("Corridas estão temporariamente indisponíveis.");
       return;
@@ -248,6 +250,7 @@ const CustomerApp = () => {
     setSelectedServiceType(serviceType);
     setShowServiceSelection(false);
     setShowCreateOrder(true);
+
   };
 
   const handleViewOrderDetails = (order) => {
@@ -494,6 +497,7 @@ const CustomerApp = () => {
         }}
         order={activeOrder}
       />
+      
     </div>
   );
 };

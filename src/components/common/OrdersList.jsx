@@ -10,10 +10,12 @@ import CancelOrderDialog from "./CancelOrderDialog";
 import ContactSupportModal from "./modals/ContactSupportModal";
 import Modal from "./Modal";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePlatformSettings } from "../../contexts/SettingsContext";
 import AdminClientSelectModal from "../admin/AdminClientSelectModal";
 import NavigationModal from "../motorista/modals/NavigationModal";
 import OrderDetailModal from "../modals/OrderDetailModal";
 import { API_URL } from "../../api/client";
+import { useData } from "../../contexts/DataContext";
 
 const STATUS_LABELS = {
   pending_approval: "Pendente",
@@ -58,8 +60,11 @@ const OrdersList = ({
   initialOrderId,
   onGiveFeedback,
   urgentOrdersCount = 0
+
 }) => {
+
   const { user } = useAuth();
+  const { settings: platformSettings } = usePlatformSettings();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -71,8 +76,8 @@ const OrdersList = ({
   const [showTrackOrder, setShowTrackOrder] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-   const [showEditOrder, setShowEditOrder] = useState(false);
-   const [repeatOrderData, setRepeatOrderData] = useState(null);
+  const [showEditOrder, setShowEditOrder] = useState(false);
+  const [repeatOrderData, setRepeatOrderData] = useState(null);
   const [showClientSelect, setShowClientSelect] = useState(false);
   const [showIncidentModal, setShowIncidentModal] = useState(false);
   const [showIncidentList, setShowIncidentList] = useState(false);
@@ -98,6 +103,7 @@ const OrdersList = ({
   const initialProcessed = useRef(false);
   const orderRefs = useRef({});
   const menuRef = useRef(null);
+  const data=useData()
 
   const role = user?.role;
   const isAdmin = role === "admin" || role === "superadmin";
@@ -240,7 +246,7 @@ const OrdersList = ({
     setHasMore(true);
     setOrders([]);
     fetchOrders(1, false);
-  }, [user, filter, statusFilter, fetchOrders]);
+  }, [user, filter, statusFilter, fetchOrders, data.updateData]);
 
   useEffect(() => {
     if (refreshKey) {
@@ -690,7 +696,10 @@ const OrdersList = ({
               const statusBadge = getStatusBadge(order);
               const isPending = displayStatus === "Pendente";
               const canEdit = (isStaff || (isCustomer && isPending)) && displayStatus !== "Concluído" && displayStatus !== "Cancelado" && displayStatus !== "Em entrega";
-              const canCancel = displayStatus !== "Concluído" && displayStatus !== "Cancelado";
+              let canCancel = displayStatus !== "Concluído" && displayStatus !== "Cancelado";
+              const driverCanCancel = isDriver && platformSettings?.order?.driverCanCancel && canCancel;
+              const driverCanReject = isDriver && platformSettings?.order?.driverCanReject && canCancel;
+              const showCancelInMenu = isStaff || isCustomer || driverCanCancel;
               const canTrack = displayStatus === "Em entrega";
               const canGiveFeedback = displayStatus === "Concluído" && isCustomer && !(order.feedbacks && order.feedbacks.length > 0);
               const canRepeat = displayStatus === "Concluído" && isCustomer;
@@ -707,6 +716,10 @@ const OrdersList = ({
                if (canGiveFeedback) primaryButtons.push({ action: "feedback", label: "Avaliar", color: "bg-amber-100 text-amber-600 hover:bg-amber-200" });
                if (canRepeat) primaryButtons.push({ action: "repeat", label: "Repetir", color: "bg-orange-50 text-orange-600 hover:bg-orange-100" });
               
+
+              if(!driverCanCancel){
+                canCancel = false
+              }
               // Limit to 2 primary buttons
               const visibleButtons = primaryButtons.slice(0, 2);
               const hasMoreButtons = primaryButtons.length > 2 || canCancel || canEdit || canDelete;
@@ -853,8 +866,10 @@ const OrdersList = ({
                       </button>
                     ))}
 
+
+
                     {/* 3-dots menu for additional actions */}
-                    {(hasMoreButtons || canCancel || canEdit || canDelete) && (
+                    {(hasMoreButtons || showCancelInMenu || canEdit || canDelete || driverCanReject) && (
                       <div className="relative">
                         <button 
                           onClick={(e) => { 
@@ -909,7 +924,7 @@ const OrdersList = ({
                               </button>
                             )}
                             
-                            {canCancel && (isStaff || isCustomer || isDriver) && (
+                            {showCancelInMenu && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -919,6 +934,20 @@ const OrdersList = ({
                               >
                                 <Icon name="xCircle" size={12} />
                                 Cancelar
+                              </button>
+                            )}
+                            
+                            {isDriver && platformSettings?.order?.driverCanReject && canCancel && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateStatus("rejected");
+                                  setMenuOpenId(null);
+                                }}
+                                className="w-full text-left px-4 py-2 text-xs text-amber-600 hover:bg-amber-50 flex items-center gap-2"
+                              >
+                                <Icon name="alertOctagon" size={12} />
+                                Rejeitar
                               </button>
                             )}
                             
