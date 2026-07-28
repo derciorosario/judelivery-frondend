@@ -178,6 +178,88 @@ const OrdersList = ({
 
   const baseFilters = useMemo(() => ["Todos", "Em andamento", "Aguardando", "Concluídos", "Cancelados"], []);
 
+  const [allStatusCounts, setAllStatusCounts] = useState({
+    "Todos": 0,
+    "Em andamento": 0,
+    "Aguardando": 0,
+    "Concluídos": 0,
+    "Cancelados": 0
+  });
+
+  const statusCounts = useMemo(() => {
+    if (allStatusCounts["Todos"] > 0 || allStatusCounts["Em andamento"] > 0) {
+      return allStatusCounts;
+    }
+    const counts = {
+      "Todos": orders.length,
+      "Em andamento": 0,
+      "Aguardando": 0,
+      "Concluídos": 0,
+      "Cancelados": 0
+    };
+    orders.forEach(order => {
+      const status = order.status;
+      if (["in_transit", "assigned", "scheduled"].includes(status)) {
+        counts["Em andamento"]++;
+      } else if (["pending_approval", "approved"].includes(status)) {
+        counts["Aguardando"]++;
+      } else if (status === "completed") {
+        counts["Concluídos"]++;
+      } else if (status === "cancelled") {
+        counts["Cancelados"]++;
+      }
+    });
+    return counts;
+  }, [orders, allStatusCounts]);
+
+  const fetchAllStatusCounts = useCallback(async () => {
+    try {
+      const statusGroups = {
+        "Todos": null,
+        "Em andamento": "in_transit,assigned,scheduled",
+        "Aguardando": "pending_approval,approved",
+        "Concluídos": "completed",
+        "Cancelados": "cancelled"
+      };
+
+      const promises = Object.entries(statusGroups).map(async ([label, statusParam]) => {
+        const params = { page: 1, limit: 1 };
+        if (statusParam) {
+          params.status = statusParam;
+        }
+
+        let response;
+        if (isCustomer) {
+          response = await getCustomerOrders(params);
+        } else if (isDriver) {
+          response = await getDriverOrders(params);
+        } else {
+          response = await getOrders(params);
+        }
+
+        const total = response.data?.pagination?.total || 0;
+        return { label, total };
+      });
+
+      const results = await Promise.all(promises);
+      const counts = {
+        "Todos": 0,
+        "Em andamento": 0,
+        "Aguardando": 0,
+        "Concluídos": 0,
+        "Cancelados": 0
+      };
+
+      results.forEach(({ label, total }) => {
+        counts[label] = total;
+      });
+
+      setAllStatusCounts(counts);
+    } catch (error) {
+      console.error("Error fetching status counts:", error);
+    }
+  }, [isCustomer, isDriver]);
+
   const getFilterStatus = useCallback((label) => {
     return filterMap[label] || null;
   }, [filterMap]);
@@ -246,7 +328,8 @@ const OrdersList = ({
     setHasMore(true);
     setOrders([]);
     fetchOrders(1, false);
-  }, [user, filter, statusFilter, fetchOrders, data.updateData]);
+    fetchAllStatusCounts();
+  }, [user, filter, statusFilter, fetchOrders, data.updateData, fetchAllStatusCounts]);
 
   useEffect(() => {
     if (refreshKey) {
@@ -254,8 +337,9 @@ const OrdersList = ({
       setHasMore(true);
       setOrders([]);
       fetchOrders(1, false);
+      fetchAllStatusCounts();
     }
-  }, [refreshKey, fetchOrders]);
+  }, [refreshKey, fetchOrders, fetchAllStatusCounts]);
 
   useEffect(() => {
     if (initialOrderId && orders.length > 0 && !initialProcessed.current && !loading) {
@@ -314,6 +398,7 @@ const OrdersList = ({
       setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
       if (onOrderUpdate) onOrderUpdate(updatedOrder);
       toast.success("Pedido atualizado com sucesso");
+      fetchAllStatusCounts();
     } catch (err) {
       const msg = err.response?.data?.message || "Erro ao atualizar pedido";
       toast.error(msg);
@@ -334,6 +419,7 @@ const OrdersList = ({
       toast.success("Pedido cancelado com sucesso");
       setShowCancelDialog(false);
       setShowOrderDetails(false);
+      fetchAllStatusCounts();
     } catch (err) {
       const msg = err.response?.data?.message || "Erro ao cancelar pedido";
       toast.error(msg);
@@ -351,6 +437,7 @@ const OrdersList = ({
       toast.success("Pedido removido com sucesso");
       setShowDeleteDialog(false);
       setShowOrderDetails(false);
+      fetchAllStatusCounts();
     } catch (err) {
       const msg = err.response?.data?.message || "Erro ao remover pedido";
       toast.error(msg);
@@ -582,6 +669,7 @@ const OrdersList = ({
             setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
             if (onOrderUpdate) onOrderUpdate(updatedOrder);
             setSelectedOrder(updatedOrder);
+            fetchAllStatusCounts();
           }}
           role="manager"
         />
@@ -599,6 +687,7 @@ const OrdersList = ({
             setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
             if (onOrderUpdate) onOrderUpdate(updatedOrder);
             setSelectedOrder(updatedOrder);
+            fetchAllStatusCounts();
           }}
           onStatusChange={handleUpdateStatus}
           updating={updating}
@@ -660,7 +749,7 @@ const OrdersList = ({
                 filter === f ? "bg-orange-500 text-white border-orange-500" : "bg-white text-slate-600 border-slate-200"
               }`}
             >
-              {f}
+              {f} ({statusCounts[f] || 0})
             </button>
           ))}
         </div>
@@ -1081,17 +1170,19 @@ const OrdersList = ({
              setShowEditOrder(false);
              setShowClientSelect(true);
            }}
-            onOrderCreated={(newOrder) => {
-              setOrders(prev => [newOrder, ...prev]);
-              if (onOrderUpdate) onOrderUpdate(newOrder);
+             onOrderCreated={(newOrder) => {
+               setOrders(prev => [newOrder, ...prev]);
+               if (onOrderUpdate) onOrderUpdate(newOrder);
+               fetchAllStatusCounts();
+             }}
+            onOrderUpdated={(updatedOrder) => {
+              setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+              if (onOrderUpdate) onOrderUpdate(updatedOrder);
+              setShowEditOrder(false);
+              setSelectedOrder(null);
+              setRepeatOrderData(null);
+              fetchAllStatusCounts();
             }}
-           onOrderUpdated={(updatedOrder) => {
-             setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-             if (onOrderUpdate) onOrderUpdate(updatedOrder);
-             setShowEditOrder(false);
-             setSelectedOrder(null);
-             setRepeatOrderData(null);
-           }}
          />
        )}
 
