@@ -378,7 +378,8 @@ const AdminSettings = () => {
                 <SwitchField checked={settings.order.customerCanCancel} onChange={(value) => update("order", "customerCanCancel", value)} label="Cliente cancela" hint="Permitir cancelamento do cliente" disabled={disabled} />
                 <SwitchField checked={settings.order.adminCanCancel} onChange={(value) => update("order", "adminCanCancel", value)} label="Admin cancela" hint="Permitir cancelamento pelo admin" disabled={disabled} />
                 <SwitchField checked={settings.order.driverCanCancel} onChange={(value) => update("order", "driverCanCancel", value)} label="Motorista cancela" hint="Permitir cancelamento pelo motorista" disabled={disabled} />
-                <SwitchField checked={settings.order.driverCanReject} onChange={(value) => update("order", "driverCanReject", value)} label="Motorista rejeita" hint="Permitir rejeição pelo motorista" disabled={disabled} />
+                 <SwitchField checked={settings.order.driverCanReject} onChange={(value) => update("order", "driverCanReject", value)} label="Motorista rejeita" hint="Permitir rejeição pelo motorista" disabled={disabled} />
+                 <SwitchField checked={settings.order.driverCanUpdateAmount} onChange={(value) => update("order", "driverCanUpdateAmount", value)} label="Motorista atualiza valor" hint="Permitir que o motorista altere o valor do pedido" disabled={disabled} />
               </div>
               <div className="grid grid-cols-1 gap-3 mt-4">
                 <Field label="Distância máxima" hint="km">

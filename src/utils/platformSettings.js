@@ -14,6 +14,7 @@ export const defaultPlatformSettings = {
     adminCanCancel: true,
     driverCanCancel: true,
     driverCanReject: true,
+    driverCanUpdateAmount: false,
     maxDistanceKm: 80,
     maxWaitingTimeMinutes: 20,
   },

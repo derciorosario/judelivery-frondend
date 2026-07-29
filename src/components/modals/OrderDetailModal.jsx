@@ -96,14 +96,16 @@ const OrderDetailModal = ({
    const [selectedPhoto, setSelectedPhoto] = useState(null);
 
    // Admin/Manager specific states
-   const [form, setForm] = useState({
-     status: order?.status || "pending_approval",
-     total: "",
-     driverId: ""
-   });
-   const [isSubmitting, setIsSubmitting] = useState(false);
-   const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
-   const [drivers, setDrivers] = useState([]);
+    const [form, setForm] = useState({
+      status: order?.status || "pending_approval",
+      total: "",
+      driverId: ""
+    });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
+    const [driverAmount, setDriverAmount] = useState("");
+    const [isDriverUpdatingPrice, setIsDriverUpdatingPrice] = useState(false);
+    const [drivers, setDrivers] = useState([]);
    const [loadingDrivers, setLoadingDrivers] = useState(false);
    const [showDriverInfo, setShowDriverInfo] = useState(false);
    const [pendingAdminAction, setPendingAdminAction] = useState(null);
@@ -563,31 +565,56 @@ const OrderDetailModal = ({
     setShowConfirmDialog(true);
   };
 
-  const handleUpdatePrice = async () => {
-    if (!localOrder) return;
-    const newTotal = parseFloat(form.total);
-    if (isNaN(newTotal) || newTotal < 0) {
-      toast.error("Insira um valor válido");
-      return;
-    }
-    if (newTotal === localOrder.total) {
-      toast.error("O valor é igual ao atual");
-      return;
-    }
-    setIsUpdatingPrice(true);
-    try {
-      const response = await updateOrder(localOrder.id, { total: newTotal });
-      setLocalOrder(response.data);
-      if (onUpdate) onUpdate(response.data);
-      toast.success("Valor atualizado com sucesso");
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Erro ao atualizar valor");
-    } finally {
-      setIsUpdatingPrice(false);
-    }
-  };
+   const handleUpdatePrice = async () => {
+     if (!localOrder) return;
+     const newTotal = parseFloat(form.total);
+     if (isNaN(newTotal) || newTotal < 0) {
+       toast.error("Insira um valor válido");
+       return;
+     }
+     if (newTotal === localOrder.total) {
+       toast.error("O valor é igual ao atual");
+       return;
+     }
+     setIsUpdatingPrice(true);
+     try {
+       const response = await updateOrder(localOrder.id, { total: newTotal });
+       setLocalOrder(response.data);
+       if (onUpdate) onUpdate(response.data);
+       toast.success("Valor atualizado com sucesso");
+     } catch (error) {
+       toast.error(error.response?.data?.message || "Erro ao atualizar valor");
+     } finally {
+       setIsUpdatingPrice(false);
+     }
+   };
 
-  const handleCancelOrder = async (cancelData) => {
+   const handleDriverUpdatePrice = async () => {
+     if (!localOrder) return;
+     const newTotal = parseFloat(driverAmount);
+     if (isNaN(newTotal) || newTotal < 0) {
+       toast.error("Insira um valor válido");
+       return;
+     }
+     if (newTotal === localOrder.total) {
+       toast.error("O valor é igual ao atual");
+       return;
+     }
+     setIsDriverUpdatingPrice(true);
+     try {
+       const response = await updateOrder(localOrder.id, { total: newTotal });
+       setLocalOrder(response.data);
+       if (onUpdate) onUpdate(response.data);
+       toast.success("Valor atualizado com sucesso");
+       setDriverAmount("");
+     } catch (error) {
+       toast.error(error.response?.data?.message || "Erro ao atualizar valor");
+     } finally {
+       setIsDriverUpdatingPrice(false);
+     }
+   };
+
+   const handleCancelOrder = async (cancelData) => {
     if (!localOrder) return;
     setIsSubmitting(true);
     try {
@@ -1257,17 +1284,46 @@ const OrderDetailModal = ({
         </div>
       </div>
 
-      {isActive && (
-        <button 
-          onClick={() => setShowNavigation(true)} 
-          disabled={updating} 
-          className="w-full py-2.5 rounded-xl bg-indigo-500 text-white font-semibold text-sm hover:bg-indigo-600 disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          <Navigation size={16} /> Navegar para o Destino
-        </button>
-      )}
-    </div>
-  );
+       {isActive && (
+         <button 
+           onClick={() => setShowNavigation(true)} 
+           disabled={updating} 
+           className="w-full py-2.5 rounded-xl bg-indigo-500 text-white font-semibold text-sm hover:bg-indigo-600 disabled:opacity-50 flex items-center justify-center gap-2"
+         >
+           <Navigation size={16} /> Navegar para o Destino
+         </button>
+       )}
+
+       {platformSettings?.order?.driverCanUpdateAmount && !isCompleted && !isCancelled && !isRejected && (
+         <div className="mt-3">
+           <label className="block text-xs font-semibold text-slate-500 mb-1 flex items-center gap-1">
+             <DollarSign size={12} /> Atualizar Valor (MZN)
+           </label>
+           <div className="flex gap-2">
+             <input
+               type="number"
+               value={driverAmount}
+               onChange={e => setDriverAmount(e.target.value)}
+               className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+               placeholder="0.00"
+             />
+             <button
+               onClick={handleDriverUpdatePrice}
+               disabled={isDriverUpdatingPrice || !driverAmount || parseFloat(driverAmount) === localOrder?.total}
+               className="px-4 py-2.5 rounded-xl bg-emerald-500 text-white font-semibold text-sm hover:bg-emerald-600 disabled:opacity-50 transition-colors flex items-center gap-1.5 whitespace-nowrap"
+             >
+               {isDriverUpdatingPrice ? (
+                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+               ) : (
+                 <DollarSign size={14} />
+               )}
+               {isDriverUpdatingPrice ? "A atualizar..." : "Atualizar"}
+             </button>
+           </div>
+         </div>
+       )}
+     </div>
+   );
 
   // Render Footer Actions for Customer
   const renderCustomerFooter = () => (
