@@ -4,7 +4,7 @@ import Icon from "../common/Icon";
 import Modal from "../common/Modal";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { getDrivers, createDriver, updateDriver, deleteDriver } from "../../api/client";
+import { getDrivers, createDriver, updateDriver, deleteDriver, getUserAuditLogs, getEntityAuditLogs } from "../../api/client";
 import { toast } from "../../lib/toast";
 import ImageViewer from "../common/ImageViewer";
 import { Capacitor } from '@capacitor/core';
@@ -849,6 +849,10 @@ const AdminDrivers = () => {
   const [locationNames, setLocationNames] = useState({});
   const [isGeocoderLoaded, setIsGeocoderLoaded] = useState(false);
   const geocoderRef = useRef(null);
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [activityDriver, setActivityDriver] = useState(null);
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
 
   // Load Google Maps Geocoder
   useEffect(() => {
@@ -1040,6 +1044,96 @@ const AdminDrivers = () => {
     }
   };
 
+  const openActivityModal = async (driver) => {
+    setActivityDriver(driver);
+    setActivityOpen(true);
+    setActivityLoading(true);
+    try {
+      const logs = [];
+      // Fetch user-level actions (login, orders, etc.)
+      if (driver.userId) {
+        const userRes = await getUserAuditLogs(driver.userId, { limit: 100 });
+        logs.push(...(userRes.data.logs || []));
+      }
+      // Fetch entity-level actions (admin actions on this driver)
+      const entityRes = await getEntityAuditLogs("driver", driver.id, { limit: 100 });
+      logs.push(...(entityRes.data.logs || []));
+      // Deduplicate by ID and sort by date
+      const seen = new Set();
+      const unique = logs.filter((log) => {
+        if (seen.has(log.id)) return false;
+        seen.add(log.id);
+        return true;
+      }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setActivityLogs(unique);
+    } catch (error) {
+      toast.error("Erro ao carregar atividade do motorista: " + error.message);
+      setActivityLogs([]);
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
+  const groupLogsByDay = (logs) => {
+    const grouped = {};
+    logs.forEach((log) => {
+      const date = new Date(log.createdAt).toLocaleDateString("pt-MZ", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      if (!grouped[date]) grouped[date] = [];
+      grouped[date].push(log);
+    });
+    return Object.entries(grouped).sort((a, b) => new Date(b[0]) - new Date(a[0]));
+  };
+
+  const formatActionLabel = (action) => {
+    const labels = {
+      create: "Criou",
+      update: "Atualizou",
+      delete: "Removeu",
+      view: "Visualizou",
+      assign: "Atribuiu",
+      cancel: "Cancelou",
+      complete: "Concluiu",
+      approve: "Aprovou",
+      reject: "Rejeitou",
+      payment: "Processou pagamento",
+      status_change: "Alterou status",
+      export: "Exportou",
+      import: "Importou",
+      settings_change: "Alterou configurações",
+      password_change: "Alterou password",
+      verification: "Verificou",
+      login: "Iniciou sessão",
+      logout: "Terminou sessão",
+      other: "Realizou outra ação",
+    };
+    return labels[action] || action;
+  };
+
+  const formatEntityLabel = (entityType) => {
+    const labels = {
+      driver: "Motorista",
+      order: "Encomenda",
+      customer: "Cliente",
+      user: "Utilizador",
+      product: "Produto",
+      company: "Empresa",
+      payment: "Pagamento",
+      auth: "Autenticação",
+      settings: "Configurações",
+      incident: "Incidente",
+      feedback: "Feedback",
+      notification: "Notificação",
+      financial: "Financeiro",
+      report: "Relatório",
+    };
+    return labels[entityType] || entityType;
+  };
+
   return (
     <div className="space-y-4">
       {viewerOpen && selectedImage && <ImageViewer isOpen={viewerOpen} onClose={() => setViewerOpen(false)} imageUrl={selectedImage} />}
@@ -1066,6 +1160,70 @@ const AdminDrivers = () => {
         onEdit={handleEditDriver}
         driver={editDriver}
       />
+
+      {/* Activity Modal */}
+      <Modal
+        isOpen={activityOpen}
+        onClose={() => {
+          setActivityOpen(false);
+          setActivityDriver(null);
+          setActivityLogs([]);
+        }}
+        title={`Atividade — ${activityDriver?.name || ""}`}
+      >
+        <div>
+          {activityLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full mx-auto mb-3" />
+              <p className="text-sm text-slate-500">A carregar atividade...</p>
+            </div>
+          ) : activityLogs.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Icon name="history" size={24} className="text-slate-400" />
+              </div>
+              <p className="text-sm font-semibold text-slate-500">Sem atividade registada</p>
+              <p className="text-xs text-slate-400 mt-1">Nenhum registo de auditoria encontrado para este motorista.</p>
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+              {groupLogsByDay(activityLogs).map(([date, logs]) => (
+                <div key={date}>
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                    <Icon name="calendar" size={12} className="text-orange-400" />
+                    {date}
+                  </h4>
+                  <div className="space-y-2 pl-2 border-l-2 border-slate-100 ml-2">
+                    {logs.map((log) => (
+                      <div key={log.id} className="bg-slate-50 rounded-xl p-3 text-xs">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-slate-700">
+                            {formatActionLabel(log.action)}
+                          </span>
+                          <span className="text-slate-400 text-[10px]">
+                            {new Date(log.createdAt).toLocaleTimeString("pt-MZ", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-slate-500 text-[11px]">
+                          {log.description || formatEntityLabel(log.entityType)} {log.entityId ? `- ${log.entityId}` : ""}
+                        </p>
+                        {log.userName && (
+                          <p className="text-slate-400 text-[10px] mt-1">
+                            Por: {log.userName} ({log.userRole})
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
 
       {loading ? (
         <div className="text-center py-10">
@@ -1167,6 +1325,13 @@ const AdminDrivers = () => {
             )}
 
             <div className="flex gap-2 pt-2 border-t border-slate-100">
+              <button
+                onClick={() => openActivityModal(d)}
+                className="flex-1 text-xs bg-slate-100 text-slate-600 font-semibold py-2 rounded-lg hover:bg-orange-50 hover:text-orange-700 transition-colors"
+              >
+                <Icon name="history" size={14} className="inline mr-1" />
+                Histórico
+              </button>
               <button
                 onClick={() => {
                   setEditDriver(d);
