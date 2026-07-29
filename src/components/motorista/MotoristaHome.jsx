@@ -58,6 +58,7 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
   };
 
   const handleOrderUpdate = (updatedOrder) => {
+    setDetailOrder(updatedOrder)
     if (onOrderUpdate) onOrderUpdate(updatedOrder);
     // Refresh dashboard to reflect changes
     const fetchDashboard = async () => {
@@ -182,6 +183,87 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
         </button>
       </div>
 
+
+
+          {dashboard?.activeOrder && (
+        <div>
+          <p className="text-sm font-bold text-slate-700 mb-2">Entrega Activa</p>
+          <div className="bg-blue-600 rounded-2xl p-4 text-white">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-bold">#{dashboard.activeOrder.id?.slice(-6).toUpperCase()}</span>
+              <span className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                {dashboard.activeOrder.status === "in_transit" ? "Em entrega" : dashboard.activeOrder.status === "assigned" ? "Atribuído" : dashboard.activeOrder.status}
+              </span>
+            </div>
+            <p className="text-base font-semibold">{typeof dashboard.activeOrder.client === 'string' ? dashboard.activeOrder.client : dashboard.activeOrder.client?.name}</p>
+            <div className="mt-3 space-y-2">
+              <div className="flex items-start gap-2 text-sm opacity-90">
+                <div className="w-2 h-2 rounded-full bg-orange-300 mt-1 shrink-0" />
+                <span>{dashboard.activeOrder.origin}</span>
+              </div>
+              <div className="flex items-start gap-2 text-sm opacity-90">
+                <div className="w-2 h-2 rounded-full bg-white mt-1 shrink-0" />
+                <span>{dashboard.activeOrder.dest}</span>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => handleNavigate(dashboard.activeOrder)}
+                className="flex-1 bg-white text-blue-700 font-bold text-sm py-2.5 rounded-xl"
+              >
+                Navegar
+              </button>
+              <button 
+                onClick={() => handleViewDetails(dashboard.activeOrder)}
+                className="flex-1 bg-amber-400 text-white font-bold text-sm py-2.5 rounded-xl"
+              >
+                Ver Detalhes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {dashboard?.availableOrders && dashboard.availableOrders.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-sm font-bold text-slate-700">Pedidos Disponíveis</p>
+          {dashboard.availableOrders.map(order => {
+            const isDelivery = order.serviceType !== "taxi";
+            return (
+              <div key={order.id} className="bg-orange-50 border border-orange-200 rounded-2xl p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                    <Icon name="bell" size={18} className="text-orange-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-slate-800">Novo Pedido Disponível</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {typeof order.client === 'string' ? order.client : order.client?.name} · 
+                      {isDelivery ? (order.origin || "") : (order.pickupLocation || "")} · 
+                      {order.dist || "1.9 km"}
+                    </p>
+                    <div className="flex gap-2 mt-3">
+                      <button 
+                        onClick={() => handleAcceptOrder(order)}
+                        className="flex-1 bg-orange-500 text-white text-xs font-bold py-2 rounded-xl"
+                      >
+                        Aceitar
+                      </button>
+                      <button 
+                        onClick={() => handleDeclineOrder(order)}
+                        className="flex-1 bg-slate-100 text-slate-600 text-xs font-semibold py-2 rounded-xl"
+                      >
+                        Recusar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Statistics Cards - Enhanced */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-white rounded-xl p-4 text-center border border-slate-100 shadow-sm">
@@ -265,84 +347,7 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
         </div>
       </div>
 
-      {dashboard?.activeOrder && (
-        <div>
-          <p className="text-sm font-bold text-slate-700 mb-2">Entrega Activa</p>
-          <div className="bg-blue-600 rounded-2xl p-4 text-white">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-bold">#{dashboard.activeOrder.id?.slice(-6).toUpperCase()}</span>
-              <span className="text-xs bg-white/20 px-2 py-1 rounded-full">
-                {dashboard.activeOrder.status === "in_transit" ? "Em entrega" : dashboard.activeOrder.status === "assigned" ? "Atribuído" : dashboard.activeOrder.status}
-              </span>
-            </div>
-            <p className="text-base font-semibold">{typeof dashboard.activeOrder.client === 'string' ? dashboard.activeOrder.client : dashboard.activeOrder.client?.name}</p>
-            <div className="mt-3 space-y-2">
-              <div className="flex items-start gap-2 text-sm opacity-90">
-                <div className="w-2 h-2 rounded-full bg-orange-300 mt-1 shrink-0" />
-                <span>{dashboard.activeOrder.origin}</span>
-              </div>
-              <div className="flex items-start gap-2 text-sm opacity-90">
-                <div className="w-2 h-2 rounded-full bg-white mt-1 shrink-0" />
-                <span>{dashboard.activeOrder.dest}</span>
-              </div>
-            </div>
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={() => handleNavigate(dashboard.activeOrder)}
-                className="flex-1 bg-white text-blue-700 font-bold text-sm py-2.5 rounded-xl"
-              >
-                Navegar
-              </button>
-              <button 
-                onClick={() => handleViewDetails(dashboard.activeOrder)}
-                className="flex-1 bg-amber-400 text-white font-bold text-sm py-2.5 rounded-xl"
-              >
-                Ver Detalhes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {dashboard?.availableOrders && dashboard.availableOrders.length > 0 && (
-        <div className="space-y-3">
-          <p className="text-sm font-bold text-slate-700">Pedidos Disponíveis</p>
-          {dashboard.availableOrders.map(order => {
-            const isDelivery = order.serviceType !== "taxi";
-            return (
-              <div key={order.id} className="bg-orange-50 border border-orange-200 rounded-2xl p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
-                    <Icon name="bell" size={18} className="text-orange-500" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-800">Novo Pedido Disponível</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {typeof order.client === 'string' ? order.client : order.client?.name} · 
-                      {isDelivery ? (order.origin || "") : (order.pickupLocation || "")} · 
-                      {order.dist || "1.9 km"}
-                    </p>
-                    <div className="flex gap-2 mt-3">
-                      <button 
-                        onClick={() => handleAcceptOrder(order)}
-                        className="flex-1 bg-orange-500 text-white text-xs font-bold py-2 rounded-xl"
-                      >
-                        Aceitar
-                      </button>
-                      <button 
-                        onClick={() => handleDeclineOrder(order)}
-                        className="flex-1 bg-slate-100 text-slate-600 text-xs font-semibold py-2 rounded-xl"
-                      >
-                        Recusar
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+  
     </div>
   );
 };

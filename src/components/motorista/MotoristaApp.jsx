@@ -118,7 +118,7 @@ const MotoristaApp = () => {
     setOrderRefreshKey(prev => prev + 1);
     setHomeRefreshKey(prev => prev + 1);
     setHistoryRefreshKey(prev => prev + 1);
-    setSelectedOrder(prev => ({ ...prev, status: updatedOrder.status }));
+    setSelectedOrder(prev => ({ ...prev, status: updatedOrder.status, confirmed:updatedOrder.confirmed }));
   }, []);
 
   const handleStatusChange = useCallback((newStatus) => {

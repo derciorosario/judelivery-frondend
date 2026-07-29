@@ -60,25 +60,26 @@ const OrderDetailModal = ({
   initialTab = "details" // Initial tab to show when modal opens
 
 }) => {
-   const { settings: platformSettings } = usePlatformSettings();
-   const [activeTab, setActiveTab] = useState(initialTab);
-   const [loadingOrder, setLoadingOrder] = useState(false);
-   const [localOrder, setLocalOrder] = useState(order);
-   const [showTrackModal, setShowTrackModal] = useState(false);
-   const [showNavigation, setShowNavigation] = useState(false);
-   const [showCancelDialog, setShowCancelDialog] = useState(false);
-   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-   const [pendingStatus, setPendingStatus] = useState(null);
-    const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-    const [pendingDriverStatus, setPendingDriverStatus] = useState(null);
-    const [pendingAdminCompletion, setPendingAdminCompletion] = useState(false);
-    const [showDeleteFeedbackDialog, setShowDeleteFeedbackDialog] = useState(false);
-    const [feedbackToDelete, setFeedbackToDelete] = useState(null);
-    const [showReassignDialog, setShowReassignDialog] = useState(false);
-    const [pendingRejection, setPendingRejection] = useState(null);
 
-   console.log({localOrder})
 
+  const { settings: platformSettings } = usePlatformSettings();
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const [loadingOrder, setLoadingOrder] = useState(false);
+  const [localOrder, setLocalOrder] = useState(order);
+  const [showTrackModal, setShowTrackModal] = useState(false);
+  const [showNavigation, setShowNavigation] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState(null);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [pendingDriverStatus, setPendingDriverStatus] = useState(null);
+  const [pendingAdminCompletion, setPendingAdminCompletion] = useState(false);
+  const [showDeleteFeedbackDialog, setShowDeleteFeedbackDialog] = useState(false);
+  const [feedbackToDelete, setFeedbackToDelete] = useState(null);
+  const [showReassignDialog, setShowReassignDialog] = useState(false);
+  const [pendingRejection, setPendingRejection] = useState(null);
+
+  
    // Incidents state
    const [incidents, setIncidents] = useState([]);
    const [loadingIncidents, setLoadingIncidents] = useState(false);
@@ -101,11 +102,12 @@ const OrderDetailModal = ({
       total: "",
       driverId: ""
     });
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
-    const [driverAmount, setDriverAmount] = useState(String(localOrder?.total || ""));
-    const [isDriverUpdatingPrice, setIsDriverUpdatingPrice] = useState(false);
-    const [drivers, setDrivers] = useState([]);
+    
+   const [isSubmitting, setIsSubmitting] = useState(false);
+   const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
+   const [driverAmount, setDriverAmount] = useState(String(localOrder?.total || ""));
+   const [isDriverUpdatingPrice, setIsDriverUpdatingPrice] = useState(false);
+   const [drivers, setDrivers] = useState([]);
    const [loadingDrivers, setLoadingDrivers] = useState(false);
    const [showDriverInfo, setShowDriverInfo] = useState(false);
    const [pendingAdminAction, setPendingAdminAction] = useState(null);

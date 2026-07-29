@@ -14,6 +14,7 @@ import { usePlatformSettings } from "../../contexts/SettingsContext";
 import AdminClientSelectModal from "../admin/AdminClientSelectModal";
 import NavigationModal from "../motorista/modals/NavigationModal";
 import OrderDetailModal from "../modals/OrderDetailModal";
+import ReassignOrderModal from "../modals/ReassignOrderModal";
 import { API_URL } from "../../api/client";
 import { useData } from "../../contexts/DataContext";
 
@@ -90,6 +91,7 @@ const OrdersList = ({
   const [loadingIncidents, setLoadingIncidents] = useState(false);
   const [showNavigation, setShowNavigation] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showReassignDialog, setShowReassignDialog] = useState(false);
   const [selectedClientForEdit, setSelectedClientForEdit] = useState(null);
   const [updating, setUpdating] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState(null);
@@ -460,6 +462,14 @@ const OrdersList = ({
     } finally {
       setUpdating(false);
     }
+  };
+
+  const handleReassignComplete = (updatedOrder) => {
+    setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+    if (onOrderUpdate) onOrderUpdate(updatedOrder);
+    setShowReassignDialog(false);
+    setSelectedOrder(null);
+    fetchAllStatusCounts();
   };
 
   const handleCancelOrder = async (cancelData) => {
@@ -1119,7 +1129,8 @@ const OrdersList = ({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleUpdateStatus("rejected");
+                                  setSelectedOrder(order);
+                                  setShowReassignDialog(true);
                                   setMenuOpenId(null);
                                 }}
                                 className="w-full text-left px-4 py-2 text-xs text-amber-600 hover:bg-amber-50 flex items-center gap-2"
@@ -1315,19 +1326,33 @@ const OrdersList = ({
         />
       )}
 
-      {/* Contact Support Modal */}
-      {showContactModal && selectedOrder && (
-        <ContactSupportModal
-          isOpen={showContactModal}
-          onClose={() => {
-            setShowContactModal(false);
-            setSelectedOrder(null);
-          }}
-          order={selectedOrder}
-        />
-      )}
+{/* Contact Support Modal */}
+       {showContactModal && selectedOrder && (
+         <ContactSupportModal
+           isOpen={showContactModal}
+           onClose={() => {
+             setShowContactModal(false);
+             setSelectedOrder(null);
+           }}
+           order={selectedOrder}
+         />
+       )}
 
-      {/* Incident List Modal for Driver */}
+       {/* Reassign Order Modal */}
+       {showReassignDialog && selectedOrder && (
+         <ReassignOrderModal
+           isOpen={showReassignDialog}
+           onClose={() => {
+             setShowReassignDialog(false);
+             setSelectedOrder(null);
+           }}
+           order={selectedOrder}
+           onReassigned={handleReassignComplete}
+           role={role}
+         />
+       )}
+
+       {/* Incident List Modal for Driver */}
       {showIncidentList && (
         <Modal isOpen={showIncidentList} onClose={() => { setShowIncidentList(false); setSelectedOrder(null); setOrderIncidents([]); }} title="Incidentes do Pedido">
           <div className="space-y-4">
