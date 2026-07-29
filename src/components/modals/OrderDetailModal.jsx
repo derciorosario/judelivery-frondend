@@ -103,7 +103,7 @@ const OrderDetailModal = ({
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
-    const [driverAmount, setDriverAmount] = useState("");
+    const [driverAmount, setDriverAmount] = useState(String(localOrder?.total || ""));
     const [isDriverUpdatingPrice, setIsDriverUpdatingPrice] = useState(false);
     const [drivers, setDrivers] = useState([]);
    const [loadingDrivers, setLoadingDrivers] = useState(false);
@@ -144,16 +144,23 @@ const OrderDetailModal = ({
     console.log({order})
   }, [order, orderId, isOpen, onUpdate]);
 
-  // Initialize form when order changes
-  useEffect(() => {
-    if (localOrder && isAdmin) {
-      setForm({
-        status: localOrder.status || "pending_approval",
-        total: String(localOrder.total || ""),
-        driverId: localOrder.driverId || ""
-      });
-    }
-  }, [localOrder, isAdmin]);
+   // Initialize form when order changes
+   useEffect(() => {
+     if (localOrder && isAdmin) {
+       setForm({
+         status: localOrder.status || "pending_approval",
+         total: String(localOrder.total || ""),
+         driverId: localOrder.driverId || ""
+       });
+     }
+   }, [localOrder, isAdmin]);
+
+   // Sync driverAmount with order total
+   useEffect(() => {
+     if (localOrder) {
+       setDriverAmount(String(localOrder.total || ""));
+     }
+   }, [localOrder]);
 
   // Fetch drivers for admin when actions tab is opened
   useEffect(() => {
