@@ -186,6 +186,14 @@ const OrdersList = ({
     "Cancelados": 0
   });
 
+  const [allUnconfirmedCounts, setAllUnconfirmedCounts] = useState({
+    "Todos": 0,
+    "Em andamento": 0,
+    "Aguardando": 0,
+    "Concluídos": 0,
+    "Cancelados": 0
+  });
+
   const statusCounts = useMemo(() => {
     if (allStatusCounts["Todos"] > 0 || allStatusCounts["Em andamento"] > 0) {
       return allStatusCounts;
@@ -260,6 +268,51 @@ const OrdersList = ({
     }
   }, [isCustomer, isDriver]);
 
+  const fetchUnconfirmedCounts = useCallback(async () => {
+    try {
+      const statusGroups = {
+        "Em andamento": "in_transit,assigned,scheduled",
+        "Aguardando": "pending_approval,approved"
+      };
+
+      const promises = Object.entries(statusGroups).map(async ([label, statusParam]) => {
+        const params = { page: 1, limit: 1, confirmed: false };
+        params.status = statusParam;
+
+        let response;
+        if (isCustomer) {
+          response = await getCustomerOrders(params);
+        } else if (isDriver) {
+          response = await getDriverOrders(params);
+        } else {
+          response = await getOrders(params);
+        }
+
+        const total = response.data?.pagination?.total || 0;
+        return { label, total };
+      });
+
+      const results = await Promise.all(promises);
+      const counts = {
+        "Todos": 0,
+        "Em andamento": 0,
+        "Aguardando": 0,
+        "Concluídos": 0,
+        "Cancelados": 0
+      };
+
+      results.forEach(({ label, total }) => {
+        counts[label] = total;
+      });
+
+      counts["Todos"] = counts["Em andamento"] + counts["Aguardando"];
+
+      setAllUnconfirmedCounts(counts);
+    } catch (error) {
+      console.error("Error fetching unconfirmed counts:", error);
+    }
+  }, [isCustomer, isDriver]);
+
   const getFilterStatus = useCallback((label) => {
     return filterMap[label] || null;
   }, [filterMap]);
@@ -329,7 +382,8 @@ const OrdersList = ({
     setOrders([]);
     fetchOrders(1, false);
     fetchAllStatusCounts();
-  }, [user, filter, statusFilter, fetchOrders, data.updateData, fetchAllStatusCounts]);
+    fetchUnconfirmedCounts();
+  }, [user, filter, statusFilter, fetchOrders, data.updateData, fetchAllStatusCounts, fetchUnconfirmedCounts]);
 
   useEffect(() => {
     if (refreshKey) {
@@ -338,8 +392,9 @@ const OrdersList = ({
       setOrders([]);
       fetchOrders(1, false);
       fetchAllStatusCounts();
+      fetchUnconfirmedCounts();
     }
-  }, [refreshKey, fetchOrders, fetchAllStatusCounts]);
+  }, [refreshKey, fetchOrders, fetchAllStatusCounts, fetchUnconfirmedCounts]);
 
   useEffect(() => {
     if (initialOrderId && orders.length > 0 && !initialProcessed.current && !loading) {
@@ -760,17 +815,21 @@ const OrdersList = ({
 
       {!isTrackingView && (isStaff || isCustomer || isDriver) && (
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-          {baseFilters.map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
-                filter === f ? "bg-orange-500 text-white border-orange-500" : "bg-white text-slate-600 border-slate-200"
-              }`}
-            >
-              {f} ({statusCounts[f] || 0})
-            </button>
-          ))}
+          {baseFilters.map((f) => {
+            const total = statusCounts[f] || 0;
+            const unconfirmed = (isAdmin || isManager || isDriver) ? (allUnconfirmedCounts[f] || 0) : 0;
+            return (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+                  filter === f ? "bg-orange-500 text-white border-orange-500" : "bg-white text-slate-600 border-slate-200"
+                }`}
+              >
+                {f} ({total}{unconfirmed > 0 ? `, ${unconfirmed} não confirmados` : ''})
+              </button>
+            );
+          })}
         </div>
       )}
 

@@ -136,7 +136,10 @@ const OrderDetailModal = ({
       fetchOrder();
     } else if (order) {
       setLocalOrder(order);
+      setLoadingOrder(false);
     }
+
+    console.log({order})
   }, [order, orderId, isOpen, onUpdate]);
 
   // Initialize form when order changes
