@@ -1200,6 +1200,8 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                 onFormChange={setForm}
                 onDriverAssigned={handleDriverAssigned}
                 settings={platformSettings}
+                currentDriverId={editOrder?.driverId}
+                currentDriverOrderTime={editOrder?.scheduledTime || editOrder?.createdAt}
               />
             )}
 
@@ -1257,6 +1259,8 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                 getUrgencyLabel={getUrgencyLabel}
                 getUrgencyColor={getUrgencyColor}
                 onDriverAssigned={handleDriverAssigned}
+                currentDriverId={editOrder?.driverId}
+                currentDriverOrderTime={editOrder?.scheduledTime || editOrder?.createdAt}
               />
             )}
 

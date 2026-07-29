@@ -4,7 +4,7 @@ import { getAvailableDrivers } from "../../../api/client";
 import { useSocket } from "../../../contexts/SocketContext";
 import { toast } from "../../../lib/toast";
 
-const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrgencyColor, onDriverAssigned, onOrderStatusChange, settings }) => {
+const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrgencyColor, onDriverAssigned, onOrderStatusChange, settings, currentDriverId, currentDriverOrderTime }) => {
   const { socket } = useSocket();
   const orderSettings = settings?.order || {};
   const pricing = settings?.pricing || {};
@@ -92,36 +92,49 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
       });
     }, 200);
 
-    try {
-       // Map serviceType to what backend expects
-       const apiServiceType = serviceType === "taxi" ? "taxi" : "delivery";
-         const params = {
-          serviceType: apiServiceType,
-          originCoords: getPickupCoords() ? `${getPickupCoords().lat},${getPickupCoords().lng}` : undefined,
-          destCoords: getDestCoords() ? `${getDestCoords().lat},${getDestCoords().lng}` : undefined,
-          pickupCoords: form.pickupCoords ? `${form.pickupCoords.lat},${form.pickupCoords.lng}` : undefined,
-          dropoffCoords: form.dropoffCoords ? `${form.dropoffCoords.lat},${form.dropoffCoords.lng}` : undefined,
-          scheduledTime:  form.scheduledTime ||  form.scheduledRideTime || undefined,
-          isScheduled: form.isScheduled || form.isScheduledRide,
-         urgencyLevel: form.urgencyLevel,
-           estimatedDuration: getEstimatedDuration(),
-           maxActiveOrdersPerDriver: drivers.maxActiveOrdersPerDriver
-        };
+try {
+        // Map serviceType to what backend expects
+        const apiServiceType = serviceType === "taxi" ? "taxi" : "delivery";
+          const params = {
+           serviceType: apiServiceType,
+           originCoords: getPickupCoords() ? `${getPickupCoords().lat},${getPickupCoords().lng}` : undefined,
+           destCoords: getDestCoords() ? `${getDestCoords().lat},${getDestCoords().lng}` : undefined,
+           pickupCoords: form.pickupCoords ? `${form.pickupCoords.lat},${form.pickupCoords.lng}` : undefined,
+           dropoffCoords: form.dropoffCoords ? `${form.dropoffCoords.lat},${form.dropoffCoords.lng}` : undefined,
+           scheduledTime:  form.scheduledTime ||  form.scheduledRideTime || undefined,
+           isScheduled: form.isScheduled || form.isScheduledRide,
+          urgencyLevel: form.urgencyLevel,
+            estimatedDuration: getEstimatedDuration(),
+            maxActiveOrdersPerDriver: drivers.maxActiveOrdersPerDriver,
+            currentDriverId: currentDriverId || undefined,
+            currentDriverOrderTime: currentDriverOrderTime || undefined
+         };
 
-      const response = await getAvailableDrivers(params);
-      setAvailableDrivers(response.data.drivers || []);
-      
-      if (response.data.drivers && response.data.drivers.length > 0) {
-        const closestDriver = response.data.drivers[0];
-        setSelectedDriver(closestDriver);
-        
-        if (onDriverAssigned) {
-          onDriverAssigned(closestDriver);
-        }
-      }else{
-        setSelectedDriver(null)
-        onDriverAssigned(null)
-      }
+       const response = await getAvailableDrivers(params);
+       const driversList = response.data.drivers || [];
+       setAvailableDrivers(driversList);
+
+       let driverToSelect = null;
+
+       if (currentDriverId) {
+         driverToSelect = driversList.find(d => d.id === currentDriverId) || null;
+       }
+
+       if (!driverToSelect && driversList.length > 0) {
+         driverToSelect = driversList[0];
+       }
+
+       if (driverToSelect) {
+         setSelectedDriver(driverToSelect);
+         if (onDriverAssigned) {
+           onDriverAssigned(driverToSelect);
+         }
+       } else {
+         setSelectedDriver(null);
+         if (onDriverAssigned) {
+           onDriverAssigned(null);
+         }
+       }
     } catch (error) {
       console.error("Error searching for drivers:", error);
       if (error.response?.status === 403) {

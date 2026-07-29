@@ -55,15 +55,23 @@ const ReassignOrderModal = ({ isOpen, onClose, order, onReassigned, role }) => {
       if (order.urgencyLevel) {
         params.urgencyLevel = order.urgencyLevel;
       }
-      if (order.serviceType) {
-        params.serviceType = order.serviceType;
-      }
+if (order.serviceType) {
+         params.serviceType = order.serviceType;
+       }
+if (order.driverId) {
+          params.currentDriverId = order.driverId;
+        }
+        if (order.scheduledTime || order.createdAt) {
+          params.currentDriverOrderTime = order.scheduledTime || order.createdAt;
+        }
 
-      const response = await getAvailableDriversForReassignment(order.id, params);
-      setDrivers(response.data.drivers || []);
-      if (response.data.drivers && response.data.drivers.length > 0) {
-        setSelectedDriver(response.data.drivers[0]);
-      }
+        const response = await getAvailableDriversForReassignment(order.id, params);
+       const driversList = response.data.drivers || [];
+       setDrivers(driversList);
+       if (driversList.length > 0) {
+         const currentDriver = driversList.find(d => d.id === order.driverId) || driversList[0];
+         setSelectedDriver(currentDriver);
+       }
     } catch (error) {
       console.error("Error fetching available drivers:", error);
       toast.error(error.response?.data?.message || "Erro ao procurar motoristas disponíveis");

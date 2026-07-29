@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Icon from "../common/Icon";
+import Modal from "../common/Modal";
 import { GoogleMap, Marker, Autocomplete, useJsApiLoader } from "@react-google-maps/api";
 import {
   changeCustomerPassword,
@@ -46,13 +47,14 @@ const CustomerProfile = ({
     themeMode: "light",
     notificationsEnabled: true
   });
-  const [newAddress, setNewAddress] = useState("");
-  const [newAddressCoords, setNewAddressCoords] = useState(null);
-  const [loadingLocation, setLoadingLocation] = useState(false);
-  const [loadingMapLocation, setLoadingMapLocation] = useState(false);
-  const [mapOpen, setMapOpen] = useState(false);
-  const [mapCenter, setMapCenter] = useState(MAPUTO_CENTER);
-  const [mapMarker, setMapMarker] = useState(null);
+const [newAddress, setNewAddress] = useState("");
+   const [newAddressCoords, setNewAddressCoords] = useState(null);
+   const [loadingLocation, setLoadingLocation] = useState(false);
+   const [loadingMapLocation, setLoadingMapLocation] = useState(false);
+   const [mapOpen, setMapOpen] = useState(false);
+   const [mapCenter, setMapCenter] = useState(MAPUTO_CENTER);
+   const [mapMarker, setMapMarker] = useState(null);
+   const [locationError, setLocationError] = useState(null);
   const mapRef = useRef(null);
   const autocompleteRef = useRef(null);
   const [newPaymentMethod, setNewPaymentMethod] = useState({
@@ -289,6 +291,7 @@ const CustomerProfile = ({
   };
 
   const useCurrentAddressLocation = () => {
+    
     setLoadingLocation(true);
 
     getCurrentPosition()
@@ -321,11 +324,11 @@ const CustomerProfile = ({
       .catch((error) => {
         console.error("Geolocation error:", error);
         if (error.message === "PERMISSION_DENIED") {
-          toast.error("A permissão de localização foi negada. Por favor, habilite-a nas configurações.");
+          setLocationError("A permissão de localização foi negada. Por favor, habilite-a nas configurações do dispositivo para usar a sua localização actual.");
         } else if (error.message === "GEOLOCATION_NOT_SUPPORTED") {
-          toast.error("Geolocalização não é suportada pelo seu navegador.");
+          setLocationError("Geolocalização não é suportada pelo seu dispositivo.");
         } else {
-          toast.error("Não foi possível obter a sua localização atual. Por favor, verifique as permissões.");
+          setLocationError("Não foi possível obter a sua localização actual. Por favor, verifique as permissões de localização e tente novamente.");
         }
         setLoadingLocation(false);
       });
@@ -335,6 +338,10 @@ const CustomerProfile = ({
     setMapOpen(false);
     setMapMarker(null);
     setLoadingMapLocation(false);
+  };
+
+  const closeLocationErrorDialog = () => {
+    setLocationError(null);
   };
 
   const handleAddPaymentMethod = async () => {
@@ -870,50 +877,72 @@ const CustomerProfile = ({
         </div>
       )}
 
-      {showChangePassword && (
-        <div className="fixed inset-0 !mb-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl w-full max-w-md p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-slate-800">Alterar Senha</h2>
-              <button disabled={saving} onClick={() => setShowChangePassword(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center disabled:opacity-50">
-                <Icon name="x" className={"text-black"} size={16} />
-              </button>
-            </div>
-            <div className="space-y-3">
-              <input
-                type="password"
-                placeholder="Senha atual"
-                value={passwordForm.currentPassword}
-                onChange={e => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm"
-              />
-              <input
-                type="password"
-                placeholder="Nova senha"
-                value={passwordForm.newPassword}
-                onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm"
-              />
-              <input
-                type="password"
-                placeholder="Confirmar nova senha"
-                value={passwordForm.confirmPassword}
-                onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm"
-              />
-            </div>
-            <div className="flex gap-2 mt-4">
-              <button disabled={saving} onClick={() => setShowChangePassword(false)} className="flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 disabled:opacity-50">
-                Cancelar
-              </button>
-              <button disabled={saving} onClick={handlePasswordChange} className="flex-1 py-2 rounded-xl bg-orange-500 text-white font-semibold disabled:opacity-50">
-                {saving ? "A salvar..." : "Salvar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+{showChangePassword && (
+         <div className="fixed inset-0 !mb-0 z-50 flex items-center justify-center p-4 bg-black/50">
+           <div className="bg-white rounded-2xl w-full max-w-md p-4">
+             <div className="flex items-center justify-between mb-4">
+               <h2 className="text-lg font-bold text-slate-800">Alterar Senha</h2>
+               <button disabled={saving} onClick={() => setShowChangePassword(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center disabled:opacity-50">
+                 <Icon name="x" className={"text-black"} size={16} />
+               </button>
+             </div>
+             <div className="space-y-3">
+               <input
+                 type="password"
+                 placeholder="Senha atual"
+                 value={passwordForm.currentPassword}
+                 onChange={e => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm"
+               />
+               <input
+                 type="password"
+                 placeholder="Nova senha"
+                 value={passwordForm.newPassword}
+                 onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm"
+               />
+               <input
+                 type="password"
+                 placeholder="Confirmar nova senha"
+                 value={passwordForm.confirmPassword}
+                 onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm"
+               />
+             </div>
+             <div className="flex gap-2 mt-4">
+               <button disabled={saving} onClick={() => setShowChangePassword(false)} className="flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 disabled:opacity-50">
+                 Cancelar
+               </button>
+               <button disabled={saving} onClick={handlePasswordChange} className="flex-1 py-2 rounded-xl bg-orange-500 text-white font-semibold disabled:opacity-50">
+                 {saving ? "A salvar..." : "Salvar"}
+               </button>
+             </div>
+           </div>
+         </div>
+       )}
+
+       {locationError && (
+         <Modal isOpen={!!locationError} onClose={closeLocationErrorDialog} title="Erro de Localização">
+           <div className="space-y-4">
+             <div className="flex items-start gap-3">
+               <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                 <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                 </svg>
+               </div>
+               <p className="text-sm text-slate-600">{locationError}</p>
+             </div>
+             <button
+               type="button"
+               onClick={closeLocationErrorDialog}
+               className="w-full py-2.5 rounded-xl bg-red-500 text-white font-bold text-sm shadow-lg shadow-red-500/30 hover:bg-red-600 transition-colors"
+             >
+               OK
+             </button>
+           </div>
+         </Modal>
+       )}
+     </div>
   );
 };
 
