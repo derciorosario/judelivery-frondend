@@ -1131,7 +1131,7 @@ const OrderDetailModal = ({
           <option value="assigned">👤 Atribuído</option>
           <option value="in_transit">🚚 Em entrega</option>
           <option value="completed">🎉 Concluído</option>
-          <option value="cancelled">❌ Cancelado</option>
+          {/****<option value="cancelled">❌ Cancelado</option> Leave it hidden */}
           <option value="rejected">⛔ Rejeitado</option>
         </select>
         

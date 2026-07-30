@@ -26,6 +26,48 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
   const [orderCreated, setOrderCreated] = useState(false);
   const [searchError, setSearchError] = useState(null);
 
+  // Helper function to get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+// Helper function to get default time (30 minutes from now)
+const getDefaultTime = () => {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() + 30); // Add 30 minutes
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
+// Helper function to extract date and time from datetime string
+const extractDateAndTime = (datetime) => {
+  if (!datetime) return { date: getTodayDate(), time: getDefaultTime() };
+  const parts = datetime.split('T');
+  return {
+    date: parts[0] || getTodayDate(),
+    time: parts[1] ? parts[1].substring(0, 5) : getDefaultTime()
+  };
+};
+  // Helper function to get current datetime as a string for validation
+  const getCurrentDateTime = () => {
+    const now = new Date();
+    return now.toISOString();
+  };
+
+
+
+  // Helper function to combine date and time into datetime string
+  const combineDateAndTime = (date, time) => {
+    if (!date) return '';
+    if (!time) return `${date}T00:00`;
+    return `${date}T${time}`;
+  };
+
   // Check if scheduled time is more than 1 hour from now
   const isScheduledFarFuture = () => {
     if (!form.isScheduled && !form.isScheduledRide) return false;
@@ -38,11 +80,16 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
     return diffHours > 1;
   };
 
-  // Check if scheduled time is valid
+  // Check if scheduled time is valid (must be at least 1 minute in the future)
   const hasValidScheduledTime = () => {
-    if (!form.isScheduled && !form.isScheduledRide) return true; // Not scheduled, so valid
+    if (!form.isScheduled && !form.isScheduledRide) return true;
     const scheduledTime = form.scheduledTime || form.scheduledRideTime;
-    return scheduledTime && new Date(scheduledTime).getTime() > Date.now();
+    if (!scheduledTime) return false;
+    const scheduledDate = new Date(scheduledTime);
+    const now = new Date();
+    // Allow at least 1 minute buffer to account for clock differences
+    const minFutureTime = new Date(now.getTime() + 60000); // 1 minute from now
+    return scheduledDate.getTime() >= minFutureTime.getTime();
   };
 
   // Calculate estimated duration based on distance and urgency
@@ -92,49 +139,48 @@ const DetailsStep = ({ serviceType, form, onFormChange, getUrgencyLabel, getUrge
       });
     }, 200);
 
-try {
-        // Map serviceType to what backend expects
-        const apiServiceType = serviceType === "taxi" ? "taxi" : "delivery";
-          const params = {
-           serviceType: apiServiceType,
-           originCoords: getPickupCoords() ? `${getPickupCoords().lat},${getPickupCoords().lng}` : undefined,
-           destCoords: getDestCoords() ? `${getDestCoords().lat},${getDestCoords().lng}` : undefined,
-           pickupCoords: form.pickupCoords ? `${form.pickupCoords.lat},${form.pickupCoords.lng}` : undefined,
-           dropoffCoords: form.dropoffCoords ? `${form.dropoffCoords.lat},${form.dropoffCoords.lng}` : undefined,
-           scheduledTime:  form.scheduledTime ||  form.scheduledRideTime || undefined,
-           isScheduled: form.isScheduled || form.isScheduledRide,
-          urgencyLevel: form.urgencyLevel,
-            estimatedDuration: getEstimatedDuration(),
-            maxActiveOrdersPerDriver: drivers.maxActiveOrdersPerDriver,
-            currentDriverId: currentDriverId || undefined,
-            currentDriverOrderTime: currentDriverOrderTime || undefined
-         };
+    try {
+      const apiServiceType = serviceType === "taxi" ? "taxi" : "delivery";
+      const params = {
+        serviceType: apiServiceType,
+        originCoords: getPickupCoords() ? `${getPickupCoords().lat},${getPickupCoords().lng}` : undefined,
+        destCoords: getDestCoords() ? `${getDestCoords().lat},${getDestCoords().lng}` : undefined,
+        pickupCoords: form.pickupCoords ? `${form.pickupCoords.lat},${form.pickupCoords.lng}` : undefined,
+        dropoffCoords: form.dropoffCoords ? `${form.dropoffCoords.lat},${form.dropoffCoords.lng}` : undefined,
+        scheduledTime: form.scheduledTime || form.scheduledRideTime || undefined,
+        isScheduled: form.isScheduled || form.isScheduledRide,
+        urgencyLevel: form.urgencyLevel,
+        estimatedDuration: getEstimatedDuration(),
+        maxActiveOrdersPerDriver: drivers.maxActiveOrdersPerDriver,
+        currentDriverId: currentDriverId || undefined,
+        currentDriverOrderTime: currentDriverOrderTime || undefined
+      };
 
-       const response = await getAvailableDrivers(params);
-       const driversList = response.data.drivers || [];
-       setAvailableDrivers(driversList);
+      const response = await getAvailableDrivers(params);
+      const driversList = response.data.drivers || [];
+      setAvailableDrivers(driversList);
 
-       let driverToSelect = null;
+      let driverToSelect = null;
 
-       if (currentDriverId) {
-         driverToSelect = driversList.find(d => d.id === currentDriverId) || null;
-       }
+      if (currentDriverId) {
+        driverToSelect = driversList.find(d => d.id === currentDriverId) || null;
+      }
 
-       if (!driverToSelect && driversList.length > 0) {
-         driverToSelect = driversList[0];
-       }
+      if (!driverToSelect && driversList.length > 0) {
+        driverToSelect = driversList[0];
+      }
 
-       if (driverToSelect) {
-         setSelectedDriver(driverToSelect);
-         if (onDriverAssigned) {
-           onDriverAssigned(driverToSelect);
-         }
-       } else {
-         setSelectedDriver(null);
-         if (onDriverAssigned) {
-           onDriverAssigned(null);
-         }
-       }
+      if (driverToSelect) {
+        setSelectedDriver(driverToSelect);
+        if (onDriverAssigned) {
+          onDriverAssigned(driverToSelect);
+        }
+      } else {
+        setSelectedDriver(null);
+        if (onDriverAssigned) {
+          onDriverAssigned(null);
+        }
+      }
     } catch (error) {
       console.error("Error searching for drivers:", error);
       if (error.response?.status === 403) {
@@ -159,6 +205,40 @@ try {
       onDriverAssigned(driver);
     }
   };
+
+  // Handle scheduled date change
+  const handleScheduledDateChange = (value, field) => {
+    const datetimeField = field === 'scheduledRideTime' ? 'scheduledRideTime' : 'scheduledTime';
+    const currentDateTime = form[datetimeField] || '';
+    const { time } = extractDateAndTime(currentDateTime);
+    const newDateTime = combineDateAndTime(value, time);
+    
+    onFormChange({ ...form, [datetimeField]: newDateTime });
+  };
+
+  // Handle scheduled time change
+  const handleScheduledTimeChange = (value, field) => {
+    const datetimeField = field === 'scheduledRideTime' ? 'scheduledRideTime' : 'scheduledTime';
+    const currentDateTime = form[datetimeField] || '';
+    const { date } = extractDateAndTime(currentDateTime);
+    const newDateTime = combineDateAndTime(date || getTodayDate(), value);
+    
+    onFormChange({ ...form, [datetimeField]: newDateTime });
+  };
+
+  // Initialize scheduled time with default values when scheduling is enabled
+  useEffect(() => {
+    // For delivery
+    if (form.isScheduled && !form.scheduledTime) {
+      const defaultDateTime = combineDateAndTime(getTodayDate(), getDefaultTime());
+      onFormChange({ ...form, scheduledTime: defaultDateTime });
+    }
+    // For taxi
+    if (form.isScheduledRide && !form.scheduledRideTime) {
+      const defaultDateTime = combineDateAndTime(getTodayDate(), getDefaultTime());
+      onFormChange({ ...form, scheduledRideTime: defaultDateTime });
+    }
+  }, [form.isScheduled, form.isScheduledRide]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -220,62 +300,56 @@ try {
     };
   }, [socket, searchingDriver]);
 
-
-
-  useEffect(()=>{
-    if(availableDrivers.length==0){
-      if(selectedDriver) setSelectedDriver(null)
-      if(onDriverAssigned)  onDriverAssigned(null)
+  useEffect(() => {
+    if (availableDrivers.length === 0) {
+      if (selectedDriver) setSelectedDriver(null);
+      if (onDriverAssigned) onDriverAssigned(null);
     }
-  },[availableDrivers])
- 
+  }, [availableDrivers]);
+
   // Render driver search UI
   const renderDriverSearchUI = () => {
-    
-    // If scheduled but no valid time, don't show driver search
-  if (!allowScheduledOrders) {
-    return (
-      <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
-        <div className="flex items-center gap-3">
-          <Icon name="calendar" size={20} className="text-amber-600 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-semibold text-amber-800">Agendamentos indisponíveis</p>
-            <p className="text-xs text-amber-700">O administrador desactivou pedidos e corridas agendados.</p>
+    if (!allowScheduledOrders) {
+      return (
+        <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
+          <div className="flex items-center gap-3">
+            <Icon name="calendar" size={20} className="text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800">Agendamentos indisponíveis</p>
+              <p className="text-xs text-amber-700">O administrador desactivou pedidos e corridas agendados.</p>
+            </div>
           </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if ((form.isScheduled || form.isScheduledRide) && !hasValidScheduledTime()) {
-    return (
-      <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
-        <div className="flex items-center gap-3">
-          <Icon name="clock" size={20} className="text-amber-600 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-semibold text-amber-800">Preencha a data e hora</p>
-            <p className="text-xs text-amber-700">Selecione um horário futuro válido para continuar</p>
+    if ((form.isScheduled || form.isScheduledRide) && !hasValidScheduledTime()) {
+      return (
+        <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
+          <div className="flex items-center gap-3">
+            <Icon name="clock" size={20} className="text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800">Preencha a data e hora</p>
+              <p className="text-xs text-amber-700">Selecione um horário futuro válido para continuar</p>
+            </div>
           </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-    // If scheduled more than 1 hour in future, don't show distance/ETA
     const showDistance = !isScheduledFarFuture();
 
     if (!searchingDriver && availableDrivers.length === 0 && !selectedDriver && !searchError) {
-     
       return (
-           <div className="text-center py-4">
-            <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-2">
-              <Icon name="alertTriangle" size={24} className="text-amber-500" />
-            </div>
-            <p className="text-sm font-semibold text-slate-800">Nenhum motorista disponível</p>
-            <p className="text-xs text-slate-500 mt-1">
-              Não há motoristas disponíveis no momento. Pode escolher outro horário ou continuar - um motorista será atribuído mais tarde e você será notificado.
-            </p>
+        <div className="text-center py-4">
+          <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-2">
+            <Icon name="alertTriangle" size={24} className="text-amber-500" />
           </div>
+          <p className="text-sm font-semibold text-slate-800">Nenhum motorista disponível</p>
+          <p className="text-xs text-slate-500 mt-1">
+            Não há motoristas disponíveis no momento. Pode escolher outro horário ou continuar - um motorista será atribuído mais tarde e você será notificado.
+          </p>
+        </div>
       );
     }
 
@@ -344,7 +418,7 @@ try {
                     )}
                   </div>
                   {driver.rating && (
-                    <div className="flex items-center gap-1 mt-1 hidden"> {/** Leave it hidden */}
+                    <div className="flex items-center gap-1 mt-1 hidden">
                       <Icon name="star" size={12} className="text-amber-400" />
                       <span className="text-xs text-slate-600">{driver.rating}</span>
                     </div>
@@ -367,7 +441,6 @@ try {
           </div>
         )}
 
-        
         {selectedDriver && !searchingDriver && (
           <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
             <div className="flex items-center gap-2">
@@ -385,15 +458,16 @@ try {
     );
   };
 
-  if (serviceType === "taxi") {
+  // Render taxi specific fields
+  const renderTaxiFields = () => {
+    const { date: scheduledDate, time: scheduledTime } = extractDateAndTime(form.scheduledRideTime);
+    const todayDate = getTodayDate();
+
     return (
       <div className="space-y-4">
         <div>
           <label className="block text-xs font-semibold text-slate-500 mb-1">Número de Passageiros</label>
-          
-          {/*** Leave it Hidden */}
           <div className="hidden flex items-center gap-3">
-         
             <button
               type="button"
               onClick={() => onFormChange({ ...form, passengerCount: Math.max(1, form.passengerCount - 1) })}
@@ -463,7 +537,17 @@ try {
             </div>
             <button
               type="button"
-              onClick={() => allowScheduledOrders && onFormChange({ ...form, isScheduledRide: !form.isScheduledRide })}
+              onClick={() => {
+                if (!allowScheduledOrders) return;
+                const newScheduledState = !form.isScheduledRide;
+                // If enabling scheduling and no time is set, set default
+                if (newScheduledState && !form.scheduledRideTime) {
+                  const defaultDateTime = combineDateAndTime(getTodayDate(), getDefaultTime());
+                  onFormChange({ ...form, isScheduledRide: newScheduledState, scheduledRideTime: defaultDateTime });
+                } else {
+                  onFormChange({ ...form, isScheduledRide: newScheduledState });
+                }
+              }}
               disabled={!allowScheduledOrders}
               className={`w-12 h-6 rounded-full transition-colors ${form.isScheduledRide ? "bg-blue-500" : "bg-slate-300"} ${!allowScheduledOrders ? "opacity-50 cursor-not-allowed" : ""}`}
             >
@@ -472,17 +556,28 @@ try {
           </div>
           
           {form.isScheduledRide && (
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Data e Hora *</label>
-              <input
-                type="datetime-local"
-                value={form.scheduledRideTime}
-                onChange={e => onFormChange({ ...form, scheduledRideTime: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                required={form.isScheduledRide}
-                min={new Date().toISOString().slice(0, 16)} 
-              />
-              <p className="text-xs text-green-600 mt-1">✓ Agendamento sem taxa adicional</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Data *</label>
+                <input
+                  type="date"
+                  value={scheduledDate}
+                  onChange={e => handleScheduledDateChange(e.target.value, 'scheduledRideTime')}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  required={form.isScheduledRide}
+                  min={todayDate}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Hora *</label>
+                <input
+                  type="time"
+                  value={scheduledTime}
+                  onChange={e => handleScheduledTimeChange(e.target.value, 'scheduledRideTime')}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  required={form.isScheduledRide}
+                />
+              </div>
             </div>
           )}
           
@@ -495,13 +590,13 @@ try {
           )}
         </div>
         
-        {/* Driver Search UI - shown for taxi service type */}
         {renderDriverSearchUI()}
       </div>
     );
-  }
-  
-  if (serviceType === "taxiInstructions") {
+  };
+
+  // Render taxi instructions fields
+  const renderTaxiInstructionsFields = () => {
     return (
       <div className="space-y-4">
         <div>
@@ -528,9 +623,10 @@ try {
         </div>
       </div>
     );
-  }
-  
-  if (serviceType === "deliveryItem") {
+  };
+
+  // Render delivery item fields
+  const renderDeliveryItemFields = () => {
     return (
       <div className="space-y-4">
         <div>
@@ -580,88 +676,114 @@ try {
         </div>
       </div>
     );
-  }
-  
-  // Delivery details step (urgency, scheduling, instructions)
-  return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-xs font-semibold text-slate-500 mb-2">Nível de Urgência *</label>
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={() => onFormChange({ ...form, urgencyLevel: "normal" })}
-            className={`p-3 rounded-xl border-2 text-center transition-all ${
-              form.urgencyLevel === "normal"
-                ? "border-green-500 bg-green-50"
-                : "border-slate-200 bg-white"
-            }`}
-          >
-            <Icon name="clock" size={20} className={`mx-auto mb-1 ${form.urgencyLevel === "normal" ? "text-green-500" : "text-slate-400"}`} />
-            <p className={`text-xs font-semibold ${form.urgencyLevel === "normal" ? "text-green-700" : "text-slate-600"}`}>Normal</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">+0%</p>
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => onFormChange({ ...form, urgencyLevel: "urgent" })}
-            className={`p-3 rounded-xl border-2 text-center transition-all ${
-              form.urgencyLevel === "urgent"
-                ? "border-amber-500 bg-amber-50"
-                : "border-slate-200 bg-white"
-            }`}
-          >
-            <Icon name="zap" size={20} className={`mx-auto mb-1 ${form.urgencyLevel === "urgent" ? "text-amber-500" : "text-slate-400"}`} />
-            <p className={`text-xs font-semibold ${form.urgencyLevel === "urgent" ? "text-amber-700" : "text-slate-600"}`}>Urgente</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">+{urgentPercent}%</p>
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => onFormChange({ ...form, urgencyLevel: "very_urgent" })}
-            className={`p-3 rounded-xl border-2 text-center transition-all ${
-              form.urgencyLevel === "very_urgent"
-                ? "border-red-500 bg-red-50"
-                : "border-slate-200 bg-white"
-            }`}
-          >
-            <Icon name="alertTriangle" size={20} className={`mx-auto mb-1 ${form.urgencyLevel === "very_urgent" ? "text-red-500" : "text-slate-400"}`} />
-            <p className={`text-xs font-semibold ${form.urgencyLevel === "very_urgent" ? "text-red-700" : "text-slate-600"}`}>Muito Urgente</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">+{veryUrgentPercent}%</p>
-          </button>
-        </div>
-      </div>
-      
-      <div className="border-t border-slate-100 pt-3">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Icon name="calendar" size={18} className="text-slate-500" />
-            <span className="text-sm font-medium text-slate-700">Agendar entrega</span>
+  };
+
+  // Render delivery details fields
+  const renderDeliveryDetailsFields = () => {
+    const { date: scheduledDate, time: scheduledTime } = extractDateAndTime(form.scheduledTime);
+    const todayDate = getTodayDate();
+
+    return (
+      <div className="space-y-4">
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 mb-2">Nível de Urgência *</label>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => onFormChange({ ...form, urgencyLevel: "normal" })}
+              className={`p-3 rounded-xl border-2 text-center transition-all ${
+                form.urgencyLevel === "normal"
+                  ? "border-green-500 bg-green-50"
+                  : "border-slate-200 bg-white"
+              }`}
+            >
+              <Icon name="clock" size={20} className={`mx-auto mb-1 ${form.urgencyLevel === "normal" ? "text-green-500" : "text-slate-400"}`} />
+              <p className={`text-xs font-semibold ${form.urgencyLevel === "normal" ? "text-green-700" : "text-slate-600"}`}>Normal</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">+0%</p>
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => onFormChange({ ...form, urgencyLevel: "urgent" })}
+              className={`p-3 rounded-xl border-2 text-center transition-all ${
+                form.urgencyLevel === "urgent"
+                  ? "border-amber-500 bg-amber-50"
+                  : "border-slate-200 bg-white"
+              }`}
+            >
+              <Icon name="zap" size={20} className={`mx-auto mb-1 ${form.urgencyLevel === "urgent" ? "text-amber-500" : "text-slate-400"}`} />
+              <p className={`text-xs font-semibold ${form.urgencyLevel === "urgent" ? "text-amber-700" : "text-slate-600"}`}>Urgente</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">+{urgentPercent}%</p>
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => onFormChange({ ...form, urgencyLevel: "very_urgent" })}
+              className={`p-3 rounded-xl border-2 text-center transition-all ${
+                form.urgencyLevel === "very_urgent"
+                  ? "border-red-500 bg-red-50"
+                  : "border-slate-200 bg-white"
+              }`}
+            >
+              <Icon name="alertTriangle" size={20} className={`mx-auto mb-1 ${form.urgencyLevel === "very_urgent" ? "text-red-500" : "text-slate-400"}`} />
+              <p className={`text-xs font-semibold ${form.urgencyLevel === "very_urgent" ? "text-red-700" : "text-slate-600"}`}>Muito Urgente</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">+{veryUrgentPercent}%</p>
+            </button>
           </div>
-          <button
-             type="button"
-             onClick={() => allowScheduledOrders && onFormChange({ ...form, isScheduled: !form.isScheduled })}
-             disabled={!allowScheduledOrders}
-             className={`w-12 h-6 rounded-full transition-colors ${form.isScheduled ? "bg-orange-500" : "bg-slate-300"} ${!allowScheduledOrders ? "opacity-50 cursor-not-allowed" : ""}`}
-           >
-             <div className={`w-5 h-5 bg-white rounded-full transition-transform ${form.isScheduled ? "translate-x-6" : "translate-x-0.5"} mt-0.5`} />
-           </button>
-         </div>
-         
-         {form.isScheduled && (
-           <div>
-             <label className="block text-xs font-semibold text-slate-500 mb-1">Data e Hora *</label>
-             <input
-               type="datetime-local"
-               value={form.scheduledTime}
-               onChange={e => onFormChange({ ...form, scheduledTime: e.target.value })}
-               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-               required={form.isScheduled}
-               min={new Date().toISOString().slice(0, 16)} 
-             />
-             <p className="text-xs text-green-600 mt-1">✓ Agendamento sem taxa adicional</p>
-           </div>
-         )}          
+        </div>
+        
+        <div className="border-t border-slate-100 pt-3">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Icon name="calendar" size={18} className="text-slate-500" />
+              <span className="text-sm font-medium text-slate-700">Agendar entrega</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (!allowScheduledOrders) return;
+                const newScheduledState = !form.isScheduled;
+                // If enabling scheduling and no time is set, set default
+                if (newScheduledState && !form.scheduledTime) {
+                  const defaultDateTime = combineDateAndTime(getTodayDate(), getDefaultTime());
+                  onFormChange({ ...form, isScheduled: newScheduledState, scheduledTime: defaultDateTime });
+                } else {
+                  onFormChange({ ...form, isScheduled: newScheduledState });
+                }
+              }}
+              disabled={!allowScheduledOrders}
+              className={`w-12 h-6 rounded-full transition-colors ${form.isScheduled ? "bg-orange-500" : "bg-slate-300"} ${!allowScheduledOrders ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              <div className={`w-5 h-5 bg-white rounded-full transition-transform ${form.isScheduled ? "translate-x-6" : "translate-x-0.5"} mt-0.5`} />
+            </button>
+          </div>
+          
+          {form.isScheduled && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Data *</label>
+                <input
+                  type="date"
+                  value={scheduledDate}
+                  onChange={e => handleScheduledDateChange(e.target.value, 'scheduledTime')}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  required={form.isScheduled}
+                  min={todayDate}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Hora *</label>
+                <input
+                  type="time"
+                  value={scheduledTime}
+                  onChange={e => handleScheduledTimeChange(e.target.value, 'scheduledTime')}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  required={form.isScheduled}
+                />
+              </div>
+            </div>
+          )}
+          
           {!allowScheduledOrders && (
             <p className="text-xs text-amber-600 mt-1">Agendamentos desactivados pelo administrador.</p>
           )}
@@ -669,12 +791,33 @@ try {
           {!form.isScheduled && allowScheduledOrders && (
             <p className="text-xs text-blue-600">Entrega para agora mesmo</p>
           )}
-       </div>
-       
-       {/* Driver Search UI - shown for delivery details service type */}
-       {renderDriverSearchUI()}
-     </div>
-   );
+        </div>
+        
+        {renderDriverSearchUI()}
+      </div>
+    );
+  };
+
+  // Main render based on serviceType
+  if (serviceType === "taxi") {
+    return renderTaxiFields();
+  }
+  
+  if (serviceType === "taxiInstructions") {
+    return renderTaxiInstructionsFields();
+  }
+  
+  if (serviceType === "deliveryItem") {
+    return renderDeliveryItemFields();
+  }
+  
+  // Delivery details step (urgency, scheduling, instructions)
+  if (serviceType === "deliveryDetails") {
+    return renderDeliveryDetailsFields();
+  }
+  
+  // Fallback (should not happen)
+  return null;
 };
 
 export default DetailsStep;

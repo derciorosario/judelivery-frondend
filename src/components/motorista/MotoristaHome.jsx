@@ -5,6 +5,8 @@ import { getDriverDashboard, updateOrder } from "../../api/client";
 import NavigationModal from "./modals/NavigationModal";
 import { toast } from "../../lib/toast";
 import OrderDetailModal from "../modals/OrderDetailModal";
+import ConfirmDialog from "../common/ConfirmDialog";
+import ReassignOrderModal from "../modals/ReassignOrderModal";
 
 const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey }) => {
   const [showNavigationModal, setShowNavigationModal] = useState(false);
@@ -13,6 +15,10 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
   const [loading, setLoading] = useState(true);
   const [showOrderDetailModal, setShowOrderDetailModal] = useState(false);
   const [detailOrder, setDetailOrder] = useState(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [rejectOrder, setRejectOrder] = useState(null);
 
   const handleToggleOnline = () => {
     const next = !online;
@@ -29,27 +35,35 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
     setShowNavigationModal(true);
   };
 
-  const handleAcceptOrder = async (order) => {
-    try {
-      const res = await updateOrder(order.id, { status: "assigned" });
-      toast.success("Pedido aceito com sucesso!");
-      if (onOrderUpdate) onOrderUpdate(res.data);
-      setDashboard(prev => ({
-        ...prev,
-        availableOrders: prev.availableOrders.filter(o => o.id !== order.id)
-      }));
-    } catch (err) {
-      const msg = err.response?.data?.message || "Erro ao aceitar pedido";
-      toast.error(msg);
-    }
+  const requestAction = (type, order) => {
+    setPendingAction({ type, order });
+    setShowConfirmDialog(true);
   };
 
-  const handleDeclineOrder = (order) => {
-    setDashboard(prev => ({
-      ...prev,
-      availableOrders: prev.availableOrders.filter(o => o.id !== order.id)
-    }));
-    toast.info("Pedido recusado");
+  const confirmPendingAction = async () => {
+    if (!pendingAction) return;
+    const { type, order } = pendingAction;
+    try {
+      if (type === "accept") {
+        const res = await updateOrder(order.id, { status: "assigned", confirmed: true });
+        toast.success("Pedido aceito com sucesso!");
+        if (onOrderUpdate) onOrderUpdate(res.data);
+        setDashboard(prev => ({
+          ...prev,
+          availableOrders: prev.availableOrders.filter(o => o.id !== order.id)
+        }));
+      } else if (type === "decline") {
+        setShowConfirmDialog(false);
+        setRejectOrder(order);
+        setShowReassignModal(true);
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || "Erro ao processar pedido";
+      toast.error(msg);
+    } finally {
+      setShowConfirmDialog(false);
+      setPendingAction(null);
+    }
   };
 
   const handleViewDetails = (order) => {
@@ -60,7 +74,6 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
   const handleOrderUpdate = (updatedOrder) => {
     setDetailOrder(updatedOrder)
     if (onOrderUpdate) onOrderUpdate(updatedOrder);
-    // Refresh dashboard to reflect changes
     const fetchDashboard = async () => {
       try {
         const response = await getDriverDashboard();
@@ -100,12 +113,50 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
     );
   }
 
+  const getConfirmationMessage = () => {
+    if (!pendingAction) return "";
+    if (pendingAction.type === "accept") {
+      return "Tem certeza que deseja aceitar este pedido?";
+    }
+    return "Tem certeza que deseja rejeitar este pedido? Esta ação não pode ser desfeita.";
+  };
+
+  const getConfirmationTitle = () => {
+    if (!pendingAction) return "";
+    if (pendingAction.type === "accept") {
+      return "Confirmar Aceitação";
+    }
+    return "Confirmar Rejeição";
+  };
+
+  const getConfirmText = () => {
+    if (!pendingAction) return "";
+    if (pendingAction.type === "accept") {
+      return "Sim, Aceitar";
+    }
+    return "Sim, Rejeitar";
+  };
+
   return (
     <div className="space-y-4">
       <NavigationModal
         isOpen={showNavigationModal}
         onClose={() => setShowNavigationModal(false)}
         order={selectedOrder}
+      />
+
+      <ConfirmDialog
+        isOpen={showConfirmDialog}
+        onClose={() => {
+          setShowConfirmDialog(false);
+          setPendingAction(null);
+        }}
+        onConfirm={confirmPendingAction}
+        title={getConfirmationTitle()}
+        message={getConfirmationMessage()}
+        confirmText={getConfirmText()}
+        cancelText="Cancelar"
+        variant={pendingAction?.type === "decline" ? "danger" : "warning"}
       />
 
       {/* Order Detail Modal */}
@@ -121,6 +172,22 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
           onUpdate={handleOrderUpdate}
         />
       )}
+
+      <ReassignOrderModal
+        isOpen={showReassignModal}
+        onClose={() => {
+          setShowReassignModal(false);
+          setRejectOrder(null);
+        }}
+        order={rejectOrder}
+        onReassigned={(updatedOrder) => {
+          if (onOrderUpdate) onOrderUpdate(updatedOrder);
+          setDashboard(prev => ({
+            ...prev,
+            availableOrders: prev.availableOrders.filter(o => o.id !== rejectOrder?.id)
+          }));
+        }}
+      />
 
       {gpsPermission === "denied" && (
         <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
@@ -183,9 +250,7 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
         </button>
       </div>
 
-
-
-          {dashboard?.activeOrder && (
+           {dashboard?.activeOrder && (
         <div>
           <p className="text-sm font-bold text-slate-700 mb-2">Entrega Activa</p>
           <div className="bg-blue-600 rounded-2xl p-4 text-white">
@@ -195,17 +260,57 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
                 {dashboard.activeOrder.status === "in_transit" ? "Em entrega" : dashboard.activeOrder.status === "assigned" ? "Atribuído" : dashboard.activeOrder.status}
               </span>
             </div>
-            <p className="text-base font-semibold">{typeof dashboard.activeOrder.client === 'string' ? dashboard.activeOrder.client : dashboard.activeOrder.client?.name}</p>
-            <div className="mt-3 space-y-2">
-              <div className="flex items-start gap-2 text-sm opacity-90">
-                <div className="w-2 h-2 rounded-full bg-orange-300 mt-1 shrink-0" />
-                <span>{dashboard.activeOrder.origin}</span>
-              </div>
-              <div className="flex items-start gap-2 text-sm opacity-90">
-                <div className="w-2 h-2 rounded-full bg-white mt-1 shrink-0" />
-                <span>{dashboard.activeOrder.dest}</span>
-              </div>
-            </div>
+            {(() => {
+              const order = dashboard.activeOrder;
+              const isDelivery = order.serviceType !== "taxi";
+              return (
+                <>
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <p className="text-base font-semibold truncate">{typeof order.client === 'string' ? order.client : order.client?.name}</p>
+                   
+                  </div>
+                  <div className="mt-2 space-y-1.5">
+                    <div className="flex items-start gap-2 text-xs opacity-90">
+                      <div className="w-1.5 h-1.5 rounded-full bg-orange-300 mt-1 shrink-0" />
+                      <span>{isDelivery ? (order.origin || "") : (order.pickupLocation || "")}</span>
+                    </div>
+                    <div className="flex items-start gap-2 text-xs opacity-90">
+                      <div className="w-1.5 h-1.5 rounded-full bg-white mt-1 shrink-0" />
+                      <span>{isDelivery ? (order.dest || "") : (order.dropoffLocation || "")}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 mt-2 text-[10px] opacity-90">
+                    {order.dist && (
+                      <span className="flex items-center gap-1">
+                        <Icon name="navigation" size={10} />
+                        {order.dist}
+                      </span>
+                    )}
+                    {order.total && (
+                      <span className="flex items-center gap-1">
+                        <Icon name="dollarSign" size={10} />
+                        {order.total} MZN
+                      </span>
+                    )}
+                    {order.paymentMethod && (
+                      <span className="flex items-center gap-1">
+                        <Icon name="creditCard" size={10} />
+                        {order.paymentMethod}
+                      </span>
+                    )}
+
+                     <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full flex-shrink-0">
+                      {isDelivery ? "Entrega" : "Táxi"}
+                    </span>
+                  </div>
+                  {order.instructions && (
+                    <p className="mt-2 text-[10px] opacity-80 bg-white/10 p-2 rounded-lg italic line-clamp-2">
+                      "{order.instructions}"
+                    </p>
+                  )}
+                </>
+              );
+            })()}
             <div className="flex gap-2 mt-4">
               <button
                 onClick={() => handleNavigate(dashboard.activeOrder)}
@@ -236,21 +341,67 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
                     <Icon name="bell" size={18} className="text-orange-500" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-800">Novo Pedido Disponível</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {typeof order.client === 'string' ? order.client : order.client?.name} · 
-                      {isDelivery ? (order.origin || "") : (order.pickupLocation || "")} · 
-                      {order.dist || "1.9 km"}
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-semibold text-slate-800">
+                        #{order.id?.slice(-6).toUpperCase()}
+                      </p>
+                      <span className="text-[10px] bg-white/60 px-2 py-0.5 rounded-full text-slate-600 font-semibold">
+                        {isDelivery ? "Entrega" : "Táxi"}
+                      </span>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-700">
+                      {typeof order.client === 'string' ? order.client : order.client?.name}
                     </p>
+                    <div className="mt-2 space-y-1.5">
+                      <div className="flex items-start gap-2 text-xs text-slate-600">
+                        <div className="w-1.5 h-1.5 rounded-full bg-orange-400 mt-1 shrink-0" />
+                        <span>{isDelivery ? (order.origin || "") : (order.pickupLocation || "")}</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-xs text-slate-600">
+                        <div className="w-1.5 h-1.5 rounded-full bg-white border border-slate-300 mt-1 shrink-0" />
+                        <span>{isDelivery ? (order.dest || "") : (order.dropoffLocation || "")}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-500">
+                      {order.dist && (
+                        <span className="flex items-center gap-1">
+                          <Icon name="navigation" size={10} />
+                          {order.dist}
+                        </span>
+                      )}
+                      {order.total && (
+                        <span className="flex items-center gap-1">
+                          <Icon name="dollarSign" size={10} />
+                          {order.total} MZN
+                        </span>
+                      )}
+                      {order.paymentMethod && (
+                        <span className="flex items-center gap-1">
+                          <Icon name="creditCard" size={10} />
+                          {order.paymentMethod}
+                        </span>
+                      )}
+                    </div>
+                    {order.instructions && (
+                      <p className="mt-2 text-[10px] text-slate-500 bg-white/60 p-2 rounded-lg italic line-clamp-2">
+                        "{order.instructions}"
+                      </p>
+                    )}
                     <div className="flex gap-2 mt-3">
                       <button 
-                        onClick={() => handleAcceptOrder(order)}
+                        onClick={() => handleViewDetails(order)}
+                        className="flex-1 bg-white border border-orange-200 text-orange-700 text-xs font-bold py-2 rounded-xl"
+                      >
+                        Ver Detalhes
+                      </button>
+                      <button 
+                        onClick={() => requestAction("accept", order)}
                         className="flex-1 bg-orange-500 text-white text-xs font-bold py-2 rounded-xl"
                       >
                         Aceitar
                       </button>
                       <button 
-                        onClick={() => handleDeclineOrder(order)}
+                        onClick={() => requestAction("decline", order)}
                         className="flex-1 bg-slate-100 text-slate-600 text-xs font-semibold py-2 rounded-xl"
                       >
                         Recusar
@@ -347,7 +498,7 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
         </div>
       </div>
 
-  
+    
     </div>
   );
 };
