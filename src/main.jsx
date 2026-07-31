@@ -11,7 +11,7 @@ import i18n from './i18n';
 import { SocketProvider } from './contexts/SocketContext.jsx';
 
 createRoot(document.getElementById('root')).render(
-  <GoogleOAuthProvider clientId="910053732139-h4knnvvi1g2eac9faai6iviquak49c3e.apps.googleusercontent.com">
+  <GoogleOAuthProvider clientId="948091734466-a2heombd6g4shukgva6uvj6cgik8el4g.apps.googleusercontent.com">
     <BrowserRouter>
       <AuthProvider>
         <DataProvider>

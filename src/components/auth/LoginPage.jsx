@@ -3,6 +3,8 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Icon from '../common/Icon';
 import { useGoogleLogin } from '@react-oauth/google';
+import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth";
+import { Capacitor } from '@capacitor/core';
 import { API_URL, setStoredToken } from '../../api/client';
 import Logo from '../../assets/logo.png'
 import FullLogo from '../../assets/full-logo-2.png'
@@ -18,10 +20,11 @@ const LoginPage = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(registerMessage || "");
   const [loading, setLoading] = useState(false);
+  const isNative = Capacitor.isNativePlatform();
 
-  useEffect(()=>{
-      document.body.scrollIntoView({ behavior:'instant' })
-  },[])
+  useEffect(() => {
+    document.body.scrollIntoView({ behavior: 'instant' });
+  }, []);
 
   const credentials = [
     { role: "Super Admin", email: "superadmin@judelivery.mz", pass: "superadmin123", color: "bg-red-50 border-red-200", dot: "bg-red-400" },
@@ -35,17 +38,16 @@ const LoginPage = () => {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(API_URL+'/auth/login', {
+      const response = await fetch(API_URL + '/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
 
-
       if (response.ok) {
         const data = await response.json();
         if (data.token && data.refreshToken) {
-          setStoredToken(data.token)
+          setStoredToken(data.token);
           setToken(data.token, data.refreshToken);
         }
         navigate('/');
@@ -54,39 +56,81 @@ const LoginPage = () => {
         setError(data.error || data.message || "Email ou senha incorretos.");
       }
     } catch (err) {
-      console.log({err})
+      console.log({ err });
       setError("Erro de conexão. Tente novamente.");
     } finally {
       setLoading(false);
     }
   };
 
-  const googleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      try {
-        const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
-        });
-        const userInfo = await userInfoRes.json();
-        const googleEmail = userInfo.email || 'google-user@example.com';
-        const googleName = userInfo.name || 'Google User';
-        const response = await fetch(API_URL+'/auth/google', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: googleEmail, name: googleName })
-        });
-        const data = await response.json();
-        if (data.token && data.refreshToken) {
-          setStoredToken(data.token)
-          setToken(data.token, data.refreshToken);
-        }
-        navigate('/');
-      } catch (err) {
-        setError("Erro no login com Google");
+  // Shared function to handle Google authentication
+  const handleGoogleAuth = async (accessToken) => {
+    try {
+      // Get user info from Google
+      const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      const userInfo = await userInfoRes.json();
+      const googleEmail = userInfo.email || 'google-user@example.com';
+      const googleName = userInfo.name || 'Google User';
+      
+      // Send to backend
+      const response = await fetch(API_URL + '/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: googleEmail, name: googleName })
+      });
+      
+      const data = await response.json();
+      if (data.token && data.refreshToken) {
+        setStoredToken(data.token);
+        setToken(data.token, data.refreshToken);
       }
+      navigate('/');
+    } catch (err) {
+      console.error('Google auth error:', err);
+      setError("Erro no login com Google");
+      setLoading(false);
+    }
+  };
+
+  // Web Google Login
+  const googleLogin = useGoogleLogin({
+    scope: "openid profile email",
+    onSuccess: async (tokenResponse) => {
+      setLoading(true);
+      setError("");
+      await handleGoogleAuth(tokenResponse.access_token);
+      setLoading(false);
     },
-    onError: () => setError("Erro no login com Google")
+    onError: () => {
+      setError("Erro no login com Google");
+      setLoading(false);
+    }
   });
+
+  // Native Google Login
+  const nativeGoogleLogin = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const googleUser = await GoogleAuth.signIn();
+      await handleGoogleAuth(googleUser.authentication.accessToken);
+      await GoogleAuth.signOut(); // Sign out after successful login
+    } catch (err) {
+      console.error('Native Google login error:', err);
+      setError("Erro no login com Google");
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleClick = () => {
+    if (isNative) {
+      nativeGoogleLogin();
+    } else {
+      googleLogin();
+    }
+  };
 
   const fillCred = (c) => { setEmail(c.email); setPassword(c.pass); setError(""); };
 
@@ -95,13 +139,12 @@ const LoginPage = () => {
       <button onClick={() => navigate('/')} className="absolute top-6 left-6 text-slate-400 hover:text-white flex items-center gap-1 text-sm">
         <Icon name="home" size={18} />
         Início
-      </button>      
+      </button>
       {/* Logo */}
       <div className="mb-8 text-center">
-        <div className=" rounded-2xl">
-          <img src={FullLogo} className="w-[160px]"/>
+        <div className="rounded-2xl">
+          <img src={FullLogo} className="w-[160px]" alt="Logo" />
         </div>
-
       </div>
 
       {/* Card */}
@@ -143,11 +186,24 @@ const LoginPage = () => {
             <Link to="/forgot-password" className="text-sm text-orange-500 hover:text-orange-600 font-medium">Esqueceu a palavra-passe?</Link>
           </div>
           <button
-            onClick={() => googleLogin()}
-            className="w-full py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+            onClick={handleGoogleClick}
+            disabled={loading}
+            className="w-full py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115Z"></path><path fill="#34A853" d="M16.04 18.013c-1.09.703-2.474 1.078-4.04 1.078a7.077 7.077 0 0 1-6.723-4.823l-4.04 3.067A11.965 11.965 0 0 0 12 24c2.933 0 5.735-1.043 7.834-3l-3.793-2.987Z"></path><path fill="#4A90E2" d="M19.834 21c2.195-2.048 3.62-5.096 3.62-9 0-.71-.109-1.473-.272-2.182H12v4.637h6.436c-.317 1.559-1.17 2.766-2.395 3.558L19.834 21Z"></path><path fill="#FBBC05" d="M5.277 14.268A7.12 7.12 0 0 1 4.909 12c0-.782.125-1.533.357-2.235L1.24 6.65A11.934 11.934 0 0 0 0 12c0 1.92.445 3.73 1.237 5.335l4.04-3.067Z"></path></svg>
-            Entrar com Google
+            {loading ? (
+              <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115Z"></path>
+                <path fill="#34A853" d="M16.04 18.013c-1.09.703-2.474 1.078-4.04 1.078a7.077 7.077 0 0 1-6.723-4.823l-4.04 3.067A11.965 11.965 0 0 0 12 24c2.933 0 5.735-1.043 7.834-3l-3.793-2.987Z"></path>
+                <path fill="#4A90E2" d="M19.834 21c2.195-2.048 3.62-5.096 3.62-9 0-.71-.109-1.473-.272-2.182H12v4.637h6.436c-.317 1.559-1.17 2.766-2.395 3.558L19.834 21Z"></path>
+                <path fill="#FBBC05" d="M5.277 14.268A7.12 7.12 0 0 1 4.909 12c0-.782.125-1.533.357-2.235L1.24 6.65A11.934 11.934 0 0 0 0 12c0 1.92.445 3.73 1.237 5.335l4.04-3.067Z"></path>
+              </svg>
+            )}
+            {loading ? "A entrar..." : "Entrar com Google"}
           </button>
           <div className="text-center">
             <Link to="/register" className="text-sm text-slate-500 hover:text-slate-700 font-medium">Não tem conta? Registe-se</Link>

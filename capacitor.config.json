@@ -1,5 +1,26 @@
 {
   "appId": "com.judelivery.app",
   "appName": "JuDelivery",
-  "webDir": "dist"
+  "webDir": "dist",
+    "allowNavigation": [
+    "54links.com",
+    "*.54links.com"
+  ],
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  },
+  "plugins": {
+    "GoogleAuth": {
+      "scopes": ["profile", "email"],
+      "serverClientId": "948091734466-a2heombd6g4shukgva6uvj6cgik8el4g.apps.googleusercontent.com",
+      "forceCodeForRefreshToken": true
+    },
+    "StatusBar": {
+      "overlaysWebView": false
+    }
+  }
 }

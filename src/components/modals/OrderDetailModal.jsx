@@ -20,6 +20,7 @@ import {
   Navigation,
   Calendar,
   AlertCircle,
+  Map,
   CheckCircle,
   XCircle,
   Users,
@@ -38,6 +39,7 @@ import NavigationModal from "../motorista/modals/NavigationModal";
 import ConfirmDialog from "../common/ConfirmDialog";
 import PaymentDialog from "../common/PaymentDialog";
 import ReassignOrderModal from "./ReassignOrderModal";
+import OrderMapTab from "./OrderMapTab";
 import { uploadClient, API_URL } from "../../api/client";
 
 const INCIDENT_TYPE_LABELS = {
@@ -1393,6 +1395,7 @@ const OrderDetailModal = ({
 
   const showActionsTab = (isAdmin || isDriver) && !isCompleted && !isCancelled && !isRejected;
   const showIncidentsTab = (isAdmin || isDriver || isCustomer) && localOrder?.id;
+  const showMapTab = !!localOrder?.id;
   const incidentsCount = incidents.length;
 
   // Get confirmation message based on action
@@ -1650,22 +1653,32 @@ const OrderDetailModal = ({
                 <Edit2 size={12} /> Ações
               </button>
             )}
-            {showIncidentsTab && (
-              <button
-                onClick={() => setActiveTab("incidents")}
-                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-all ${
-                  activeTab === "incidents" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                <AlertCircle size={12} /> Incidentes
-                {incidentsCount > 0 && (
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${activeTab === "incidents" ? "bg-white text-slate-800" : "bg-red-100 text-red-700"}`}>
-                    {incidentsCount}
-                  </span>
-                )}
-              </button>
-            )}
-          </div>
+             {showIncidentsTab && (
+               <button
+                 onClick={() => setActiveTab("incidents")}
+                 className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-all ${
+                   activeTab === "incidents" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                 }`}
+               >
+                 <AlertCircle size={12} /> Incidentes
+                 {incidentsCount > 0 && (
+                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${activeTab === "incidents" ? "bg-white text-slate-800" : "bg-red-100 text-red-700"}`}>
+                     {incidentsCount}
+                   </span>
+                 )}
+               </button>
+             )}
+             {showMapTab && (
+               <button
+                 onClick={() => setActiveTab("map")}
+                 className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-all ${
+                   activeTab === "map" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                 }`}
+               >
+                 <Map size={12} /> Mapa
+               </button>
+             )}
+           </div>
 
           {/* Tab Content */}
           {activeTab === "details" && renderDetailsTab()}
@@ -1683,60 +1696,67 @@ const OrderDetailModal = ({
                    </button>
                  )}
                </div>
-              
-              {loadingIncidents ? (
-                <div className="text-center py-6">
-                  <div className="animate-spin w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-                  <p className="text-xs text-slate-500">A carregar...</p>
-                </div>
-              ) : incidents.length === 0 ? (
-                <div className="text-center py-6">
-                  <AlertCircle size={24} className="text-slate-300 mx-auto mb-2" />
-                  <p className="text-sm text-slate-500">Nenhum incidente registado</p>
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {incidents.map(inc => (
-                    <div key={inc.id} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${inc.type === 'accident' ? 'bg-red-100 text-red-700' : inc.type === 'breakdown' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
-                          {INCIDENT_TYPE_LABELS[inc.type] || inc.type}
-                        </span>
-                        <span className="text-xs text-slate-400">{inc.date} {inc.time}</span>
-                      </div>
-                      <p className="text-sm font-semibold text-slate-800">{inc.title}</p>
-                      <p className="text-xs text-slate-500 line-clamp-2">{inc.description}</p>
-                      {inc.photos && inc.photos.length > 0 && (
-                        <div className="flex gap-1 mt-1">
-                          <Eye size={12} className="text-slate-400" />
-                          <span className="text-[10px] text-slate-400">{inc.photos.length} foto(s)</span>
-                        </div>
-                      )}
-                      {(isAdmin || isDriver) && (
-                         <div className="flex gap-3 mt-2">
-                           <button
-                             onClick={() => handleEditIncident(inc)}
-                             className="text-xs text-blue-500 font-medium hover:text-blue-600 transition-colors flex items-center gap-1"
-                           >
-                             <Edit2 size={12} /> Editar
-                           </button>
-                           <button
-                             onClick={() => {
-                               setSelectedIncident(inc);
-                               setShowDeleteIncidentModal(true);
-                             }}
-                             className="text-xs text-red-500 font-medium hover:text-red-600 transition-colors flex items-center gap-1"
-                           >
-                             <XCircle size={12} /> Remover
-                           </button>
+             
+               {loadingIncidents ? (
+                 <div className="text-center py-6">
+                   <div className="animate-spin w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                   <p className="text-xs text-slate-500">A carregar...</p>
+                 </div>
+               ) : incidents.length === 0 ? (
+                 <div className="text-center py-6">
+                   <AlertCircle size={24} className="text-slate-300 mx-auto mb-2" />
+                   <p className="text-sm text-slate-500">Nenhum incidente registado</p>
+                 </div>
+               ) : (
+                 <div className="space-y-2 max-h-64 overflow-y-auto">
+                   {incidents.map(inc => (
+                     <div key={inc.id} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                       <div className="flex items-center justify-between mb-1">
+                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${inc.type === 'accident' ? 'bg-red-100 text-red-700' : inc.type === 'breakdown' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                           {INCIDENT_TYPE_LABELS[inc.type] || inc.type}
+                         </span>
+                         <span className="text-xs text-slate-400">{inc.date} {inc.time}</span>
+                       </div>
+                       <p className="text-sm font-semibold text-slate-800">{inc.title}</p>
+                       <p className="text-xs text-slate-500 line-clamp-2">{inc.description}</p>
+                       {inc.photos && inc.photos.length > 0 && (
+                         <div className="flex gap-1 mt-1">
+                           <Eye size={12} className="text-slate-400" />
+                           <span className="text-[10px] text-slate-400">{inc.photos.length} foto(s)</span>
                          </div>
                        )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                       {(isAdmin || isDriver) && (
+                          <div className="flex gap-3 mt-2">
+                            <button
+                              onClick={() => handleEditIncident(inc)}
+                              className="text-xs text-blue-500 font-medium hover:text-blue-600 transition-colors flex items-center gap-1"
+                            >
+                              <Edit2 size={12} /> Editar
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedIncident(inc);
+                                setShowDeleteIncidentModal(true);
+                              }}
+                              className="text-xs text-red-500 font-medium hover:text-red-600 transition-colors flex items-center gap-1"
+                            >
+                              <XCircle size={12} /> Remover
+                            </button>
+                          </div>
+                        )}
+                     </div>
+                   ))}
+                 </div>
+               )}
+             </div>
+           )}
+
+           {activeTab === "map" && (
+             <div className="space-y-3">
+               <p className="text-sm font-bold text-slate-700">Rota do Pedido</p>
+               <OrderMapTab order={localOrder} />
+             </div>
+           )}
         </div>
 
         {/* Footer */}
