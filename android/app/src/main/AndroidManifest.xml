@@ -15,6 +15,14 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
+
+
+               <!-- Google Sign-In -->
+        <meta-data
+            android:name="com.google.android.gms.client_id"
+            android:value="@string/server_client_id" />
+
+            
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
             android:name=".MainActivity"

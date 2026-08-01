@@ -100,7 +100,7 @@ const GestorHome = ({ onOrderUpdate, refreshKey }) => {
       setLoading(true);
       try {
         const response = await getAdminDashboard();
-        setDashboard(response.data);
+        setDashboard(response.data.data);
 
         // Fetch active orders
         const ordersRes = await getOrders({

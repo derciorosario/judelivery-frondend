@@ -31,6 +31,9 @@ const CustomerHome = ({
   const canTaxi = !settingsLoading && settings.order.allowTaxi;
   const hasAnyService = canDelivery || canTaxi;
 
+  const [showRepeatOrderModal, setShowRepeatOrderModal] = useState(false);
+  const [repeatOrderData, setRepeatOrderData] = useState(null);
+
   const [guestOrder, setGuestOrder] = useState(null);
   const [guestOrderLoading, setGuestOrderLoading] = useState(false);
   const [showGuestOrderModal, setShowGuestOrderModal] = useState(false);
@@ -126,6 +129,11 @@ const CustomerHome = ({
 
     setSelectedService(service);
     setShowServiceModal(true);
+  };
+
+  const handleRepeatOrder = (order) => {
+    setRepeatOrderData(order);
+    setShowRepeatOrderModal(true);
   };
   
   return (
@@ -301,7 +309,7 @@ const CustomerHome = ({
                     Avaliar
                   </button>
                 )}
-                <button onClick={() => onViewOrderDetails(order)} className="flex-1 text-xs bg-orange-50 text-orange-600 font-semibold py-2 rounded-lg">
+                <button onClick={() => handleRepeatOrder(order)} className="flex-1 text-xs bg-orange-50 text-orange-600 font-semibold py-2 rounded-lg">
                   Repetir
                 </button>
               </div>
@@ -362,6 +370,28 @@ const CustomerHome = ({
           customerData={customerData}
           serviceType={selectedService}
           settings={settings}
+        />
+      )}
+
+      {/* Repeat Order Modal */}
+      {showRepeatOrderModal && repeatOrderData && (
+        <CreateOrderModal 
+          isOpen={showRepeatOrderModal}
+          onClose={() => {
+            setShowRepeatOrderModal(false);
+            setRepeatOrderData(null);
+          }}
+          user={user}
+          customerData={customerData}
+          serviceType={repeatOrderData.serviceType || "delivery"}
+          settings={settings}
+          settingsLoading={settingsLoading}
+          repeatOrder={repeatOrderData}
+          onOrderCreated={() => {
+            setShowRepeatOrderModal(false);
+            setRepeatOrderData(null);
+            if (onRefreshData) onRefreshData();
+          }}
         />
       )}
 

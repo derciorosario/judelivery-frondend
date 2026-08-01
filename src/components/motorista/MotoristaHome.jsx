@@ -252,7 +252,7 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
 
            {dashboard?.activeOrder && (
         <div>
-          <p className="text-sm font-bold text-slate-700 mb-2">Entrega Activa</p>
+          <p className="text-sm font-bold text-slate-700 mb-2">Pedido Activo</p>
           <div className="bg-blue-600 rounded-2xl p-4 text-white">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-bold">#{dashboard.activeOrder.id?.slice(-6).toUpperCase()}</span>
@@ -450,23 +450,22 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
         </div>
       </div>
 
-      {/* Weekly Earnings Summary */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-100">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-semibold text-slate-600">Resumo Semanal</p>
-          <Icon name="barChart2" size={16} className="text-blue-500" />
+
+      {/* Performance Stats */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white rounded-xl p-3 text-center border border-slate-100 shadow-sm">
+          <p className="text-lg font-bold text-slate-800">{dashboard?.stats?.totalDeliveries || 0}</p>
+          <p className="text-[10px] text-slate-400">Total Entregas</p>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs text-slate-500">Entregas</p>
-            <p className="text-lg font-bold text-slate-800">{dashboard?.weekOrders || 0}</p>
+        <div className="bg-white rounded-xl p-3 text-center border border-slate-100 shadow-sm">
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <Icon name="dollarSign" size={18} className="text-emerald-500" />
+            <p className="text-lg font-bold text-slate-800">{dashboard?.weekEarnings?.toFixed(0) || 0} MZN</p>
           </div>
-          <div>
-            <p className="text-xs text-slate-500">Ganhos</p>
-            <p className="text-lg font-bold text-green-600">{dashboard?.weekEarnings?.toFixed(0) || 0} MZN</p>
-          </div>
+          <p className="text-[10px] text-slate-400">Ganhos Semana</p>
         </div>
       </div>
+     
 
       {/* Monthly Summary */}
       <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-4 border border-purple-100">
@@ -486,19 +485,6 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
         </div>
       </div>
 
-      {/* Performance Stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white rounded-xl p-3 text-center border border-slate-100 shadow-sm">
-          <p className="text-lg font-bold text-slate-800">{dashboard?.stats?.totalDeliveries || 0}</p>
-          <p className="text-[10px] text-slate-400">Total Entregas</p>
-        </div>
-        <div className="bg-white rounded-xl p-3 text-center border border-slate-100 shadow-sm">
-          <p className="text-lg font-bold text-slate-800">{dashboard?.stats?.acceptanceRate?.toFixed(0) || 0}%</p>
-          <p className="text-[10px] text-slate-400">Taxa Aceitação</p>
-        </div>
-      </div>
-
-    
     </div>
   );
 };

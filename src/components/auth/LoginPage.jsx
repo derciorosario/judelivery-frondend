@@ -203,7 +203,7 @@ const LoginPage = () => {
                 <path fill="#FBBC05" d="M5.277 14.268A7.12 7.12 0 0 1 4.909 12c0-.782.125-1.533.357-2.235L1.24 6.65A11.934 11.934 0 0 0 0 12c0 1.92.445 3.73 1.237 5.335l4.04-3.067Z"></path>
               </svg>
             )}
-            {loading ? "A entrar..." : "Entrar com Google"}
+            {loading ? "" : "Entrar com Google"}
           </button>
           <div className="text-center">
             <Link to="/register" className="text-sm text-slate-500 hover:text-slate-700 font-medium">Não tem conta? Registe-se</Link>

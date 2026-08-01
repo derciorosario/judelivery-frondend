@@ -100,7 +100,7 @@ const AdminHome = ({ onOrderUpdate, refreshKey }) => {
       setLoading(true);
       try {
         const response = await getAdminDashboard();
-        setDashboard(response.data);
+        setDashboard(response.data.data);
 
         // Fetch recent orders
         const ordersRes = await getOrders({ limit: 5, sort: "createdAt", order: "desc" });
@@ -115,6 +115,7 @@ const AdminHome = ({ onOrderUpdate, refreshKey }) => {
 
     fetchDashboard();
   }, [refreshKey]);
+
 
   if (loading) {
     return (
@@ -154,9 +155,9 @@ const AdminHome = ({ onOrderUpdate, refreshKey }) => {
           color="blue"
         />
         <StatCard
-          label="Taxa Conclusão"
-          value={`${dashboard?.completionRate || 0}%`}
-          sub="↑ 2%"
+          label="Pedidos Concluídos"
+          value={dashboard?.totalCompleted || 0}
+          sub=""
           color="purple"
         />
       </div>

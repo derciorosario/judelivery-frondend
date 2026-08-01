@@ -123,6 +123,7 @@ const AdminAuditLogs = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const limit = 20;
 
@@ -189,6 +190,12 @@ const AdminAuditLogs = () => {
     }
   };
 
+  const refreshLogs = async () => {
+    setRefreshing(true);
+    await fetchLogs();
+    setRefreshing(false);
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
     setCurrentPage(1);
@@ -250,18 +257,27 @@ const AdminAuditLogs = () => {
             Histórico de ações de todos os utilizadores
           </p>
         </div>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold hover:bg-slate-200"
-        >
-          <Icon name="filter" size={14} />
-          Filtros
-          {activeFiltersCount > 0 && (
-            <span className="bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
-              {activeFiltersCount}
-            </span>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={refreshLogs}
+            disabled={loading}
+            className="flex items-center justify-center w-8 h-8 bg-white text-orange-500 rounded-xl border border-orange-200 hover:bg-orange-50 disabled:opacity-50"
+          >
+            <Icon name="refreshCw" size={14} className={refreshing ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold hover:bg-slate-200"
+          >
+            <Icon name="filter" size={14} />
+            Filtros
+            {activeFiltersCount > 0 && (
+              <span className="bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}

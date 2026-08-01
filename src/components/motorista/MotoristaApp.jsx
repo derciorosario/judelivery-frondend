@@ -216,10 +216,11 @@ const MotoristaApp = () => {
           <div className="text-center py-10 text-sm text-slate-500">A carregar perfil...</div>
         ) : (
           <MemoizedMotoristaProfile 
-            user={user} 
-            profileData={driverProfile} 
-            onProfileUpdated={loadDriverProfile} 
-          />
+             user={user} 
+             profileData={driverProfile} 
+             onProfileUpdated={loadDriverProfile} 
+             onOrderClick={openOrderById}
+           />
         );
       case "notifications":
         return <MemoizedNotifications />;

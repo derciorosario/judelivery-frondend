@@ -33,6 +33,7 @@ const AdminReports = () => {
   const [exporting, setExporting] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Set default dates on mount
   useEffect(() => {
@@ -138,6 +139,12 @@ const AdminReports = () => {
       setLoading(false);
     }
   }, [dateFrom, dateTo, fetchOrders, fetchDrivers, fetchCustomers, fetchOperationalData, fetchPerformanceData, fetchFinancialData]);
+
+  const refreshData = async () => {
+    setRefreshing(true);
+    await loadAllData();
+    setRefreshing(false);
+  };
 
   // Initial load
   useEffect(() => {
@@ -577,6 +584,14 @@ const AdminReports = () => {
         <p className="text-sm font-bold text-slate-700">Relatórios & Estatísticas</p>
         <div className="flex gap-1">
           <button 
+            onClick={refreshData}
+            disabled={loading}
+            className="flex items-center justify-center w-8 h-8 bg-white text-orange-500 rounded-xl border border-orange-200 hover:bg-orange-50 disabled:opacity-50"
+            title="Atualizar"
+          >
+            <Icon name="refreshCw" size={14} className={refreshing ? "animate-spin" : ""} />
+          </button>
+          <button 
             onClick={exportToExcel} 
             disabled={exporting}
             className={`p-2 rounded-xl transition-all ${
@@ -981,7 +996,9 @@ const AdminReports = () => {
             </div>
           )}
 
-          {performanceData.deliveryTimeDistribution && (
+         {/**** Leave it hidden here
+          * 
+          *  {performanceData.deliveryTimeDistribution && (
             <div className="bg-white rounded-2xl p-4 border border-slate-100">
               <p className="text-xs font-semibold text-slate-500 mb-3">Distribuição Tempo de Entrega</p>
               <div className="space-y-2">
@@ -1006,6 +1023,9 @@ const AdminReports = () => {
               </div>
             </div>
           )}
+          * 
+          * 
+          */}
         </>
       )}
     </div>

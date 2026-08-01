@@ -1,5 +1,5 @@
 import axios from "axios";
-export const env = "pro";
+export const env = "dev";
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 export const isNative = Capacitor.isNativePlatform();
 export const API_URL = 
@@ -276,7 +276,10 @@ export const getDriverProfile = () => client.get('/profile/driver');
 export const updateDriverProfile = (data) => client.put('/profile/driver', data);
 export const changeProfilePassword = (data) => client.post('/profile/change-password', data);
 export const getDriverPerformance = () => client.get('/profile/driver/performance');
-export const getDriverReports = () => client.get('/profile/driver/reports');
+export const getDriverReports = (params) => client.get('/profile/driver/reports', { params });
+
+// Get driver operational report with stats and date filter
+export const getDriverOperationalReport = (params) => client.get('/financial/driver-operational', { params });
 export const getDriverDashboard = () => client.get('/profile/driver/dashboard');
 
 // Get operational report

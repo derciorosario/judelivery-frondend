@@ -725,27 +725,29 @@ const AdminCustomers = () => {
   const [historyOrders, setHistoryOrders] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [showOrderDetails, setShowOrderDetails] = useState(false);
+   const [showOrderDetails, setShowOrderDetails] = useState(false);
+   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      try {
-        const response = await getCustomers();
-        setCustomers(response.data);
-      } catch (error) {
-        let errorMessage = "Erro ao carregar clientes";
-        if (error.response && error.response.data && error.response.data.message) {
-          errorMessage = error.response.data.message;
-        }
-        toast.error(errorMessage);
-        console.error("Error fetching customers:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+   useEffect(() => {
+     const fetchCustomers = async () => {
+       try {
+         setLoading(true);
+         const response = await getCustomers();
+         setCustomers(response.data);
+       } catch (error) {
+         let errorMessage = "Erro ao carregar clientes";
+         if (error.response && error.response.data && error.response.data.message) {
+           errorMessage = error.response.data.message;
+         }
+         toast.error(errorMessage);
+         console.error("Error fetching customers:", error);
+       } finally {
+         setLoading(false);
+       }
+     };
 
-    fetchCustomers();
-  }, []);
+     fetchCustomers();
+   }, []);
 
   const handleAddCustomer = (newCustomer) => {
     setCustomers([...customers, newCustomer]);
@@ -809,9 +811,34 @@ const AdminCustomers = () => {
 
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-slate-700">Clientes</p>
-        <button onClick={() => setShowAddModal(true)} className="flex items-center gap-1 bg-orange-500 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm shadow-orange-300 transition-colors hover:bg-orange-600">
-          <Icon name="plus" size={14} /> Adicionar
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={async () => {
+              setRefreshing(true);
+              try {
+                setLoading(true);
+                const response = await getCustomers();
+                setCustomers(response.data);
+              } catch (error) {
+                let errorMessage = "Erro ao carregar clientes";
+                if (error.response && error.response.data && error.response.data.message) {
+                  errorMessage = error.response.data.message;
+                }
+                toast.error(errorMessage);
+              } finally {
+                setLoading(false);
+                setRefreshing(false);
+              }
+            }}
+            disabled={loading}
+            className="flex items-center justify-center w-8 h-8 bg-white text-orange-500 rounded-xl border border-orange-200 hover:bg-orange-50 disabled:opacity-50"
+          >
+            <Icon name="refreshCw" size={14} className={refreshing ? "animate-spin" : ""} />
+          </button>
+          <button onClick={() => setShowAddModal(true)} className="flex items-center gap-1 bg-orange-500 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm shadow-orange-300 transition-colors hover:bg-orange-600">
+            <Icon name="plus" size={14} /> Adicionar
+          </button>
+        </div>
       </div>
       
       <AddCustomerModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onAdd={handleAddCustomer} />

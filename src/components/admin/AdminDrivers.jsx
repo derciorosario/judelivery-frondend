@@ -849,12 +849,29 @@ const AdminDrivers = () => {
   const [locationNames, setLocationNames] = useState({});
   const [isGeocoderLoaded, setIsGeocoderLoaded] = useState(false);
   const geocoderRef = useRef(null);
-  const [activityOpen, setActivityOpen] = useState(false);
-  const [activityDriver, setActivityDriver] = useState(null);
-  const [activityLogs, setActivityLogs] = useState([]);
-  const [activityLoading, setActivityLoading] = useState(false);
+   const [activityOpen, setActivityOpen] = useState(false);
+   const [activityDriver, setActivityDriver] = useState(null);
+   const [activityLogs, setActivityLogs] = useState([]);
+   const [activityLoading, setActivityLoading] = useState(false);
+   const [refreshing, setRefreshing] = useState(false);
 
-  // Load Google Maps Geocoder
+   const fetchDriversData = async () => {
+     setLoading(true);
+     try {
+       const response = await api.getDrivers();
+       setDrivers((response.data || []).map(driver => 
+         typeof driver.position === 'string' 
+           ? (() => { try { return { ...driver, position: JSON.parse(driver.position) }; } catch { return driver; } })()
+           : driver
+       ));
+       if(socket) socket.emit('admin:snapshot')
+     } catch (error) {
+       const message = error?.response?.data?.message || "Erro ao carregar motoristas";
+       toast.error(message);
+     } finally {
+       setLoading(false);
+     }
+   };
   useEffect(() => {
     if (window.google && window.google.maps) {
       geocoderRef.current = new window.google.maps.Geocoder();
@@ -919,33 +936,34 @@ const AdminDrivers = () => {
     });
   }, [drivers, isGeocoderLoaded]);
 
-  useEffect(() => {
-    let isActive = true;
-    const fetchDrivers = async () => {
-      try {
-        const response = await api.getDrivers();
-        if (!isActive) return;
-        
-        setDrivers((response.data || []).map(driver => 
-          typeof driver.position === 'string' 
-            ? (() => { try { return { ...driver, position: JSON.parse(driver.position) }; } catch { return driver; } })()
-            : driver
-        ));
+   useEffect(() => {
+     let isActive = true;
+     const fetchDrivers = async () => {
+       if (!isActive) return;
+       try {
+         const response = await api.getDrivers();
+         if (!isActive) return;
+         
+         setDrivers((response.data || []).map(driver => 
+           typeof driver.position === 'string' 
+             ? (() => { try { return { ...driver, position: JSON.parse(driver.position) }; } catch { return driver; } })()
+             : driver
+         ));
 
-        if(socket) socket.emit('admin:snapshot')
+         if(socket) socket.emit('admin:snapshot')
 
-      } catch (error) {
-        const message = error?.response?.data?.message || "Erro ao carregar motoristas";
-        toast.error(message);
-      } finally {
-        if (isActive) setLoading(false);
-      }
-    };
-    fetchDrivers();
-    return () => {
-      isActive = false;
-    };
-  }, [connected]);
+       } catch (error) {
+         const message = error?.response?.data?.message || "Erro ao carregar motoristas";
+         toast.error(message);
+       } finally {
+         if (isActive) setLoading(false);
+       }
+     };
+     fetchDrivers();
+     return () => {
+       isActive = false;
+     };
+   }, [connected]);
 
   useEffect(() => {
     if (!socket) return;
@@ -1139,13 +1157,26 @@ const AdminDrivers = () => {
       {viewerOpen && selectedImage && <ImageViewer isOpen={viewerOpen} onClose={() => setViewerOpen(false)} imageUrl={selectedImage} />}
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-slate-700">Motoristas</p>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-1 bg-orange-500 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm shadow-orange-300 transition-colors hover:bg-orange-600"
-        >
-          <Icon name="plus" size={14} />
-          Adicionar
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={async () => {
+              setRefreshing(true);
+              await fetchDriversData();
+              setRefreshing(false);
+            }}
+            disabled={loading}
+            className="flex items-center justify-center w-8 h-8 bg-white text-orange-500 rounded-xl border border-orange-200 hover:bg-orange-50 disabled:opacity-50"
+          >
+            <Icon name="refreshCw" size={14} className={refreshing ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-1 bg-orange-500 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm shadow-orange-300 transition-colors hover:bg-orange-600"
+          >
+            <Icon name="plus" size={14} />
+            Adicionar
+          </button>
+        </div>
       </div>
 
       <AddDriverModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onAdd={handleAddDriver} />

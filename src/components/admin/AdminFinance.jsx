@@ -665,6 +665,7 @@ const AdminFinance = () => {
   const [submitting, setSubmitting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchCategories = async () => {
     try {
@@ -712,6 +713,12 @@ const AdminFinance = () => {
     };
     loadData();
   }, []);
+
+  const refreshData = async () => {
+    setRefreshing(true);
+    await Promise.all([fetchCategories(), fetchTransactions(), fetchStats()]);
+    setRefreshing(false);
+  };
 
   useEffect(() => {
     fetchTransactions();
@@ -1180,6 +1187,14 @@ const AdminFinance = () => {
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-slate-700">Gestão Financeira</p>
         <div className="flex gap-1">
+          <button 
+            onClick={refreshData}
+            disabled={loading}
+            className="flex items-center justify-center w-8 h-8 bg-white text-orange-500 rounded-xl border border-orange-200 hover:bg-orange-50 disabled:opacity-50"
+            title="Atualizar"
+          >
+            <Icon name="refreshCw" size={14} className={refreshing ? "animate-spin" : ""} />
+          </button>
           <button 
             onClick={exportToExcel} 
             disabled={exporting}

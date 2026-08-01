@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Icon from "../common/Icon";
-import { changeProfilePassword, updateDriverProfile } from "../../api/client";
+import StatCard from "../common/StatCard";
+import { changeProfilePassword, updateDriverProfile, getDriverOperationalReport } from "../../api/client";
 import { toast } from "../../lib/toast";
 
 const formatShortId = (id) => {
@@ -15,7 +16,7 @@ const formatDate = (value) => {
   return date.toLocaleDateString("pt-MZ");
 };
 
-const MotoristaProfile = ({ user, profileData, onProfileUpdated }) => {
+const MotoristaProfile = ({ user, profileData, onProfileUpdated, onOrderClick }) => {
   const driver = profileData?.driver || {};
   const documents = profileData?.documents || [
     {
@@ -55,7 +56,6 @@ const MotoristaProfile = ({ user, profileData, onProfileUpdated }) => {
     }
   ];
   const stats = profileData?.stats || {};
-  const reports = profileData?.reports || [];
   const averageRating = Number(stats.averageRating || driver.rating || 0);
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -72,6 +72,14 @@ const MotoristaProfile = ({ user, profileData, onProfileUpdated }) => {
  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
 
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [reportPeriod, setReportPeriod] = useState("semanal");
+  const [reportOrders, setReportOrders] = useState([]);
+  const [reportStatsData, setReportStatsData] = useState({});
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportRefreshing, setReportRefreshing] = useState(false);
+
   useEffect(() => {
     setEditForm({
      name: driver.name || user?.name || "",
@@ -83,6 +91,81 @@ const MotoristaProfile = ({ user, profileData, onProfileUpdated }) => {
        zone: driver.zone || ""
      });
   }, [driver, user]);
+
+  // Set default dates on mount (last 7 days)
+  useEffect(() => {
+    const today = new Date();
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
+    setDateFrom(weekAgo.toISOString().split('T')[0]);
+    setDateTo(today.toISOString().split('T')[0]);
+  }, []);
+
+  const fetchReportData = useCallback(async () => {
+    if (!dateFrom || !dateTo) return;
+
+    setReportLoading(true);
+    try {
+      const response = await getDriverOperationalReport({
+        startDate: dateFrom,
+        endDate: dateTo
+      });
+      setReportOrders(response.data?.orders || []);
+      setReportStatsData(response.data?.stats || {});
+    } catch (error) {
+      console.error("Error fetching report data:", error);
+      toast.error("Erro ao carregar relatório");
+    } finally {
+      setReportLoading(false);
+    }
+  }, [dateFrom, dateTo]);
+
+  const refreshReportData = async () => {
+    setReportRefreshing(true);
+    await fetchReportData();
+    setReportRefreshing(false);
+  };
+
+  // Fetch report data when modal opens or dates change
+  useEffect(() => {
+    if (showReportModal && dateFrom && dateTo) {
+      fetchReportData();
+    }
+  }, [showReportModal, dateFrom, dateTo, fetchReportData]);
+
+  const handlePeriodChange = (newPeriod) => {
+    setReportPeriod(newPeriod);
+    const today = new Date();
+    let from = new Date(today);
+
+    if (newPeriod === "semanal") {
+      from.setDate(from.getDate() - 7);
+    } else if (newPeriod === "mensal") {
+      from.setMonth(from.getMonth() - 1);
+    } else if (newPeriod === "trimestral") {
+      from.setMonth(from.getMonth() - 3);
+    }
+
+    setDateFrom(from.toISOString().split('T')[0]);
+    setDateTo(today.toISOString().split('T')[0]);
+  };
+
+  const reportStats = (() => {
+    const isCompleted = (status) => ['completed', 'Concluído', 'delivered'].includes(status);
+    const isCancelled = (status) => ['cancelled', 'Cancelado', 'canceled'].includes(status);
+    const total = reportOrders.length;
+    const completed = reportOrders.filter(o => isCompleted(o.status)).length;
+    const cancelled = reportOrders.filter(o => isCancelled(o.status)).length;
+    const totalEarnings = reportOrders
+      .filter(o => isCompleted(o.status))
+      .reduce((sum, o) => sum + Number(o.total || 0), 0);
+    const totalDistance = reportOrders
+      .filter(o => isCompleted(o.status) && o.dist)
+      .reduce((sum, o) => sum + Number(o.dist || 0), 0);
+    const cancellationRate = total > 0 ? (cancelled / total) * 100 : 0;
+    return { total, completed, cancelled, totalEarnings, totalDistance, cancellationRate };
+  })();
 
   const refreshProfile = async () => {
     if (onProfileUpdated) await onProfileUpdated();
@@ -238,6 +321,8 @@ const MotoristaProfile = ({ user, profileData, onProfileUpdated }) => {
         ))}
       </div>
 
+
+      {/* Performace Section */}
       <div className="bg-white rounded-2xl p-4 border border-slate-100">
         <p className="text-xs font-semibold text-slate-500 mb-2">Desempenho</p>
         <div className="grid grid-cols-2 gap-3">
@@ -323,33 +408,112 @@ const MotoristaProfile = ({ user, profileData, onProfileUpdated }) => {
 
 
       {showReportModal && (
-        <div className="fixed inset-0 !mb-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl w-full max-w-md p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-slate-800">Relatórios</h2>
-              <button onClick={() => setShowReportModal(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
-                <Icon name="x" className={"text-black"} size={16} />
-              </button>
-            </div>
-            {reports.length === 0 ? (
-              <p className="text-sm text-slate-500 py-6 text-center">Nenhum relatório disponível.</p>
-            ) : (
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {reports.map(report => (
-                  <div key={report.id} className="rounded-xl bg-slate-50 p-3 border border-slate-100">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-slate-800">{report.title}</p>
-                      <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">{report.reportType}</span>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1">{formatDate(report.createdAt)}</p>
-                    {report.description && <p className="text-xs text-slate-600 mt-2">{report.description}</p>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+         <div className="fixed inset-0 !mb-0 z-50 flex items-center justify-center p-4 bg-black/50">
+           <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[85vh] p-4 overflow-y-auto">
+             <div className="flex items-center justify-between mb-4">
+               <h2 className="text-lg font-bold text-slate-800">Relatório de Entregas</h2>
+               <button onClick={() => setShowReportModal(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                 <Icon name="x" className={"text-black"} size={16} />
+               </button>
+             </div>
+
+             {/* Date filter controls */}
+             <div className="flex gap-2 mb-4">
+               <input
+                 type="date"
+                 value={dateFrom}
+                 onChange={e => setDateFrom(e.target.value)}
+                 className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-400"
+               />
+               <input
+                 type="date"
+                 value={dateTo}
+                 onChange={e => setDateTo(e.target.value)}
+                 className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-400"
+               />
+               <select
+                 value={reportPeriod}
+                 onChange={e => handlePeriodChange(e.target.value)}
+                 className="text-xs px-2 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-400"
+               >
+                 <option value="semanal">Última semana</option>
+                 <option value="mensal">Último mês</option>
+                 <option value="trimestral">Último trimestre</option>
+                 <option value="personalizado">Personalizado</option>
+               </select>
+               <button
+                 onClick={refreshReportData}
+                 disabled={reportRefreshing || reportLoading}
+                 className="flex items-center justify-center w-8 h-8 bg-white text-orange-500 rounded-xl border border-orange-200 hover:bg-orange-50 disabled:opacity-50"
+                 title="Atualizar"
+               >
+                 <Icon name="refreshCw" size={14} className={reportRefreshing ? "animate-spin" : ""} />
+               </button>
+             </div>
+
+             {/* Summary stats */}
+             <div className="grid grid-cols-2 gap-3 mb-4">
+               <StatCard label="Total Pedidos" value={reportStatsData.totalOrders?.toString() || "0"} color="blue" />
+               <StatCard label="Concluídos" value={reportStatsData.completedOrders?.toString() || reportStats.completed.toString()} color="green" />
+               <StatCard label="Cancelados" value={reportStatsData.cancelledOrders?.toString() || reportStats.cancelled.toString()} color="red" />
+               <StatCard label="Receita Total" value={`${(reportStatsData.totalRevenue || reportStats.totalEarnings).toFixed(0)} MZN`} color="orange" />
+               <StatCard label="Taxa Cancelamento" value={`${reportStatsData.cancellationRate?.toFixed(1) || reportStats.cancellationRate.toFixed(1)}%`} sub={`${reportStatsData.cancelledOrders || reportStats.cancelled} cancelados`} color="red" />
+               <StatCard label="Distância Total" value={`${reportStatsData.totalDistance?.toFixed(0) || reportStats.totalDistance?.toFixed(0) || 0} km`} color="orange" />
+             </div>
+
+             {/* Orders list */}
+             <p className="text-xs font-semibold text-slate-500 mb-2">Pedidos ({reportStats.total})</p>
+             {reportLoading ? (
+               <div className="flex items-center justify-center py-8">
+                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
+               </div>
+             ) : reportOrders.length === 0 ? (
+               <p className="text-sm text-slate-500 py-6 text-center">Nenhum pedido neste período.</p>
+             ) : (
+               <div className="space-y-2">
+                 {reportOrders.map(order => (
+                   <div 
+                     key={order.id} 
+                     onClick={() => onOrderClick && onOrderClick(order.id)}
+                     className="rounded-xl bg-slate-50 p-3 border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors"
+                   >
+                     <div className="flex items-center justify-between">
+                       <p className="text-sm font-semibold text-slate-800">#{order.shortId || order.id?.slice(0, 8)}</p>
+                       <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                        order.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                        order.status === 'in_transit' || order.status === 'assigned' ? 'bg-blue-100 text-blue-700' :
+                        'bg-amber-100 text-amber-700'
+                      }`}>
+                        {order.status === 'in_transit' ? 'Em entrega' :
+                         order.status === 'assigned' ? 'Atribuído' :
+                         order.status === 'pending_approval' ? 'Aguardando' :
+                         order.status === 'approved' ? 'Aprovado' :
+                         order.status}
+                      </span>
+                     </div>
+                     <p className="text-xs text-slate-500 mt-1">
+                       {formatDate(order.createdAt)} · {Number(order.total || 0).toFixed(0)} MZN
+                     </p>
+                     {order.pickupLocation && (
+                       <p className="text-xs text-slate-400 mt-1 truncate">{order.pickupLocation} → {order.dropoffLocation || ''}</p>
+                     )}
+                   </div>
+                 ))}
+               </div>
+             )}
+
+             <div className="flex justify-end mt-4">
+               <button
+                 onClick={() => setShowReportModal(false)}
+                 className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50"
+               >
+                 Fechar
+               </button>
+             </div>
+           </div>
+         </div>
+       )}
     </div>
   );
 };

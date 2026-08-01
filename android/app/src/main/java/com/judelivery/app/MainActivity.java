@@ -1,4 +1,4 @@
-package com.judelivery.app;
+package com.jrmultiservicos.app;
 
 import com.getcapacitor.BridgeActivity;
 

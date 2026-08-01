@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "382597817672",
-    "project_id": "judelivery-feaac",
-    "storage_bucket": "judelivery-feaac.firebasestorage.app"
+    "project_number": "132709843917",
+    "project_id": "jr-multiservicos-ac4ae",
+    "storage_bucket": "jr-multiservicos-ac4ae.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:382597817672:android:97e2869d1b36dc9a78ff7d",
+        "mobilesdk_app_id": "1:132709843917:android:11ad740f1f603c259cfa84",
         "android_client_info": {
-          "package_name": "com.judelivery.app"
+          "package_name": "com.jrmultiservicos.app"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBr3o2f_uDAZfLfscDlfygbFx6DD0Lz9hI"
+          "current_key": "AIzaSyCzuJsEq-d1z6j5torlMays3Q_lEm3XBiw"
         }
       ],
       "services": {

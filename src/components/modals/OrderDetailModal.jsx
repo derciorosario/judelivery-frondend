@@ -1634,7 +1634,7 @@ const OrderDetailModal = ({
       >
         <div className="space-y-4">
           {/* Tabs */}
-          <div className="flex gap-2 border-b border-slate-100 pb-2">
+          <div className="flex flex-wrap gap-2 border-b border-slate-100 pb-2">
             <button
               onClick={() => setActiveTab("details")}
               className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-all ${

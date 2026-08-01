@@ -51,7 +51,7 @@ const FeedbackModal = ({ isOpen, onClose, order, onSubmit, existingFeedback }) =
         </div>
 
         <div className="text-center mb-4">
-          <p className="text-sm text-slate-600">Pedido #{toShortId(order.id)}</p>
+          <p className="text-sm text-slate-600">Pedido {toShortId(order.id)}</p>
           <p className="text-xs text-slate-400">{order.productName}</p>
           {order.driver && (
             <p className="text-xs text-slate-400 mt-1">

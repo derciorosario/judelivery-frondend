@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">JR MultiServiços</string>
     <string name="title_activity_main">JR MultiServiços</string>
-    <string name="package_name">com.judelivery.app</string>
-    <string name="custom_url_scheme">com.judelivery.app</string>
+    <string name="package_name">com.jrmultiservicos.app</string>
+    <string name="custom_url_scheme">com.jrmultiservicos.app</string>
+     <string name="server_client_id">948091734466-a2heombd6g4shukgva6uvj6cgik8el4g.apps.googleusercontent.com</string>
 </resources>
