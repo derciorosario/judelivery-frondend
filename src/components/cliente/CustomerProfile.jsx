@@ -15,6 +15,7 @@ import {
 import { toast } from "../../lib/toast";
 import { Geolocation } from "@capacitor/geolocation";
 import { isNative } from "../../api/client";
+import { useAuth } from "../../contexts/AuthContext";
 
 const GOOGLE_MAPS_KEY = "AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak";
 const MAPUTO_CENTER = { lat: -25.9653, lng: 32.5778 };
@@ -40,6 +41,7 @@ const CustomerProfile = ({
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [addresses, setAddresses] = useState(profileData?.addresses || customer.addressesData || []);
+  const {setAddresses:authSetAddresses, addresses:authAddresses} = useAuth()
   const [paymentMethods, setPaymentMethods] = useState(
     profileData?.paymentMethods || customer.paymentMethods || []
   );
@@ -163,6 +165,10 @@ const [newAddress, setNewAddress] = useState("");
         isDefault: addresses.length === 0
       });
       setAddresses(prev => [...prev, response.data]);
+      authSetAddresses(prev => [...prev, response.data])
+
+      console.log({aaa:response.data})
+      
       setNewAddress("");
       setNewAddressCoords(null);
       setShowAddressModal(false);
@@ -174,6 +180,9 @@ const [newAddress, setNewAddress] = useState("");
       setSaving(false);
     }
   };
+
+
+  console.log({authAddresses,addresses})
 
   const handleRemoveAddress = (address) => {
     setDeleteTarget({ type: "address", data: address });

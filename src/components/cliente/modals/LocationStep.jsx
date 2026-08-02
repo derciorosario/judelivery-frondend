@@ -88,7 +88,6 @@ const LocationStep = ({
   const {addresses} = useAuth()
 
 
-
   const formatDuration = (minutes) => {
 
       if(isNaN(minutes)) {

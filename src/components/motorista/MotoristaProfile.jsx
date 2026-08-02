@@ -164,7 +164,8 @@ const MotoristaProfile = ({ user, profileData, onProfileUpdated, onOrderClick })
       .filter(o => isCompleted(o.status) && o.dist)
       .reduce((sum, o) => sum + Number(o.dist || 0), 0);
     const cancellationRate = total > 0 ? (cancelled / total) * 100 : 0;
-    return { total, completed, cancelled, totalEarnings, totalDistance, cancellationRate };
+    const pending = reportOrders.filter(o => ['pending', 'Pendente', 'pending_approval', 'scheduled', 'approved'].includes(o.status)).length;
+    return { total, completed, cancelled, pending, totalEarnings, totalDistance, cancellationRate };
   })();
 
   const refreshProfile = async () => {
@@ -326,14 +327,12 @@ const MotoristaProfile = ({ user, profileData, onProfileUpdated, onOrderClick })
       <div className="bg-white rounded-2xl p-4 border border-slate-100">
         <p className="text-xs font-semibold text-slate-500 mb-2">Desempenho</p>
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-slate-50 rounded-xl p-3 text-center">
-            <p className="text-lg font-bold text-slate-800">{Number(stats.acceptanceRate || 0).toFixed(0)}%</p>
-            <p className="text-[10px] text-slate-400">Taxa de Aceitação</p>
+        
+          <div className="bg-slate-50 rounded-xl p-3 text-center col-span-2">
+            <p className="text-lg font-bold text-slate-800">{stats.cancelledOrders || 0}</p>
+            <p className="text-[10px] text-slate-400">Cancelados</p>
           </div>
-          <div className="bg-slate-50 rounded-xl p-3 text-center">
-            <p className="text-lg font-bold text-slate-800">{stats.lateDeliveries || 0}</p>
-            <p className="text-[10px] text-slate-400">Atrasos</p>
-          </div>
+
           <div className="bg-slate-50 rounded-xl p-3 text-center">
             <p className="text-lg font-bold text-slate-800">{stats.totalDeliveries || driver.ordersCount || 0}</p>
             <p className="text-[10px] text-slate-400">Total Entregas</p>
@@ -457,7 +456,7 @@ const MotoristaProfile = ({ user, profileData, onProfileUpdated, onOrderClick })
                <StatCard label="Concluídos" value={reportStatsData.completedOrders?.toString() || reportStats.completed.toString()} color="green" />
                <StatCard label="Cancelados" value={reportStatsData.cancelledOrders?.toString() || reportStats.cancelled.toString()} color="red" />
                <StatCard label="Receita Total" value={`${(reportStatsData.totalRevenue || reportStats.totalEarnings).toFixed(0)} MZN`} color="orange" />
-               <StatCard label="Taxa Cancelamento" value={`${reportStatsData.cancellationRate?.toFixed(1) || reportStats.cancellationRate.toFixed(1)}%`} sub={`${reportStatsData.cancelledOrders || reportStats.cancelled} cancelados`} color="red" />
+                <StatCard label="Pendentes" value={reportStatsData.pendingOrders?.toString() || reportStats.pending?.toString() || "0"} color="amber" />
                <StatCard label="Distância Total" value={`${reportStatsData.totalDistance?.toFixed(0) || reportStats.totalDistance?.toFixed(0) || 0} km`} color="orange" />
              </div>
 

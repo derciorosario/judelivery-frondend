@@ -319,6 +319,36 @@ const OrderMapTab = ({ order }) => {
             </button>
           )}
         </div>
+
+        {/* Zoom Controls */}
+        <div className="absolute right-3 top-3 flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              if (mapRef.current) {
+                const currentZoom = mapRef.current.getZoom();
+                mapRef.current.setZoom(currentZoom + 1);
+              }
+            }}
+            className="w-9 h-9 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:text-orange-600 transition-colors text-lg font-bold"
+            title="Aumentar zoom"
+          >
+            +
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (mapRef.current) {
+                const currentZoom = mapRef.current.getZoom();
+                mapRef.current.setZoom(currentZoom - 1);
+              }
+            }}
+            className="w-9 h-9 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:text-orange-600 transition-colors text-lg font-bold"
+            title="Diminuir zoom"
+          >
+            −
+          </button>
+        </div>
       </div>
 
       <div className="space-y-3">

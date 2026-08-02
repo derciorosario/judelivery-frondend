@@ -35,6 +35,7 @@ export function AuthProvider({ children }) {
       
       setUser(data?.user || null);
       setAddresses(data?.addresses || [])
+
     } catch (e) {
       if (e?.response?.status === 401) {
         setTokenState(null);
@@ -94,6 +95,7 @@ export function AuthProvider({ children }) {
       loading,
       ready,
       addresses,
+      setAddresses,
       setToken: signInWithToken,
       signInWithToken,
       setRefreshToken: (refreshToken) => {
@@ -106,7 +108,7 @@ export function AuthProvider({ children }) {
       setUser,
       isAuthed: Boolean(user && token),
     }),
-    [token, refreshToken, user, loading, ready]
+    [token, refreshToken, user, loading, ready, addresses]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
