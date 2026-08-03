@@ -230,6 +230,28 @@ const OrderDetailModal = ({
      }
    }, [activeTab, localOrder?.id]);
 
+
+
+
+    // Fetch taxes when taxes tab is opened
+   useEffect(() => {
+     if (localOrder?.id) {
+       const fetchInitials = async () => {
+         try {
+           const taxes_response = await getOrderTaxes(localOrder.id);
+           setTaxes(taxes_response.data || []);
+           const incidents_response = await getOrderIncidents(localOrder.id);
+           setIncidents(incidents_response.data || []);
+         } catch (error) {
+           console.error("Error fetching:", error);
+         }
+
+
+       };
+       fetchInitials();
+     }
+   }, [localOrder?.id]);
+
   // Set active tab when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -1132,6 +1154,25 @@ const OrderDetailModal = ({
         </div>
       </div>
 
+
+      {/* Order Taxes */}
+      {localOrder?.taxes && localOrder.taxes.length > 0 && (
+        <div className="border-t border-slate-100 pt-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Receipt size={14} className="text-slate-400" />
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Taxas</h3>
+          </div>
+          <div className="space-y-2">
+            {localOrder.taxes.map(tax => (
+              <div key={tax.id} className="flex justify-between items-center">
+                <span className="text-sm text-slate-600">{tax.description}</span>
+                <span className="text-sm font-semibold text-slate-800">+{parseFloat(tax.amount || 0).toFixed(2)} MZN</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+     
       {/* Instructions */}
       {localOrder.instructions && (
         <div className="border-t border-slate-100 pt-3">
