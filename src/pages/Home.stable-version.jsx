@@ -54,9 +54,9 @@ const Icon = ({ name, size = 20, className = "" }) => {
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const USERS = [
-  { id: 1, email: "admin@judelivery.mz", password: "admin123", role: "admin", name: "Carlos Admin" },
-  { id: 2, email: "gestor@judelivery.mz", password: "gestor123", role: "gestor", name: "Maria Gestora" },
-  { id: 3, email: "motorista@judelivery.mz", password: "moto123", role: "motorista", name: "João Motorista" },
+  { id: 1, email: "admin@jrmultiservicos.mz", password: "admin123", role: "admin", name: "Carlos Admin" },
+  { id: 2, email: "gestor@jrmultiservicos.mz", password: "gestor123", role: "gestor", name: "Maria Gestora" },
+  { id: 3, email: "motorista@jrmultiservicos.mz", password: "moto123", role: "motorista", name: "João Motorista" },
 ];
 
 const ORDERS = [
@@ -91,9 +91,9 @@ const LoginPage = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
 
   const credentials = [
-    { role: "Admin", email: "admin@judelivery.mz", pass: "admin123", color: "bg-orange-50 border-orange-200", dot: "bg-orange-400" },
-    { role: "Gestor", email: "gestor@judelivery.mz", pass: "gestor123", color: "bg-teal-50 border-teal-200", dot: "bg-teal-400" },
-    { role: "Motorista", email: "motorista@judelivery.mz", pass: "moto123", color: "bg-blue-50 border-blue-200", dot: "bg-blue-400" },
+    { role: "Admin", email: "admin@jrmultiservicos.mz", pass: "admin123", color: "bg-orange-50 border-orange-200", dot: "bg-orange-400" },
+    { role: "Gestor", email: "gestor@jrmultiservicos.mz", pass: "gestor123", color: "bg-teal-50 border-teal-200", dot: "bg-teal-400" },
+    { role: "Motorista", email: "motorista@jrmultiservicos.mz", pass: "moto123", color: "bg-blue-50 border-blue-200", dot: "bg-blue-400" },
   ];
 
   const handleLogin = async () => {
@@ -739,7 +739,7 @@ const MotoristaProfile = ({ user }) => (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
       {[
         { label: "Telefone", value: "+258 84 111 2233", icon: "bell" },
-        { label: "Email", value: "motorista@judelivery.mz", icon: "bell" },
+        { label: "Email", value: "motorista@jrmultiservicos.mz", icon: "bell" },
         { label: "Zona", value: "Maputo — Polana", icon: "location" },
         { label: "Veículo", value: "Mota · MC-1234-MZ", icon: "truck" },
         { label: "Estado", value: "Activo", icon: "check" },

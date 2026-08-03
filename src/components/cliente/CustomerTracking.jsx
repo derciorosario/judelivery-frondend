@@ -68,6 +68,13 @@ const CustomerTracking = ({ activeOrder, orders, onSelectOrder }) => {
   const [mapCenter, setMapCenter] = useState([-25.9653, 32.5778]);
   const [mapZoom, setMapZoom] = useState(13);
 
+  const isComputer = () => {
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    const desktopRegex = /windows|macintosh|linux|x11|cros/i;
+    return desktopRegex.test(userAgent);
+  };
+
+
   const handleOrderSelect = (order) => {
     setSelectedTrackingOrder(order);
     if (order.originCoords && order.destCoords) {

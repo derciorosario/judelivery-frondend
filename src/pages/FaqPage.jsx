@@ -112,7 +112,7 @@ const FaqPage = () => {
     },
     {
       question: 'Como posso contactar o suporte ao cliente?',
-      answer: `Pode contactar-nos através do telefone ${appSettings.supportPhone || '+258 82 333 4455'}, por email ${appSettings.supportEmail || 'suporte@judelivery.co.mz'}. A nossa equipa de suporte está disponível 24/7 para o ajudar.`
+      answer: `Pode contactar-nos através do telefone ${appSettings.supportPhone || '+258 82 333 4455'}, por email ${appSettings.supportEmail || 'suporte@jrmultiservicos.co.mz'}. A nossa equipa de suporte está disponível 24/7 para o ajudar.`
     }
   ];
 

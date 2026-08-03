@@ -54,6 +54,14 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
   const [createdOrder, setCreatedOrder] = useState(null);
   const [locationError, setLocationError] = useState(null);
   const data = useData()
+
+
+  const isComputer = () => {
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    const desktopRegex = /windows|macintosh|linux|x11|cros/i;
+    return desktopRegex.test(userAgent);
+  };
+
   
   // Map ref for controlling the map
   const mapRef = useRef(null);
@@ -931,10 +939,13 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     setSaving(true);
     setSubmitStatus('loading');
     try {
-      const distance = calculateDistance();
-      const duration = resolvedServiceType === "taxi" ? calculateDuration() : calculateDeliveryDuration();
-      const total = resolvedServiceType === "taxi" ? calculateRidePrice() : calculateDeliveryPrice();
-      const maxDistanceKm = Number(platformSettings.order?.maxDistanceKm ?? 80);
+       const isAnyManual = resolvedServiceType === "taxi"
+         ? (form.manualPickup || form.manualDropoff)
+         : (form.manualOrigin || form.manualDest);
+       const distance = isAnyManual ? 0 : calculateDistance();
+       const duration = isAnyManual ? "0 min" : (resolvedServiceType === "taxi" ? calculateDuration() : calculateDeliveryDuration());
+       const total = isAnyManual ? 0 : (resolvedServiceType === "taxi" ? calculateRidePrice() : calculateDeliveryPrice());
+       const maxDistanceKm = Number(platformSettings.order?.maxDistanceKm ?? 80);
       const maxWaitingTimeMinutes = Number(platformSettings.order?.maxWaitingTimeMinutes ?? 20);
       const selectedPaymentMethod = enabledPaymentMethods.find((method) => method.name === form.paymentMethod || method.code === form.paymentMethod);
       const paymentMethodCode = selectedPaymentMethod ? normalizePaymentMethod(selectedPaymentMethod, platformSettings) : normalizePaymentMethod(form.paymentMethod, platformSettings);
@@ -1107,13 +1118,18 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     return ["Item", "Endereços", "Detalhes", "Resumo"][step - 1];
   };
   
-  const distance = calculateDistance();
-  const duration = resolvedServiceType === "taxi" ? calculateDuration() : calculateDeliveryDuration();
-  const ridePrice = resolvedServiceType === "taxi" ? calculateRidePrice() : 0;
-  const baseRidePrice = resolvedServiceType === "taxi" ? calculateRideBasePrice() : 0;
-  const deliveryPrice = resolvedServiceType === "delivery" ? calculateDeliveryPrice() : 0;
-  const baseDeliveryPrice = resolvedServiceType === "delivery" ? calculateDeliveryBasePrice() : 0;
-  const currency = platformSettings.app?.currency || "MZN";
+const distance = calculateDistance();
+   const duration = resolvedServiceType === "taxi" ? calculateDuration() : calculateDeliveryDuration();
+   const isAnyManual = resolvedServiceType === "taxi"
+     ? (form.manualPickup || form.manualDropoff)
+     : (form.manualOrigin || form.manualDest);
+   const ridePrice = resolvedServiceType === "taxi" ? calculateRidePrice() : 0;
+   const baseRidePrice = resolvedServiceType === "taxi" ? calculateRideBasePrice() : 0;
+   const deliveryPrice = resolvedServiceType === "delivery" ? calculateDeliveryPrice() : 0;
+   const baseDeliveryPrice = resolvedServiceType === "delivery" ? calculateDeliveryBasePrice() : 0;
+   const displayPrice = isAnyManual ? 0 : (resolvedServiceType === "taxi" ? ridePrice : deliveryPrice);
+   const displayBasePrice = isAnyManual ? 0 : (resolvedServiceType === "taxi" ? baseRidePrice : baseDeliveryPrice);
+   const currency = platformSettings.app?.currency || "MZN";
   const countryRestriction = platformSettings.app?.countryRestriction || "mz";
   const enabledPaymentMethods = getEnabledPaymentMethods(platformSettings);
   const supportContact = platformSettings.app?.support || platformSettings.app || {};
@@ -1166,32 +1182,32 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
             </div>
           )}
           <form onSubmit={handleSubmit}>
-            {step === 1 && resolvedServiceType === "taxi" && (
-              <LocationStep
-                serviceType="taxi"
-                form={form}
-                onFormChange={setForm}
-                isLoaded={isLoaded}
-                onUseCurrentLocation={useCurrentLocation}
-                onSelectOnMap={openMapSelector}
-                onCalculateRoute={calculateRoute}
-                distance={distance}
-                duration={duration}
-                price={baseRidePrice}
-                loadingRoute={loadingRoute}
-                loadingLocations={loadingLocations}
-                settings={platformSettings}
-                onClearInput={(field) => {
-                  if (field === "pickupLocation") {
-                    setForm(prev => ({ ...prev, pickupLocation: "", pickupCoords: null, manualPickup: false }));
-                  } else if (field === "dropoffLocation") {
-                    setForm(prev => ({ ...prev, dropoffLocation: "", dropoffCoords: null, manualDropoff: false }));
-                  }
-                  setDirections(null);
-                  setRouteInfo(null);
-                }}
-              />
-            )}
+{step === 1 && resolvedServiceType === "taxi" && (
+               <LocationStep
+                 serviceType="taxi"
+                 form={form}
+                 onFormChange={setForm}
+                 isLoaded={isLoaded}
+                 onUseCurrentLocation={useCurrentLocation}
+                 onSelectOnMap={openMapSelector}
+                 onCalculateRoute={calculateRoute}
+                 distance={distance}
+                 duration={duration}
+                 price={displayBasePrice}
+                 loadingRoute={loadingRoute}
+                 loadingLocations={loadingLocations}
+                 settings={platformSettings}
+                 onClearInput={(field) => {
+                   if (field === "pickupLocation") {
+                     setForm(prev => ({ ...prev, pickupLocation: "", pickupCoords: null, manualPickup: false }));
+                   } else if (field === "dropoffLocation") {
+                     setForm(prev => ({ ...prev, dropoffLocation: "", dropoffCoords: null, manualDropoff: false }));
+                   }
+                   setDirections(null);
+                   setRouteInfo(null);
+                 }}
+               />
+             )}
 
             {step === 2 && resolvedServiceType === "taxi" && (
               <DetailsStep
@@ -1223,32 +1239,32 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
               />
             )}
 
-            {step === 2 && resolvedServiceType === "delivery" && (
-              <LocationStep
-                serviceType="delivery"
-                form={form}
-                onFormChange={setForm}
-                isLoaded={isLoaded}
-                onUseCurrentLocation={useCurrentLocation}
-                onSelectOnMap={openMapSelector}
-                onCalculateRoute={calculateRoute}
-                distance={distance}
-                duration={duration}
-                price={baseDeliveryPrice}
-                loadingRoute={loadingRoute}
-                loadingLocations={loadingLocations}
-                settings={platformSettings}
-                onClearInput={(field) => {
-                  if (field === "origin") {
-                    setForm(prev => ({ ...prev, origin: "", originCoords: null, manualOrigin: false }));
-                  } else if (field === "dest") {
-                    setForm(prev => ({ ...prev, dest: "", destCoords: null, manualDest: false }));
-                  }
-                  setDirections(null);
-                  setRouteInfo(null);
-                }}
-              />
-            )}
+{step === 2 && resolvedServiceType === "delivery" && (
+               <LocationStep
+                 serviceType="delivery"
+                 form={form}
+                 onFormChange={setForm}
+                 isLoaded={isLoaded}
+                 onUseCurrentLocation={useCurrentLocation}
+                 onSelectOnMap={openMapSelector}
+                 onCalculateRoute={calculateRoute}
+                 distance={distance}
+                 duration={duration}
+                 price={displayBasePrice}
+                 loadingRoute={loadingRoute}
+                 loadingLocations={loadingLocations}
+                 settings={platformSettings}
+                 onClearInput={(field) => {
+                   if (field === "origin") {
+                     setForm(prev => ({ ...prev, origin: "", originCoords: null, manualOrigin: false }));
+                   } else if (field === "dest") {
+                     setForm(prev => ({ ...prev, dest: "", destCoords: null, manualDest: false }));
+                   }
+                   setDirections(null);
+                   setRouteInfo(null);
+                 }}
+               />
+             )}
 
             {step === 3 && resolvedServiceType === "delivery" && (
               <DetailsStep
@@ -1264,22 +1280,23 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
               />
             )}
 
-            {step === 4 && (
-              <SummaryStep
-                serviceType={resolvedServiceType}
-                form={form}
-                distance={distance}
-                duration={duration}
-                price={resolvedServiceType === "taxi" ? ridePrice : deliveryPrice}
-                currency={currency}
-                paymentMethods={enabledPaymentMethods}
-                onPaymentMethodChange={(method) => setForm(prev => ({ ...prev, paymentMethod: method }))}
-                getUrgencyLabel={getUrgencyLabel}
-                getUrgencyColor={getUrgencyColor}
-                settings={platformSettings}
-                supportContact={supportContact}
-              />
-            )}
+{step === 4 && (
+               <SummaryStep
+                 serviceType={resolvedServiceType}
+                 form={form}
+                 distance={distance}
+                 duration={duration}
+                 price={displayPrice}
+                 currency={currency}
+                 paymentMethods={enabledPaymentMethods}
+                 onPaymentMethodChange={(method) => setForm(prev => ({ ...prev, paymentMethod: method }))}
+                 getUrgencyLabel={getUrgencyLabel}
+                 getUrgencyColor={getUrgencyColor}
+                 settings={platformSettings}
+                 supportContact={supportContact}
+                 isManualInput={isAnyManual}
+               />
+             )}
 
             <div className="flex gap-2 mt-6 pt-4 border-t border-slate-100">
               {step > 1 && (
@@ -1637,7 +1654,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                       {form.driverPhone || "Contacto indisponível"}
                     </p>
                   </div>
-                  <button
+                 {!isComputer && <button
                     type="button"
                     disabled={!form.driverPhone}
                     onClick={() => handleCall(form.driverPhone)}
@@ -1648,7 +1665,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                     }`}
                   >
                     <Icon name="phone" size={16} /> Ligar
-                  </button>
+                  </button>}
                 </div>
                 <p className="text-xs text-blue-600 mt-2">
                   {resolvedServiceType === "delivery" ? "📦 Entregador atribuído" : "🚗 Motorista atribuído"}
@@ -1707,7 +1724,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                 className="w-full flex items-center justify-between text-left"
               >
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-2">
-                  <Icon name="helpCircle" size={14} className="text-orange-500" /> Suporte
+                  <Icon name="helpCircle" size={14} className="text-orange-500" />Ver Contacto de Suporte
                 </h4>
                 <Icon name="chevronDown" size={16} className="text-slate-400" />
               </button>
@@ -1722,7 +1739,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                       {supportContact.supportPhone || supportContact.phone || "Contacto indisponível"}
                     </p>
                   </div>
-                  <button
+                  {!isComputer && <button
                     type="button"
                     disabled={!supportContact.supportPhone && !supportContact.phone}
                     onClick={() => handleCall(supportContact.supportPhone || supportContact.phone)}
@@ -1733,7 +1750,7 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
                     }`}
                   >
                     <Icon name="phone" size={16} /> Ligar
-                  </button>
+                  </button>}
                 </div>
                 <div className="mt-2 pt-2 border-t border-slate-200">
                   <p className="text-xs text-slate-500">{supportContact.supportHours || supportContact.hours || "Contacte-nos por telefone ou email"}</p>

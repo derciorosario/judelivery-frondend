@@ -67,7 +67,7 @@ const Footer = () => {
                 <FaPhone className="mr-2 sm:mr-3 text-primary-400 text-xs sm:text-sm" /> {appSettings.supportPhone || '+258 82 333 4455'}
               </li>
               <li className="flex items-center justify-center sm:justify-start hover:text-white transition">
-                <FaEnvelope className="mr-2 sm:mr-3 text-primary-400 text-xs sm:text-sm" /> {appSettings.supportEmail || 'suporte@judelivery.co.mz'}
+                <FaEnvelope className="mr-2 sm:mr-3 text-primary-400 text-xs sm:text-sm" /> {appSettings.supportEmail || 'suporte@jrmultiservicos.co.mz'}
               </li>
               <li className="flex items-center justify-center sm:justify-start hover:text-white transition">
                 <FaMapMarkerAlt className="mr-2 sm:mr-3 text-primary-400 text-xs sm:text-sm" /> Maputo, Moçambique
@@ -119,7 +119,7 @@ const Footer = () => {
         
         <div className="border-t border-secondary-800 pt-6 sm:pt-8 text-center">
           <p className="text-xs sm:text-sm text-gray-500">
-            &copy; {new Date().getFullYear()} {appSettings.appName || 'J. RIBEIRO SERVIÇOS E.I'}. Todos os direitos reservados.
+            &copy; {new Date().getFullYear()} {appSettings.appName || 'judelivery'}. Todos os direitos reservados.
           </p>
         </div>
       </div>

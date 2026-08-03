@@ -167,8 +167,6 @@ const [newAddress, setNewAddress] = useState("");
       setAddresses(prev => [...prev, response.data]);
       authSetAddresses(prev => [...prev, response.data])
 
-      console.log({aaa:response.data})
-      
       setNewAddress("");
       setNewAddressCoords(null);
       setShowAddressModal(false);

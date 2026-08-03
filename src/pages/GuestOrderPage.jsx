@@ -455,11 +455,11 @@ const GuestOrderPage = () => {
               {settings?.app?.supportPhone || '+258 82 333 4455'}
             </a>
             <a
-              href={`mailto:${settings?.app?.supportEmail || 'suporte@judelivery.co.mz'}`}
+              href={`mailto:${settings?.app?.supportEmail || 'suporte@jrmultiservicos.co.mz'}`}
               className="inline-flex items-center justify-center gap-2 bg-slate-100 text-secondary-700 px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-slate-200 transition-colors"
             >
               <FaBox size={14} />
-              {settings?.app?.supportEmail || 'suporte@judelivery.co.mz'}
+              {settings?.app?.supportEmail || 'suporte@jrmultiservicos.co.mz'}
             </a>
           </div>
         </motion.div>

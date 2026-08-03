@@ -445,17 +445,26 @@ const LocationStep = ({
                   </div>
                 </div>
               )
-            ) : (
-              // Show message when manual input is enabled
-              <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
-                <div className="flex items-center gap-2">
-                  <Icon name="info" size={16} className="text-gray-500" />
-                  <p className="text-xs text-gray-600">
-                    Modo de digitação manual ativado. A estimativa de distância será calculada após a confirmação do pedido.
-                  </p>
-                </div>
-              </div>
-            )}
+) : (
+               // Show message when manual input is enabled
+               <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
+                 <div className="flex items-center gap-2">
+                   <Icon name="info" size={16} className="text-gray-500" />
+                   <p className="text-xs text-gray-600">
+                     Modo de digitação manual ativado. A estimativa de distância será calculada após a confirmação do pedido.
+                   </p>
+                 </div>
+                 <div className="mt-2 pt-2 border-t border-gray-200">
+                   <div className="flex items-center justify-between">
+                     <span className="text-xs text-gray-500">Preço estimado:</span>
+                     <span className="text-xs font-bold text-gray-700">(Valor não definido)</span>
+                   </div>
+                   <p className="text-xs text-amber-600 mt-1">
+                     Nota: O valor final será definido pela equipa da plataforma.
+                   </p>
+                 </div>
+               </div>
+             )}
           </>
         )}
         
@@ -801,17 +810,26 @@ const LocationStep = ({
             </div>
           </div>
         )
-      ) : (
-        // Show message when manual input is enabled
-        <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
-          <div className="flex items-center gap-2">
-            <Icon name="info" size={16} className="text-gray-500" />
-            <p className="text-xs text-gray-600">
-              Modo de digitação manual ativado. A estimativa de distância será calculada após a confirmação do pedido.
-            </p>
-          </div>
-        </div>
-      )}
+) : (
+         // Show message when manual input is enabled
+         <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
+           <div className="flex items-center gap-2">
+             <Icon name="info" size={16} className="text-gray-500" />
+             <p className="text-xs text-gray-600">
+               Modo de digitação manual ativado. A estimativa de distância será calculada após a confirmação do pedido.
+             </p>
+           </div>
+           <div className="mt-2 pt-2 border-t border-gray-200">
+             <div className="flex items-center justify-between">
+               <span className="text-xs text-gray-500">Preço estimado:</span>
+               <span className="text-xs font-bold text-gray-700">(Valor não definido)</span>
+             </div>
+             <p className="text-xs text-amber-600 mt-1">
+               Nota: O valor final será definido pela equipa da plataforma.
+             </p>
+           </div>
+         </div>
+       )}
     </>
   )}
   

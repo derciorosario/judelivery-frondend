@@ -1,19 +1,20 @@
 import Icon from "../../common/Icon";
 
 const SummaryStep = ({ 
-  serviceType, 
-  form, 
-  distance, 
-  duration, 
-  price, 
-  onPaymentMethodChange,
-  getUrgencyLabel,
-  getUrgencyColor,
-  currency: currencyProp,
-  paymentMethods,
-  settings,
-  supportContact: supportContactProp
-}) => {
+   serviceType, 
+   form, 
+   distance, 
+   duration, 
+   price, 
+   onPaymentMethodChange,
+   getUrgencyLabel,
+   getUrgencyColor,
+   currency: currencyProp,
+   paymentMethods,
+   settings,
+   supportContact: supportContactProp,
+   isManualInput
+ }) => {
   const appSettings = settings?.app || {};
   const pricing = settings?.pricing || {};
   const currency = currencyProp || appSettings.currency || "MZN";
@@ -206,27 +207,34 @@ const SummaryStep = ({
           </div>
         )}
 
-        <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-slate-700">Valor Total:</span>
-            <span className="text-xl font-bold text-blue-500">
-              {formatAmount(finalPrice)}
-            </span>
-          </div>
-          {discountAmount > 0 && (
-            <div className="mt-2 pt-2 border-t border-blue-200">
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-600">Subtotal:</span>
-                <span className="font-medium text-black">{formatAmount(price)}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-green-600">Promoção ({promotion.title || discountPercentage + "% OFF"}):</span>
-                <span className="font-medium text-green-600">-{formatAmount(discountAmount)}</span>
-              </div>
-            </div>
-          )}
-        
-        </div>
+<div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
+           <div className="flex items-center justify-between">
+             <span className="text-sm font-bold text-slate-700">Valor Total:</span>
+             <span className="text-xl font-bold text-blue-500">
+               {isManualInput ? `(Não definido)` : formatAmount(finalPrice)}
+             </span>
+           </div>
+           {discountAmount > 0 && (
+             <div className="mt-2 pt-2 border-t border-blue-200">
+               <div className="flex justify-between text-xs">
+                 <span className="text-slate-600">Subtotal:</span>
+                 <span className="font-medium text-black">{formatAmount(price)}</span>
+               </div>
+               <div className="flex justify-between text-xs">
+                 <span className="text-green-600">Promoção ({promotion.title || discountPercentage + "% OFF"}):</span>
+                 <span className="font-medium text-green-600">-{formatAmount(discountAmount)}</span>
+               </div>
+             </div>
+           )}
+           {isManualInput && (
+             <div className="mt-2 pt-2 border-t border-blue-200">
+               <p className="text-xs text-amber-600">
+                 Nota: O valor final será definido pela equipa da plataforma.
+               </p>
+             </div>
+           )}
+         
+         </div>
       </div>
     );
   }
@@ -329,45 +337,50 @@ const SummaryStep = ({
         </div>
       )}
 
-      <div className="bg-orange-50 rounded-xl p-3 border border-orange-200">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-bold text-slate-700">Valor Total:</span>
-          <span className="text-xl font-bold text-orange-500">
-            {formatAmount(price)}
-          </span>
-        </div>
-        <div className="mt-2 pt-2 border-t border-orange-200">
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-600">Taxa base:</span>
-            <span className="font-medium text-black">{formatAmount(Math.round(price / (form.urgencyLevel === "urgent" ? urgentFactor : form.urgencyLevel === "very_urgent" ? veryUrgentFactor : 1)))}</span>
-          </div>
-          {form.urgencyLevel === "urgent" && (
-            <div className="flex justify-between text-xs">
-              <span className="text-slate-600">Taxa urgente ({urgentPercent}%):</span>
-              <span className="font-medium text-amber-600">+{formatAmount(Math.round(price - (price / urgentFactor)))}</span>
-            </div>
-          )}
-          {form.urgencyLevel === "very_urgent" && (
-            <div className="flex justify-between text-xs">
-              <span className="text-slate-600">Taxa muito urgente ({veryUrgentPercent}%):</span>
-              <span className="font-medium text-red-600">+{formatAmount(Math.round(price - (price / veryUrgentFactor)))}</span>
-            </div>
-          )}
-          <div className="flex justify-between text-xs font-semibold mt-1 pt-1 border-t border-orange-200">
-            <span className="text-slate-700">Total a pagar:</span>
-            <span className="text-orange-700">{formatAmount(finalPrice)}</span>
-          </div>
-          {discountAmount > 0 && (
-            <div className="flex justify-between text-xs mt-1">
-              <span className="text-green-600">Promoção ({promotion.title || discountPercentage + "% OFF"}):</span>
-              <span className="font-medium text-green-600">-{formatAmount(discountAmount)}</span>
-            </div>
-          )}
-        </div>
-        <p className="text-xs text-slate-400 mt-2">
-          *O valor final será confirmado após análise do pedido
-        </p>
-      </div>
+<div className="bg-orange-50 rounded-xl p-3 border border-orange-200">
+         <div className="flex items-center justify-between">
+           <span className="text-sm font-bold text-slate-700">Valor Total:</span>
+           <span className="text-xl font-bold text-orange-500">
+             {isManualInput ? `(Valor não definido)` : formatAmount(price)}
+           </span>
+         </div>
+         <div className="mt-2 pt-2 border-t border-orange-200">
+           <div className="flex justify-between text-xs">
+             <span className="text-slate-600">Taxa base:</span>
+             <span className="font-medium text-black">{formatAmount(Math.round(price / (form.urgencyLevel === "urgent" ? urgentFactor : form.urgencyLevel === "very_urgent" ? veryUrgentFactor : 1)))}</span>
+           </div>
+           {form.urgencyLevel === "urgent" && (
+             <div className="flex justify-between text-xs">
+               <span className="text-slate-600">Taxa urgente ({urgentPercent}%):</span>
+               <span className="font-medium text-amber-600">+{formatAmount(Math.round(price - (price / urgentFactor)))}</span>
+             </div>
+           )}
+           {form.urgencyLevel === "very_urgent" && (
+             <div className="flex justify-between text-xs">
+               <span className="text-slate-600">Taxa muito urgente ({veryUrgentPercent}%):</span>
+               <span className="font-medium text-red-600">+{formatAmount(Math.round(price - (price / veryUrgentFactor)))}</span>
+             </div>
+           )}
+           <div className="flex justify-between text-xs font-semibold mt-1 pt-1 border-t border-orange-200">
+             <span className="text-slate-700">Total a pagar:</span>
+             <span className="text-orange-700">{isManualInput ? `(Valor não definido)` : formatAmount(finalPrice)}</span>
+           </div>
+           {discountAmount > 0 && (
+             <div className="flex justify-between text-xs mt-1">
+               <span className="text-green-600">Promoção ({promotion.title || discountPercentage + "% OFF"}):</span>
+               <span className="font-medium text-green-600">-{formatAmount(discountAmount)}</span>
+             </div>
+           )}
+         </div>
+         {isManualInput && (
+           <p className="text-xs text-amber-600 mt-2">
+             Nota: O valor final será definido pela equipa da plataforma.
+           </p>
+         )}
+         <p className="text-xs text-slate-400 mt-2">
+           *O valor final será confirmado após análise do pedido
+         </p>
+       </div>
     </div>
     
   );

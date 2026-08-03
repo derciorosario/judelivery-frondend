@@ -27,11 +27,11 @@ const LoginPage = () => {
   }, []);
 
   const credentials = [
-    { role: "Super Admin", email: "superadmin@judelivery.mz", pass: "superadmin123", color: "bg-red-50 border-red-200", dot: "bg-red-400" },
-    { role: "Admin", email: "admin@judelivery.mz", pass: "admin123", color: "bg-orange-50 border-orange-200", dot: "bg-orange-400" },
-    { role: "Manager", email: "manager@judelivery.mz", pass: "manager123", color: "bg-teal-50 border-teal-200", dot: "bg-teal-400" },
-    { role: "Driver", email: "driver@judelivery.mz", pass: "driver123", color: "bg-blue-50 border-blue-200", dot: "bg-blue-400" },
-    { role: "Customer", email: "customer@judelivery.mz", pass: "customer123", color: "bg-purple-50 border-purple-200", dot: "bg-purple-400" },
+    { role: "Super Admin", email: "superadmin@jrmultiservicos.mz", pass: "superadmin123", color: "bg-red-50 border-red-200", dot: "bg-red-400" },
+    { role: "Admin", email: "admin@jrmultiservicos.mz", pass: "admin123", color: "bg-orange-50 border-orange-200", dot: "bg-orange-400" },
+    { role: "Manager", email: "manager@jrmultiservicos.mz", pass: "manager123", color: "bg-teal-50 border-teal-200", dot: "bg-teal-400" },
+    { role: "Driver", email: "driver@jrmultiservicos.mz", pass: "driver123", color: "bg-blue-50 border-blue-200", dot: "bg-blue-400" },
+    { role: "Customer", email: "customer@jrmultiservicos.mz", pass: "customer123", color: "bg-purple-50 border-purple-200", dot: "bg-purple-400" },
   ];
 
   const handleLogin = async () => {

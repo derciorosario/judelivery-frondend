@@ -846,7 +846,7 @@ const OrderDetailModal = ({
       {/* Price Card */}
       <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-4 text-white">
         <p className="text-xs text-orange-100 mb-1">Valor total</p>
-        <p className="text-2xl font-bold">{localOrder.total} MZN</p>
+        <p className="text-2xl font-bold">{parseInt(localOrder.total) ? `${localOrder.total} MZN` : '(Valor não definido)'} </p>
         <div className="flex justify-between items-center mt-2">
           <div className="flex items-center gap-2">
             <Clock size={12} className="text-orange-200" />

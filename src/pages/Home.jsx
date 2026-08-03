@@ -42,9 +42,9 @@ const CUSTOMER_REQUESTS = [
 
 
 const DRIVERS = [
-  { id: 1, name: "João Motorista", status: "online", orders: 12, rating: 4.8, phone: "+258 84 111 2233", email: "joao@judelivery.mz", vehicle: "Mota · MC-1234-MZ", licensePlate: "MC-1234-MZ", zone: "Maputo — Polana", position: [-25.9653, 32.5778] },
-  { id: 2, name: "Américo Cossa", status: "offline", orders: 8, rating: 4.5, phone: "+258 82 999 0011", email: "americo@judelivery.mz", vehicle: "Mota · MC-5678-MZ", licensePlate: "MC-5678-MZ", zone: "Maputo — Sommerschield", position: [-25.9753, 32.5678] },
-  { id: 3, name: "Beatriz Mache", status: "online", orders: 15, rating: 4.9, phone: "+258 86 777 5566", email: "beatriz@judelivery.mz", vehicle: "Mota · MC-9012-MZ", licensePlate: "MC-9012-MZ", zone: "Maputo — Polana", position: [-25.9553, 32.5878] },
+  { id: 1, name: "João Motorista", status: "online", orders: 12, rating: 4.8, phone: "+258 84 111 2233", email: "joao@jrmultiservicos.mz", vehicle: "Mota · MC-1234-MZ", licensePlate: "MC-1234-MZ", zone: "Maputo — Polana", position: [-25.9653, 32.5778] },
+  { id: 2, name: "Américo Cossa", status: "offline", orders: 8, rating: 4.5, phone: "+258 82 999 0011", email: "americo@jrmultiservicos.mz", vehicle: "Mota · MC-5678-MZ", licensePlate: "MC-5678-MZ", zone: "Maputo — Sommerschield", position: [-25.9753, 32.5678] },
+  { id: 3, name: "Beatriz Mache", status: "online", orders: 15, rating: 4.9, phone: "+258 86 777 5566", email: "beatriz@jrmultiservicos.mz", vehicle: "Mota · MC-9012-MZ", licensePlate: "MC-9012-MZ", zone: "Maputo — Polana", position: [-25.9553, 32.5878] },
 ];
 
 // ─── PRODUCTS DATA ───────────────────────────────────────────────────────────────

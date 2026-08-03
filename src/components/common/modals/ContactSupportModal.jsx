@@ -39,6 +39,14 @@ const ContactSupportModal = ({
   supportContact
 }) => {
   const { settings } = usePlatformSettings();
+
+
+  const isComputer = () => {
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    const desktopRegex = /windows|macintosh|linux|x11|cros/i;
+    return desktopRegex.test(userAgent);
+  };
+
   const resolvedSupportContact = supportContact || {
     name: settings.app?.supportName || DEFAULT_SUPPORT.name,
     phone: settings.app?.supportPhone || DEFAULT_SUPPORT.phone,
@@ -97,12 +105,12 @@ const ContactSupportModal = ({
                   <p className="text-sm font-semibold text-slate-800">{resolvedSupportContact.name}</p>
                   <p className="text-xs text-slate-500">{resolvedSupportContact.phone}</p>
                 </div>
-                <button
+               {!isComputer && <button
                   onClick={() => handleCall(resolvedSupportContact.phone)}
                   className="px-3 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-semibold hover:bg-orange-600 transition-colors flex items-center gap-1"
                 >
                   <Phone size={14} /> Ligar
-                </button>
+                </button>}
               </div>
               {resolvedSupportContact.hours && (
                 <div className="mt-2 pt-2 border-t border-slate-200">
@@ -129,12 +137,12 @@ const ContactSupportModal = ({
                         <p className="text-sm font-semibold text-slate-800">{driverName}</p>
                         <p className="text-xs text-slate-500">{driverPhone}</p>
                       </div>
-                      <button
+                      {!isComputer && <button
                         onClick={() => handleCall(driverPhone)}
                         className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-semibold hover:bg-blue-600 transition-colors flex items-center gap-1"
                       >
                         <Phone size={14} /> Ligar
-                      </button>
+                      </button>}
                     </div>
                     <p className="text-xs text-slate-400 mt-1">Motorista</p>
                   </div>
@@ -147,12 +155,12 @@ const ContactSupportModal = ({
                         <p className="text-sm font-semibold text-slate-800">{originName}</p>
                         <p className="text-xs text-slate-500">{originContact}</p>
                       </div>
-                      <button
+                      {!isComputer && <button
                         onClick={() => handleCall(originContact)}
                         className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-semibold hover:bg-blue-600 transition-colors flex items-center gap-1"
                       >
                         <Phone size={14} /> Ligar
-                      </button>
+                      </button>}
                     </div>
                     <p className="text-xs text-slate-400 mt-1">Contacto de Origem</p>
                   </div>
@@ -165,12 +173,12 @@ const ContactSupportModal = ({
                         <p className="text-sm font-semibold text-slate-800">{destinationName}</p>
                         <p className="text-xs text-slate-500">{destinationContact}</p>
                       </div>
-                      <button
+                     {!isComputer && <button
                         onClick={() => handleCall(destinationContact)}
                         className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-semibold hover:bg-blue-600 transition-colors flex items-center gap-1"
                       >
                         <Phone size={14} /> Ligar
-                      </button>
+                      </button>}
                     </div>
                     <p className="text-xs text-slate-400 mt-1">Contacto de Destino</p>
                   </div>

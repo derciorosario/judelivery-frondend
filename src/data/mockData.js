@@ -1,9 +1,9 @@
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const USERS = [
-  { id: 1, email: "admin@judelivery.mz", password: "admin123", role: "admin", name: "Carlos Admin" },
-  { id: 2, email: "gestor@judelivery.mz", password: "gestor123", role: "gestor", name: "Maria Gestora" },
-  { id: 3, email: "motorista@judelivery.mz", password: "moto123", role: "motorista", name: "João Motorista" },
-  { id: 4, email: "cliente@judelivery.mz", password: "cliente123", role: "cliente", name: "Ana Cliente" },
+  { id: 1, email: "admin@jrmultiservicos.mz", password: "admin123", role: "admin", name: "Carlos Admin" },
+  { id: 2, email: "gestor@jrmultiservicos.mz", password: "gestor123", role: "gestor", name: "Maria Gestora" },
+  { id: 3, email: "motorista@jrmultiservicos.mz", password: "moto123", role: "motorista", name: "João Motorista" },
+  { id: 4, email: "cliente@jrmultiservicos.mz", password: "cliente123", role: "cliente", name: "Ana Cliente" },
   { id: 5, email: "ana.sitoe@email.com", password: "123456", role: "cliente", name: "Ana Sitoe" },
   { id: 6, email: "pedro.nhaca@email.com", password: "123456", role: "cliente", name: "Pedro Nhaca" },
 ];
@@ -31,7 +31,7 @@ const DRIVERS = [
     orders: 12, 
     rating: 4.8, 
     phone: "+258 84 111 2233", 
-    email: "joao@judelivery.mz", 
+    email: "joao@jrmultiservicos.mz", 
     vehicle: "Mota · MC-1234-MZ", 
     licensePlate: "MC-1234-MZ", 
     zone: "Maputo — Polana", 
@@ -46,7 +46,7 @@ const DRIVERS = [
     orders: 8, 
     rating: 4.5, 
     phone: "+258 82 999 0011", 
-    email: "americo@judelivery.mz", 
+    email: "americo@jrmultiservicos.mz", 
     vehicle: "Mota · MC-5678-MZ", 
     licensePlate: "MC-5678-MZ", 
     zone: "Maputo — Sommerschield", 
@@ -61,7 +61,7 @@ const DRIVERS = [
     orders: 15, 
     rating: 4.9, 
     phone: "+258 86 777 5566", 
-    email: "beatriz@judelivery.mz", 
+    email: "beatriz@jrmultiservicos.mz", 
     vehicle: "Mota · MC-9012-MZ", 
     licensePlate: "MC-9012-MZ", 
     zone: "Maputo — Polana", 
@@ -76,7 +76,7 @@ const DRIVERS = [
     orders: 12, 
     rating: 4.2, 
     phone: "+258 86 456 5574", 
-    email: "marcos@judelivery.mz", 
+    email: "marcos@jrmultiservicos.mz", 
     vehicle: "Mota · MC-9012-MZ", 
     licensePlate: "MC-9012-MZ", 
     zone: "Maputo — Polana", 
@@ -100,7 +100,7 @@ const PRODUCT_CATEGORIES = ["Alimentação", "Bebidas", "Doces", "Salgados", "Ou
 
 // ─── CUSTOMERS DATA ────────────────────────────────────────────────────────────
 const MANAGERS = [
-  { id: 1, name: "Maria Gestora", email: "gestor@judelivery.mz", phone: "+258 84 555 6666", role: "gestor", status: "active" },
+  { id: 1, name: "Maria Gestora", email: "gestor@jrmultiservicos.mz", phone: "+258 84 555 6666", role: "gestor", status: "active" },
   { id: 2, name: "Pedro Gestor", email: "pedro.gestor@email.com", phone: "+258 82 777 8888", role: "gestor", status: "active" },
 ];
 

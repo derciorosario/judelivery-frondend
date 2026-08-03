@@ -98,26 +98,31 @@ const LandingPage = () => {
     }
   };
 
+
+  
+
   const testimonials = [
-    {
-      name: "Maria Silva",
-      role: "Cliente Regular",
-      text: "O serviço é incrível! Minhas entregas chegam sempre no prazo e os motoristas são muito profissionais.",
-      rating: 5
-    },
-    {
-      name: "João Santos",
-      role: "Empresário",
-      text: "Uso os serviços da J. Ribeiro para minha empresa há 6 meses. Recomendo a todos!",
-      rating: 5
-    },
-    {
-      name: "Ana Pereira",
-      role: "Cliente",
-      text: "Atendimento excelente e preços justos. Nunca tive problemas com minhas encomendas.",
-      rating: 5
-    }
-  ];
+  {
+    name: "Fátima Mucavele",
+    role: "Cliente Regular",
+    text: "O serviço é incrível! Minhas entregas chegam sempre no prazo e os motoristas são muito profissionais.",
+    rating: 5
+  },
+  {
+    name: "Armando Nhantumbo",
+    role: "Empresário",
+    text: "Uso os serviços da J. Ribeiro para minha empresa há 6 meses. Recomendo a todos!",
+    rating: 5
+  },
+  {
+    name: "Celina Mondlane",
+    role: "Cliente",
+    text: "Atendimento excelente e preços justos. Nunca tive problemas com minhas encomendas.",
+    rating: 5
+  }
+];
+
+
 
   return (
     <div className="">

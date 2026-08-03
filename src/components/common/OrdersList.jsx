@@ -947,7 +947,7 @@ const OrdersList = ({
                     </span>
                   )}
                 </div>
-                <span className="text-sm font-bold text-orange-500">{order.total} MZN</span>
+                <span className="text-sm font-bold text-orange-500">{parseInt(order.total) ? `${order.total} MZN` : '(Valor não definido)'}</span>
               </div>
 
               <p className="text-sm font-medium text-slate-700">
