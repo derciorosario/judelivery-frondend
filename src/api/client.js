@@ -376,6 +376,13 @@ export const updateIncident = (id, data) => client.put(`/incidents/${id}`, data)
 export const updateIncidentWithFiles = (id, formData) => uploadClient.put(`/incidents/${id}`, formData);
 export const deleteIncident = (id) => client.delete(`/incidents/${id}`);
 
+// ==================== ORDER TAXES API ====================
+
+export const getOrderTaxes = (orderId) => client.get(`/order-taxes/order/${orderId}`);
+export const createOrderTax = (data) => client.post('/order-taxes', data);
+export const updateOrderTax = (id, data) => client.put(`/order-taxes/${id}`, data);
+export const deleteOrderTax = (id) => client.delete(`/order-taxes/${id}`);
+
 // ==================== NOTIFICATIONS API ====================
 
 export const getNotifications = (params) => client.get('/notifications', { params });

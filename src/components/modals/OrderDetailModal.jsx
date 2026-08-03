@@ -1,6 +1,6 @@
 // src/components/common/OrderDetailModal.jsx
 import { useState, useEffect } from "react";
-import { updateOrder, getDrivers, getOrder, cancelOrder, getOrderIncidents, createIncident, updateIncidentWithFiles, deleteIncident, deleteFeedback, getAvailableDriversForReassignment, rejectOrder } from "../../api/client";
+import { updateOrder, getDrivers, getOrder, cancelOrder, getOrderIncidents, createIncident, updateIncidentWithFiles, deleteIncident, deleteFeedback, getAvailableDriversForReassignment, rejectOrder, getOrderTaxes, createOrderTax, updateOrderTax, deleteOrderTax } from "../../api/client";
 import { toast } from "../../lib/toast";
 import { usePlatformSettings } from "../../contexts/SettingsContext";
 import {
@@ -30,7 +30,8 @@ import {
   EyeOff,
   UserCheck,
   UserX,
-  Trash2
+  Trash2,
+  Receipt
 } from "lucide-react";
 import Modal from "../common/Modal";
 import CancelOrderDialog from "../common/CancelOrderDialog";
@@ -97,6 +98,15 @@ const OrderDetailModal = ({
    const [existingIncidentDocuments, setExistingIncidentDocuments] = useState([]);
    const [showPhotoViewer, setShowPhotoViewer] = useState(false);
    const [selectedPhoto, setSelectedPhoto] = useState(null);
+
+   // Order Taxes state
+   const [taxes, setTaxes] = useState([]);
+   const [loadingTaxes, setLoadingTaxes] = useState(false);
+   const [showTaxModal, setShowTaxModal] = useState(false);
+   const [showDeleteTaxModal, setShowDeleteTaxModal] = useState(false);
+   const [selectedTax, setSelectedTax] = useState(null);
+   const [taxForm, setTaxForm] = useState({ description: "", amount: "" });
+   const [submittingTax, setSubmittingTax] = useState(false);
 
    // Admin/Manager specific states
     const [form, setForm] = useState({
@@ -201,6 +211,24 @@ const OrderDetailModal = ({
       fetchIncidents();
     }
   }, [activeTab, localOrder?.id]);
+
+   // Fetch taxes when taxes tab is opened
+   useEffect(() => {
+     if (activeTab === "taxes" && localOrder?.id) {
+       const fetchTaxes = async () => {
+         setLoadingTaxes(true);
+         try {
+           const response = await getOrderTaxes(localOrder.id);
+           setTaxes(response.data || []);
+         } catch (error) {
+           console.error("Error fetching taxes:", error);
+         } finally {
+           setLoadingTaxes(false);
+         }
+       };
+       fetchTaxes();
+     }
+   }, [activeTab, localOrder?.id]);
 
   // Set active tab when modal opens
   useEffect(() => {
@@ -467,6 +495,87 @@ const OrderDetailModal = ({
   const removeExistingIncidentDocument = (docToRemove) => {
     setExistingIncidentDocuments(prev => prev.filter(d => d !== docToRemove));
   };
+
+   // Tax handlers
+   const handleSubmitTax = async (e) => {
+     e.preventDefault();
+     if (!taxForm.description || taxForm.amount === "" || !localOrder?.id) return;
+     setSubmittingTax(true);
+     try {
+       const payload = {
+         orderId: localOrder.id,
+         description: taxForm.description,
+         amount: parseFloat(taxForm.amount)
+       };
+       await createOrderTax(payload);
+       toast.success("Taxa adicionada com sucesso");
+       setShowTaxModal(false);
+       setTaxForm({ description: "", amount: "" });
+       if (localOrder) {
+         const response = await getOrderTaxes(localOrder.id);
+         setTaxes(response.data || []);
+         const orderResponse = await getOrder(localOrder.id);
+         setLocalOrder(orderResponse.data);
+         if (onUpdate) onUpdate(orderResponse.data);
+       }
+     }
+     catch (error) {
+       toast.error(error.response?.data?.message || "Erro ao adicionar taxa");
+     } finally {
+       setSubmittingTax(false);
+     }
+   };
+
+   const handleEditTax = (tax) => {
+     setSelectedTax(tax);
+     setTaxForm({ description: tax.description, amount: String(tax.amount) });
+     setShowTaxModal(true);
+   };
+
+   const handleUpdateTax = async (e) => {
+     e.preventDefault();
+     if (!taxForm.description || taxForm.amount === "" || !selectedTax) return;
+     setSubmittingTax(true);
+     try {
+       await updateOrderTax(selectedTax.id, { description: taxForm.description, amount: parseFloat(taxForm.amount) });
+       toast.success("Taxa atualizada com sucesso");
+       setShowTaxModal(false);
+       setSelectedTax(null);
+       setTaxForm({ description: "", amount: "" });
+       if (localOrder) {
+         const response = await getOrderTaxes(localOrder.id);
+         setTaxes(response.data || []);
+         const orderResponse = await getOrder(localOrder.id);
+         setLocalOrder(orderResponse.data);
+         if (onUpdate) onUpdate(orderResponse.data);
+       }
+     }
+     catch (error) {
+       toast.error(error.response?.data?.message || "Erro ao atualizar taxa");
+     } finally {
+       setSubmittingTax(false);
+     }
+   };
+
+   const handleDeleteTax = async () => {
+     if (!selectedTax) return;
+     try {
+       await deleteOrderTax(selectedTax.id);
+       toast.success("Taxa removida com sucesso");
+       setShowDeleteTaxModal(false);
+       setSelectedTax(null);
+       if (localOrder) {
+         const response = await getOrderTaxes(localOrder.id);
+         setTaxes(response.data || []);
+         const orderResponse = await getOrder(localOrder.id);
+         setLocalOrder(orderResponse.data);
+         if (onUpdate) onUpdate(orderResponse.data);
+       }
+     }
+     catch (error) {
+       toast.error(error.response?.data?.message || "Erro ao remover taxa");
+     }
+   };
 
   // Action handlers
   const handleStatusChange = async (newStatus, skipPaymentDialog = false, paymentData = null) => {
@@ -1397,6 +1506,8 @@ const OrderDetailModal = ({
   const showIncidentsTab = (isAdmin || isDriver || isCustomer) && localOrder?.id;
   const showMapTab = !!localOrder?.id;
   const incidentsCount = incidents.length;
+   const showTaxesTab = (isAdmin || isDriver || isCustomer) && localOrder?.id;
+   const taxesCount = taxes.length;
 
   // Get confirmation message based on action
   const getConfirmationMessage = () => {
@@ -1678,6 +1789,21 @@ const OrderDetailModal = ({
                  <Map size={12} /> Mapa
                </button>
              )}
+              {showTaxesTab && (
+                <button
+                  onClick={() => setActiveTab("taxes")}
+                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-all ${
+                    activeTab === "taxes" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  <Receipt size={12} /> Taxas
+                  {taxesCount > 0 && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${activeTab === "taxes" ? "bg-white text-slate-800" : "bg-red-100 text-red-700"}`}>
+                      {taxesCount}
+                    </span>
+                  )}
+                </button>
+              )}
            </div>
 
           {/* Tab Content */}
@@ -1751,6 +1877,63 @@ const OrderDetailModal = ({
              </div>
            )}
 
+            {activeTab === "taxes" && (
+             <div className="space-y-4">
+               <div className="flex items-center justify-between">
+                 <p className="text-sm font-bold text-slate-700">Taxas do Pedido</p>
+                 {(isAdmin || isDriver || isCustomer) && (
+                   <button onClick={() => { setShowTaxModal(true); setSelectedTax(null); setTaxForm({ description: "", amount: "" }); }} className="flex items-center gap-1 bg-orange-500 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm shadow-orange-300">
+                     <Receipt size={14} /> Adicionar
+                   </button>
+                 )}
+               </div>
+
+               {loadingTaxes ? (
+                 <div className="text-center py-6">
+                   <div className="animate-spin w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                   <p className="text-xs text-slate-500">A carregar...</p>
+                 </div>
+               ) : taxes.length === 0 ? (
+                 <div className="text-center py-6">
+                   <Receipt size={24} className="text-slate-300 mx-auto mb-2" />
+                   <p className="text-sm text-slate-500">Nenhuma taxa registada</p>
+                 </div>
+               ) : (
+                 <div className="space-y-2 max-h-64 overflow-y-auto">
+                   {taxes.map(tax => (
+                     <div key={tax.id} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                       <div className="flex justify-between items-start mb-1">
+                         <p className="text-sm font-semibold text-slate-800">{tax.description}</p>
+                         <span className="text-sm font-bold text-slate-700">{parseFloat(tax.amount || 0).toFixed(2)} MZN</span>
+                       </div>
+                       {tax.addedByUser && (
+                         <p className="text-[10px] text-slate-400">Adicionado por: {tax.addedByUser.name || tax.addedByUser.email}</p>
+                       )}
+                       <p className="text-[10px] text-slate-400 mt-1">{new Date(tax.createdAt).toLocaleDateString()} {new Date(tax.createdAt).toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit" })}</p>
+                       {(isAdmin || isDriver) && (
+                         <div className="flex gap-3 mt-2">
+                           <button
+                             onClick={() => handleEditTax(tax)}
+                             className="text-xs text-blue-500 font-medium hover:text-blue-600 transition-colors flex items-center gap-1"
+                           >
+                             <Edit2 size={12} /> Editar
+                           </button>
+                           <button
+                             onClick={() => { setSelectedTax(tax); setShowDeleteTaxModal(true); }}
+                             className="text-xs text-red-500 font-medium hover:text-red-600 transition-colors flex items-center gap-1"
+                           >
+                             <XCircle size={12} /> Remover
+                           </button>
+                         </div>
+                       )}
+                     </div>
+                   ))}
+                 </div>
+               )}
+             </div>
+            )}
+
+            
            {activeTab === "map" && (
              <div className="space-y-3">
                <p className="text-sm font-bold text-slate-700">Rota do Pedido</p>
@@ -1926,6 +2109,80 @@ const OrderDetailModal = ({
           </div>
         </div>
       )}
+       {/* Add/Edit Tax Modal */}
+       {showTaxModal && (
+         <Modal isOpen={showTaxModal} onClose={() => {
+           setShowTaxModal(false);
+           setSelectedTax(null);
+           setTaxForm({ description: "", amount: "" });
+         }} title={selectedTax ? "Editar Taxa" : "Adicionar Taxa"}>
+           <form onSubmit={selectedTax ? handleUpdateTax : handleSubmitTax} className="space-y-4">
+             <div>
+               <label className="block text-xs font-semibold text-slate-500 mb-1">Descricao</label>
+               <input
+                 type="text"
+                 value={taxForm.description}
+                 onChange={e => setTaxForm({ ...taxForm, description: e.target.value })}
+                 placeholder="Ex: Taxa de portagem"
+                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                 required
+               />
+             </div>
+             <div>
+               <label className="block text-xs font-semibold text-slate-500 mb-1">Valor (MZN)</label>
+               <input
+                 type="number"
+                 step="0.01"
+                 min="0"
+                 value={taxForm.amount}
+                 onChange={e => setTaxForm({ ...taxForm, amount: e.target.value })}
+                 placeholder="0.00"
+                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                 required
+               />
+             </div>
+             <div className="flex gap-2 pt-2">
+               <button type="button" onClick={() => {
+                 setShowTaxModal(false);
+                 setSelectedTax(null);
+                 setTaxForm({ description: "", amount: "" });
+               }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
+                 Cancelar
+               </button>
+               <button type="submit" disabled={submittingTax} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                 {submittingTax ? "A guardar..." : (selectedTax ? "Atualizar" : "Adicionar")}
+               </button>
+             </div>
+           </form>
+         </Modal>
+       )}
+
+       {/* Delete Tax Confirmation Modal */}
+       {showDeleteTaxModal && selectedTax && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+           <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
+             <div className="text-center mb-4">
+               <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                 <AlertCircle size={24} className="text-red-600" />
+               </div>
+               <h3 className="text-base font-bold text-slate-800">Remover Taxa</h3>
+               <p className="text-sm text-slate-500 mt-1">
+                 Tem certeza que deseja remover esta taxa? O valor sera subtraido do total do pedido.
+               </p>
+             </div>
+             <div className="flex gap-2">
+               <button onClick={() => { setShowDeleteTaxModal(false); setSelectedTax(null); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
+                 Cancelar
+               </button>
+               <button onClick={handleDeleteTax} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-bold text-sm shadow-lg shadow-red-300 hover:bg-red-600">
+                 Remover
+               </button>
+             </div>
+           </div>
+         </div>
+       )}
+
+       
 
       {/* Payment Dialog for Driver and Admin Completion */}
       {showPaymentDialog && (
