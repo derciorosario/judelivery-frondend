@@ -380,9 +380,9 @@ const CustomerApp = () => {
             onGiveFeedback={handleGiveFeedback}
            />
          )}
-         {activeTab === "history" && (
-           <CustomerHistory />
-         )}
+          {activeTab === "history" && (
+            <CustomerHistory onGiveFeedback={handleGiveFeedback} />
+          )}
          {activeTab === "profile" && (
           profileLoading ? (
             <div className="text-center py-10 text-sm text-slate-500">A carregar perfil...</div>

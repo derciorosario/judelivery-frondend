@@ -189,13 +189,14 @@ const GestorMap = ({ initialDriverId }) => {
 
   // Socket connection handlers
   useEffect(() => {
-    if (!connected || !socket || typeof socket.join !== "function" || drivers.length === 0) return;
 
-    socket.join("monitoring");
-    socket.join("drivers");
+    if (!connected || !socket || drivers.length === 0) return;
+
     setConnectedToSocket(true);
 
     const handleLocationUpdated = (data) => {
+
+      console.log({data})
       setDrivers(prev => prev.map(d => {
         if (d.userId === data.driverId || d.id === data.driverId) {
           return {
@@ -235,6 +236,7 @@ const GestorMap = ({ initialDriverId }) => {
     };
 
     const handleSnapshot = (statuses) => {
+      console.log({statuses})
       const statusMap = new Map(statuses.map(s => [s.userId, s]));
       setDrivers(prev => prev.map(d => {
         const snapshot = statusMap.get(d.userId);
@@ -254,7 +256,7 @@ const GestorMap = ({ initialDriverId }) => {
       socket.off("driver:status:updated", handleStatusUpdated);
       socket.off("admin:snapshot", handleSnapshot);
     };
-  }, [connected, socket, selectedDriver]);
+  }, [connected, socket, selectedDriver,drivers]);
 
   // Fetch selected driver address
   useEffect(() => {

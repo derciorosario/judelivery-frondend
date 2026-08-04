@@ -967,6 +967,7 @@ const AdminDrivers = () => {
 
   useEffect(() => {
     if (!socket) return;
+    
 
     socket.emit("admin:snapshot");
 
@@ -974,6 +975,8 @@ const AdminDrivers = () => {
       setDrivers((prev) => prev.map((d) => (d.userId === data.driverId || d.id === data.driverId ? { ...d, status: data.status } : d)));
     };
     const onLocation = (data) => {
+
+      console.log({a:1,data})
       setDrivers((prev) => prev.map((d) => {
         if (d.userId === data.driverId || d.id === data.driverId) {
           // Clear location name for this driver to force refetch
@@ -988,6 +991,9 @@ const AdminDrivers = () => {
       }));
     };
     const onSnapshot = (items) => {
+
+        console.log({a:2,items})
+
       const list = Array.isArray(items) ? items : [];
       setDrivers((prev) => {
         const byId = Object.create(null);

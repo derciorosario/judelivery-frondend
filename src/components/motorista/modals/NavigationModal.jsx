@@ -22,7 +22,9 @@ import {
   Maximize2,
   Minimize2,
   CheckCircle,
-  ArrowRight
+  ArrowRight,
+  LocateFixed,
+  Crosshair
 } from "lucide-react";
 
 const GOOGLE_MAPS_KEY = "AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak";
@@ -216,6 +218,7 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
   const mapRef = useRef(null);
   const directionsServiceRef = useRef(null);
   const watchIdRef = useRef(null);
+  const mapDragListenerRef = useRef(null);
   
   const [driverPosition, setDriverPosition] = useState(null);
   const [originCoords, setOriginCoords] = useState(null);
@@ -233,6 +236,10 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
   const [remainingDuration, setRemainingDuration] = useState(null);
   const [showStepDetails, setShowStepDetails] = useState(false);
   const [mapError, setMapError] = useState(false);
+  
+  // NEW: State for auto-follow driver
+  const [autoFollowDriver, setAutoFollowDriver] = useState(false);
+  const hasInitializedMap = useRef(false);
 
   const isActive = order?.status === "in_transit" || order?.status === "Em entrega";
 
@@ -387,7 +394,8 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
               };
               setDriverPosition(pos);
               
-              if (mapRef.current && isNavigating) {
+              // Auto-follow if enabled
+              if (mapRef.current && isNavigating && autoFollowDriver) {
                 mapRef.current.panTo(pos);
               }
               
@@ -422,8 +430,8 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
         };
         setDriverPosition(pos);
         
-        // Update map center if navigating
-        if (mapRef.current && isNavigating) {
+        // Auto-follow if enabled
+        if (mapRef.current && isNavigating && autoFollowDriver) {
           mapRef.current.panTo(pos);
         }
         
@@ -456,6 +464,13 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
       watchIdRef.current = null;
     }
     setIsNavigating(false);
+    setAutoFollowDriver(false);
+    
+    // Remove map listener
+    if (mapDragListenerRef.current) {
+      window.google?.maps?.event?.removeListener(mapDragListenerRef.current);
+      mapDragListenerRef.current = null;
+    }
   };
 
   // Update current step based on driver position
@@ -542,15 +557,76 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
   // Center map on driver
   const centerOnDriver = () => {
     if (mapRef.current && driverPosition) {
+      // Enable auto-follow
+      setAutoFollowDriver(true);
       mapRef.current.panTo(driverPosition);
       mapRef.current.setZoom(16);
+      
+      // Remove any existing listener
+      if (mapDragListenerRef.current) {
+        window.google.maps.event.removeListener(mapDragListenerRef.current);
+        mapDragListenerRef.current = null;
+      }
+      
+      // Add listener to disable auto-follow when user drags the map
+      mapDragListenerRef.current = mapRef.current.addListener('dragstart', () => {
+        setAutoFollowDriver(false);
+        if (mapDragListenerRef.current) {
+          window.google.maps.event.removeListener(mapDragListenerRef.current);
+          mapDragListenerRef.current = null;
+        }
+      });
     }
   };
 
-  // Fit bounds to show full route
+  // Toggle auto-follow
+  const toggleAutoFollow = () => {
+    if (!driverPosition) return;
+    
+    const newAutoFollow = !autoFollowDriver;
+    setAutoFollowDriver(newAutoFollow);
+    
+    if (newAutoFollow) {
+      // Enable auto-follow and center on driver
+      if (mapRef.current && driverPosition) {
+        mapRef.current.panTo(driverPosition);
+        mapRef.current.setZoom(16);
+        
+        // Remove any existing listener
+        if (mapDragListenerRef.current) {
+          window.google.maps.event.removeListener(mapDragListenerRef.current);
+          mapDragListenerRef.current = null;
+        }
+        
+        // Add listener to disable auto-follow when user drags the map
+        mapDragListenerRef.current = mapRef.current.addListener('dragstart', () => {
+          setAutoFollowDriver(false);
+          if (mapDragListenerRef.current) {
+            window.google.maps.event.removeListener(mapDragListenerRef.current);
+            mapDragListenerRef.current = null;
+          }
+        });
+      }
+    } else {
+      // Disable auto-follow and remove listener
+      if (mapDragListenerRef.current) {
+        window.google.maps.event.removeListener(mapDragListenerRef.current);
+        mapDragListenerRef.current = null;
+      }
+    }
+  };
+
+  // Fit bounds to show full route - MODIFIED to also disable auto-follow
   const fitBounds = () => {
     if (mapRef.current && window.google && originCoords && destCoords) {
       try {
+        // Disable auto-follow when user wants to see full route
+        setAutoFollowDriver(false);
+        if (mapDragListenerRef.current) {
+          window.google.maps.event.removeListener(mapDragListenerRef.current);
+          mapDragListenerRef.current = null;
+        }
+        
         const bounds = new window.google.maps.LatLngBounds();
         bounds.extend(originCoords);
         bounds.extend(destCoords);
@@ -602,15 +678,19 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
     return null;
   };
 
+  // MODIFIED: onMapLoad with initialization flag
   const onMapLoad = useCallback((map) => {
     mapRef.current = map;
     if (originCoords && destCoords) {
-      setTimeout(() => fitBounds(), 100);
+      setTimeout(() => {
+        fitBounds();
+        hasInitializedMap.current = true;
+      }, 100);
     }
   }, [originCoords, destCoords]);
 
-  // Cleanup on unmount - do not uncomment this line because it is breaking my app
- /* useEffect(() => {
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
       if (watchIdRef.current !== null) {
         if (isNative) {
@@ -620,9 +700,13 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
         }
         watchIdRef.current = null;
       }
+      if (mapDragListenerRef.current) {
+        window.google?.maps?.event?.removeListener(mapDragListenerRef.current);
+        mapDragListenerRef.current = null;
+      }
       window.speechSynthesis.cancel();
     };
-  }, []);*/
+  }, []);
 
   if (!isOpen || !order) return null;
 
@@ -662,7 +746,7 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
                 onLoad={onMapLoad}
                 options={{
                   disableDefaultUI: true,
-                  zoomControl: true,
+                  zoomControl: false,
                   mapTypeControl: false,
                   streetViewControl: false,
                   fullscreenControl: false,
@@ -728,6 +812,7 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
                 {/* Driver Marker */}
                 {driverPosition && DriverIcon && isLoaded && (
                   <Marker
+                    key={`driver-${driverPosition.lat}-${driverPosition.lng}`}
                     position={driverPosition}
                     icon={DriverIcon}
                     onClick={() => setSelectedMarker('driver')}
@@ -746,7 +831,7 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
                 )}
               </GoogleMap>
 
-              {/* Map Controls Overlay */}
+              {/* Map Controls Overlay - UPDATED with auto-follow controls */}
               <div className="absolute bottom-3 left-3 right-3 flex justify-between gap-2">
                 <div className="flex gap-2">
                   <button
@@ -757,13 +842,28 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
                     <Compass size={18} />
                   </button>
                   {driverPosition && (
-                    <button
-                      onClick={centerOnDriver}
-                      className="w-9 h-9 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-blue-600 hover:text-blue-700 transition-colors"
-                      title="Centralizar no veículo"
-                    >
-                      <Navigation size={18} />
-                    </button>
+                    <>
+                      <button
+                        onClick={centerOnDriver}
+                        className={`w-9 h-9 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center transition-colors ${
+                          autoFollowDriver ? 'text-orange-600 bg-orange-50 border-orange-300' : 'text-blue-600 hover:text-blue-700'
+                        }`}
+                        title="Centralizar no veículo"
+                      >
+                        <Navigation size={18} />
+                      </button>
+                      <button
+                        onClick={toggleAutoFollow}
+                        className={`w-9 h-9 rounded-full shadow-lg border flex items-center justify-center transition-colors ${
+                          autoFollowDriver 
+                            ? 'bg-orange-500 border-orange-500 text-white hover:bg-orange-600' 
+                            : 'bg-white border-slate-200 text-slate-600 hover:text-orange-600'
+                        }`}
+                        title={autoFollowDriver ? "Desativar seguimento" : "Ativar seguimento automático"}
+                      >
+                        <Crosshair size={18} />
+                      </button>
+                    </>
                   )}
                   <button
                     onClick={toggleFullscreen}
@@ -780,6 +880,46 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
                     {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                   </button>
                 </div>
+              </div>
+
+              {/* Auto-follow indicator */}
+              {autoFollowDriver && driverPosition && (
+                <div className="absolute top-3 left-3">
+                  <div className="bg-orange-500/95 backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-lg flex items-center gap-2">
+                    <Crosshair size={14} className="text-white animate-pulse" />
+                    <span className="text-xs font-medium text-white">A seguir veículo</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Zoom Controls */}
+              <div className="absolute right-3 top-3 flex flex-col gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (mapRef.current) {
+                      const currentZoom = mapRef.current.getZoom();
+                      mapRef.current.setZoom(currentZoom + 1);
+                    }
+                  }}
+                  className="w-9 h-9 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:text-orange-600 transition-colors text-lg font-bold"
+                  title="Aumentar zoom"
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (mapRef.current) {
+                      const currentZoom = mapRef.current.getZoom();
+                      mapRef.current.setZoom(currentZoom - 1);
+                    }
+                  }}
+                  className="w-9 h-9 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:text-orange-600 transition-colors text-lg font-bold"
+                  title="Diminuir zoom"
+                >
+                  −
+                </button>
               </div>
             </>
           )}
@@ -825,7 +965,7 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
             </div>
           )}
 
-          {/* Action Buttons */}
+          {/* Action Buttons - UPDATED with auto-follow status */}
           <div className="flex gap-2">
             {!isNavigating ? (
               <>
@@ -867,6 +1007,21 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
               </>
             )}
           </div>
+
+          {/* Auto-follow toggle button in controls */}
+          {driverPosition && isNavigating && (
+            <button
+              onClick={toggleAutoFollow}
+              className={`w-full py-2 rounded-xl border font-semibold text-xs transition-colors flex items-center justify-center gap-2 ${
+                autoFollowDriver 
+                  ? 'bg-orange-500 border-orange-500 text-white hover:bg-orange-600' 
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <LocateFixed size={14} />
+              {autoFollowDriver ? 'Seguindo veículo automaticamente' : 'Seguir veículo'}
+            </button>
+          )}
 
           {/* Step Details Toggle */}
           {routeInfo && (

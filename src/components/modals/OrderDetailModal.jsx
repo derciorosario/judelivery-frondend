@@ -1922,7 +1922,7 @@ const OrderDetailModal = ({
              <div className="space-y-4">
                <div className="flex items-center justify-between">
                  <p className="text-sm font-bold text-slate-700">Taxas do Pedido</p>
-                 {(isAdmin || isDriver || isCustomer) && (
+                 {(isAdmin || isDriver) && (
                    <button onClick={() => { setShowTaxModal(true); setSelectedTax(null); setTaxForm({ description: "", amount: "" }); }} className="flex items-center gap-1 bg-orange-500 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm shadow-orange-300">
                      <Receipt size={14} /> Adicionar
                    </button>

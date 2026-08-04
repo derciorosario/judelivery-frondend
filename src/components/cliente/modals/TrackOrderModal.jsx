@@ -18,7 +18,8 @@ import {
   LocateFixed,
   Route,
   Phone,
-  ChevronUp
+  ChevronUp,
+  Crosshair
 } from "lucide-react";
 
 const GOOGLE_MAPS_KEY = "AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak";
@@ -175,6 +176,11 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
   const [loadingAddress, setLoadingAddress] = useState(false);
   const [loadingDriverLocation, setLoadingDriverLocation] = useState(false);
   const [useMotoIcon, setUseMotoIcon] = useState(false);
+  
+  // NEW: State for auto-follow driver
+  const [autoFollowDriver, setAutoFollowDriver] = useState(false);
+  const hasInitializedMap = useRef(false);
+  const mapDragListenerRef = useRef(null);
 
   const isDelivery = order?.serviceType !== "taxi";
   
@@ -210,11 +216,67 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
     }
   };
 
-  // Handle locate driver with scroll
+  // Handle locate driver with scroll and enable auto-follow
   const handleLocateDriver = () => {
-    if (driverPosition) {
-      centerOnDriver();
+    if (driverPosition && mapRef.current) {
+      // Enable auto-follow
+      setAutoFollowDriver(true);
+      mapRef.current.panTo(new window.google.maps.LatLng(driverPosition.lat, driverPosition.lng));
+      mapRef.current.setZoom(15);
       scrollToMap();
+      
+      // Remove any existing listener
+      if (mapDragListenerRef.current) {
+        window.google.maps.event.removeListener(mapDragListenerRef.current);
+        mapDragListenerRef.current = null;
+      }
+      
+      // Add listener to disable auto-follow when user drags the map
+      mapDragListenerRef.current = mapRef.current.addListener('dragstart', () => {
+        setAutoFollowDriver(false);
+        if (mapDragListenerRef.current) {
+          window.google.maps.event.removeListener(mapDragListenerRef.current);
+          mapDragListenerRef.current = null;
+        }
+      });
+    }
+  };
+
+  // Toggle auto-follow
+  const toggleAutoFollow = () => {
+    if (!driverPosition) return;
+    
+    const newAutoFollow = !autoFollowDriver;
+    setAutoFollowDriver(newAutoFollow);
+    
+    if (newAutoFollow) {
+      // Enable auto-follow and center on driver
+      if (mapRef.current && driverPosition) {
+        mapRef.current.panTo(new window.google.maps.LatLng(driverPosition.lat, driverPosition.lng));
+        mapRef.current.setZoom(15);
+        scrollToMap();
+        
+        // Remove any existing listener
+        if (mapDragListenerRef.current) {
+          window.google.maps.event.removeListener(mapDragListenerRef.current);
+          mapDragListenerRef.current = null;
+        }
+        
+        // Add listener to disable auto-follow when user drags the map
+        mapDragListenerRef.current = mapRef.current.addListener('dragstart', () => {
+          setAutoFollowDriver(false);
+          if (mapDragListenerRef.current) {
+            window.google.maps.event.removeListener(mapDragListenerRef.current);
+            mapDragListenerRef.current = null;
+          }
+        });
+      }
+    } else {
+      // Disable auto-follow and remove listener
+      if (mapDragListenerRef.current) {
+        window.google.maps.event.removeListener(mapDragListenerRef.current);
+        mapDragListenerRef.current = null;
+      }
     }
   };
   
@@ -390,6 +452,17 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
           setDriverPosition(newPosition);
           setLastUpdate(new Date());
           setLoadingDriverLocation(false);
+
+          console.log('updating location...')
+          
+          // Auto-follow driver if enabled
+          if (autoFollowDriver && mapRef.current && window.google) {
+            try {
+              mapRef.current.panTo(new window.google.maps.LatLng(newPosition.lat, newPosition.lng));
+            } catch (error) {
+              console.error('Error panning to driver:', error);
+            }
+          }
         }
       });
 
@@ -423,12 +496,18 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
         setConnectedToSocket(false);
         setRequestedInitialLocation(false);
         clearTimeout(timeout);
+        
+        // Clean up map listener
+        if (mapDragListenerRef.current) {
+          window.google?.maps?.event?.removeListener(mapDragListenerRef.current);
+          mapDragListenerRef.current = null;
+        }
       };
     }
-  }, [socket, isOpen, order?.id, order?._id]);
+  }, [socket, isOpen, order?.id, order?._id, autoFollowDriver]);
 
-  // Fit bounds
-  const fitBounds = useCallback(() => {
+  // Modified fitBounds with zoom control parameter
+  const fitBounds = useCallback((shouldResetZoom = true) => {
     if (!mapRef.current || !window.google || !window.google.maps) {
       console.warn('Cannot fit bounds: Map or Google Maps not ready');
       return;
@@ -453,12 +532,14 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
       
       if (hasPoints) {
         mapRef.current.fitBounds(bounds);
-        setTimeout(() => {
-          const currentZoom = mapRef.current.getZoom();
-          if (currentZoom > 15) {
-            mapRef.current.setZoom(15);
-          }
-        }, 100);
+        if (shouldResetZoom) {
+          setTimeout(() => {
+            const currentZoom = mapRef.current.getZoom();
+            if (currentZoom > 15) {
+              mapRef.current.setZoom(15);
+            }
+          }, 100);
+        }
       } else if (originCoords) {
         mapRef.current.setCenter(new window.google.maps.LatLng(originCoords.lat, originCoords.lng));
         mapRef.current.setZoom(13);
@@ -510,18 +591,30 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
     }
   };
 
+  // Modified onMapLoad to set initialized flag
   const onMapLoad = useCallback((map) => {
     mapRef.current = map;
     setTimeout(() => {
-      fitBounds();
+      fitBounds(true);
+      hasInitializedMap.current = true;
     }, 100);
   }, [fitBounds]);
 
+  // Separate useEffect for initial fit bounds only
   useEffect(() => {
-    if (mapRef.current && (originCoords || destCoords || driverPosition)) {
-      fitBounds();
+    if (mapRef.current && (originCoords || destCoords) && !hasInitializedMap.current) {
+      fitBounds(true);
+      hasInitializedMap.current = true;
     }
-  }, [originCoords, destCoords, driverPosition, fitBounds]);
+  }, [originCoords, destCoords, fitBounds]);
+
+  // NEW: Separate useEffect for driver position updates - no zoom reset
+  useEffect(() => {
+    if (mapRef.current && driverPosition && hasInitializedMap.current) {
+      // Only pan if auto-follow is enabled (handled in socket event)
+      // Otherwise, just let the marker update
+    }
+  }, [driverPosition]);
 
   const calculateProgress = useCallback(() => {
     if (!driverPosition || !originCoords || !routeInfo?.distanceValue) return 0;
@@ -689,6 +782,7 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
                   {/* FIXED: Only render driver marker if icon is available */}
                   {driverPosition && DriverIcon && window.google && window.google.maps && (
                     <Marker
+                      key={`driver-${driverPosition.lat}-${driverPosition.lng}`}
                       position={new window.google.maps.LatLng(driverPosition.lat, driverPosition.lng)}
                       icon={DriverIcon}
                       onClick={() => setSelectedMarker('driver')}
@@ -721,21 +815,45 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
                       <>
                         <button
                           type="button"
-                          onClick={fitBounds}
+                          onClick={() => {
+                            fitBounds(true);
+                            setAutoFollowDriver(false);
+                            if (mapDragListenerRef.current) {
+                              window.google?.maps?.event?.removeListener(mapDragListenerRef.current);
+                              mapDragListenerRef.current = null;
+                            }
+                          }}
                           className="w-9 h-9 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:text-orange-600 transition-colors"
                           title="Ajustar mapa para ver toda a rota"
                         >
                           <Map size={18} />
                         </button>
                         {driverPosition && (
-                          <button
-                            type="button"
-                            onClick={handleLocateDriver}
-                            className="w-9 h-9 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-blue-600 hover:text-blue-700 transition-colors"
-                            title="Centralizar no motorista"
-                          >
-                            <LocateFixed size={18} />
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              onClick={handleLocateDriver}
+                              className={`w-9 h-9 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center transition-colors ${
+                                autoFollowDriver ? 'text-orange-600 bg-orange-50 border-orange-300' : 'text-blue-600 hover:text-blue-700'
+                              }`}
+                              title="Seguir motorista"
+                            >
+                              <Crosshair size={18} />
+                            </button>
+                            {/* Auto-follow toggle button */}
+                            <button
+                              type="button"
+                              onClick={toggleAutoFollow}
+                              className={`w-9 h-9 rounded-full shadow-lg border flex items-center justify-center transition-colors ${
+                                autoFollowDriver 
+                                  ? 'bg-orange-500 border-orange-500 text-white hover:bg-orange-600' 
+                                  : 'bg-white border-slate-200 text-slate-600 hover:text-orange-600'
+                              }`}
+                              title={autoFollowDriver ? "Desativar seguimento" : "Ativar seguimento automático"}
+                            >
+                              <LocateFixed size={18} />
+                            </button>
+                          </>
                         )}
                         <button
                           type="button"
@@ -798,6 +916,16 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
                     −
                   </button>
                 </div>
+
+                {/* Auto-follow indicator */}
+                {autoFollowDriver && driverPosition && (
+                  <div className="absolute top-3 left-3">
+                    <div className="bg-orange-500/95 backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-lg flex items-center gap-2">
+                      <LocateFixed size={14} className="text-white animate-pulse" />
+                      <span className="text-xs font-medium text-white">A seguir motorista</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Progress Bar */}
                 {driverPosition && routeInfo && (
@@ -960,6 +1088,12 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
                       <p className="text-xs text-green-600 mt-0.5 flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
                         Em movimento
+                        {autoFollowDriver && (
+                          <span className="ml-1 text-orange-500 flex items-center gap-1">
+                            <LocateFixed size={10} />
+                            Seguindo
+                          </span>
+                        )}
                       </p>
                     )}
                     {showLoading && !driverPosition && (
@@ -972,10 +1106,14 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
                   {driverPosition && (
                     <button
                       onClick={handleLocateDriver}
-                      className="px-3 py-1.5 bg-blue-50 rounded-lg text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors flex items-center gap-1"
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 ${
+                        autoFollowDriver 
+                          ? 'bg-orange-500 text-white hover:bg-orange-600' 
+                          : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                      }`}
                     >
                       <LocateFixed size={12} />
-                      Localizar
+                      {autoFollowDriver ? 'Seguindo' : 'Seguir'}
                     </button>
                   )}
                 </div>

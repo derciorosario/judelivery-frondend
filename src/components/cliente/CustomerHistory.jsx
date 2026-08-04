@@ -4,7 +4,7 @@ import { getCustomerOrders } from "../../api/client";
 import { toast } from "../../lib/toast";
 import OrderDetailModal from "../modals/OrderDetailModal";
 
-const CustomerHistory = () => {
+const CustomerHistory = ({ onGiveFeedback }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -196,6 +196,7 @@ const CustomerHistory = () => {
           }}
           order={selectedOrder}
           orderId={selectedOrder.id}
+          onGiveFeedback={onGiveFeedback}
         />
       )}
     </div>
