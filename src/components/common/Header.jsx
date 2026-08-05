@@ -4,6 +4,7 @@ import { useSocket } from '../../contexts/SocketContext';
 import client from '../../api/client';
 import { useNavigate } from 'react-router-dom';
 import ContactSupportModal from './modals/ContactSupportModal';
+import ConfirmDialog from './ConfirmDialog';
 
 // Import sound file
 import notificationSound from '../../assets/sound/notification-1.mp3';
@@ -13,6 +14,7 @@ import { Phone } from 'lucide-react';
 const Header = ({ user, onLogout, title, onNotificationClick, urgentOrdersCount }) => {
   const navigate = useNavigate();
   const [showSupportModal, setShowSupportModal] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [unseenCount, setUnseenCount] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -80,8 +82,22 @@ const Header = ({ user, onLogout, title, onNotificationClick, urgentOrdersCount 
     }, 3000);
   };
 
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const handleLogoutConfirm = () => {
+    setShowLogoutConfirm(false);
+    if (onLogout) {
+      onLogout();
+    }
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutConfirm(false);
+  };
+
   const handleNotificationClick = () => {
-    // Stop the animation when notification button is clicked
     stopAnimation();
     
     // Call the original onNotificationClick prop
@@ -205,9 +221,9 @@ const Header = ({ user, onLogout, title, onNotificationClick, urgentOrdersCount 
                 </span>
               )}
             </div>
-            <button onClick={onLogout} className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
-              <Icon name="logout" size={18} />
-            </button>
+<button onClick={handleLogoutClick} className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
+                <Icon name="logout" size={18} />
+              </button>
           </div>
           
         </div>
@@ -313,15 +329,29 @@ const Header = ({ user, onLogout, title, onNotificationClick, urgentOrdersCount 
         }
       `}</style>
 
-      {/* Support Modal for Customers */}
-      {showSupportModal && user?.role === 'customer' && (
-        <ContactSupportModal
-          isOpen={showSupportModal}
-          onClose={() => setShowSupportModal(false)}
-        />
-      )}
+{/* Support Modal for Customers */}
+       {showSupportModal && user?.role === 'customer' && (
+         <ContactSupportModal
+           isOpen={showSupportModal}
+           onClose={() => setShowSupportModal(false)}
+         />
+       )}
 
-    </>
+       {/* Logout Confirmation Dialog */}
+       {showLogoutConfirm && (
+         <ConfirmDialog
+           isOpen={showLogoutConfirm}
+           onClose={handleLogoutCancel}
+           onConfirm={handleLogoutConfirm}
+           title="Confirmar Saída"
+           message="Tem certeza que deseja sair da sua conta?"
+           confirmText="Sair"
+           cancelText="Cancelar"
+           variant="danger"
+         />
+       )}
+
+     </>
   );
 };
 

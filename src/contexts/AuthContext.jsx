@@ -74,11 +74,11 @@ export function AuthProvider({ children }) {
 
   const signOut = async () => {
     setLoading(true);
+    window.location.href = "/login";
     setTokenState(null);
     setRefreshTokenState(null);
     setUser(null);
     setLoading(false);
-    window.location.href = "/login";
   };
 
   const hasRole = (roles = []) => {

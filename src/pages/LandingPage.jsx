@@ -14,7 +14,7 @@ import GuestOrderBar from '../components/common/GuestOrderBar';
 import Footer from '../components/common/Footer';
 import FullLogo from '../assets/full-logo.png'
 import Logo from '../assets/logo.png'
-import { getPublicSettings } from '../api/client';
+import { getPublicSettings, API_URL } from '../api/client';
 
 
 const LandingPage = () => {
@@ -511,7 +511,10 @@ const LandingPage = () => {
 
                     {/* Download buttons - Responsive */}
                     <div className="mt-4 sm:mt-6 md:mt-8 flex flex-col sm:flex-row justify-center gap-2 sm:gap-3 md:gap-4">
-                      <motion.a 
+                     
+                      {/***
+                        * 
+                        *  <motion.a 
                         href="#" 
                         className="flex items-center justify-center space-x-2 bg-white/10 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-xl border border-white/20 hover:bg-white/20 transition w-full sm:w-auto"
                         whileHover={{ scale: 1.05 }}
@@ -533,6 +536,33 @@ const LandingPage = () => {
                           <span className="font-semibold text-xs sm:text-sm">Google Play</span>
                         </span>
                       </motion.a>
+                       */}
+
+                      <motion.a 
+                        href={`${API_URL.replace('/api', '')}/download/android/app-debug.apk`}
+                        download
+                        className="flex items-center justify-center space-x-2 bg-white/10 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-xl border border-white/20 hover:bg-white/20 transition w-full sm:w-auto"
+                        whileHover={{ scale: 1.05 }}
+                      >
+                        <FaGooglePlay className="text-white text-lg sm:text-xl" />
+                        <span className="text-xs text-white">
+                          <span className="block text-[8px] sm:text-[10px] opacity-60">Download for</span>
+                          <span className="font-semibold text-xs sm:text-sm">Android</span>
+                        </span>
+                      </motion.a>
+                      <motion.div 
+                        className="flex items-center justify-center space-x-2 bg-white/10 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-xl border border-white/20 opacity-70 cursor-not-allowed w-full sm:w-auto"
+                      >
+                        <FaApple className="text-white text-lg sm:text-xl" />
+                        <span className="text-xs text-white">
+                          <span className="block text-[8px] sm:text-[10px] opacity-60">Soon available on</span>
+                          <span className="font-semibold text-xs sm:text-sm">App Store</span>
+                        </span>
+                      </motion.div>
+                      
+
+                       
+                       
                     </div>
                   </div>
                 </div>
