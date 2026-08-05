@@ -1494,7 +1494,7 @@ const OrderDetailModal = ({
           <Star size={16} /> Avaliar Pedido
         </button>
       )}
-      {isCompleted && customerFeedback && (
+      {isCompleted && customerFeedback && activeTab=="details" && (
         <>
           <button onClick={handleEditFeedback} className="flex-1 py-2.5 rounded-xl bg-amber-100 text-amber-700 font-semibold text-sm hover:bg-amber-200 transition-colors flex items-center justify-center gap-2">
             <Edit2 size={16} /> Editar Avaliação

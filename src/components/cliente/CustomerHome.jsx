@@ -304,7 +304,11 @@ const CustomerHome = ({
                 <button onClick={() => onViewOrderDetails(order)} className="flex-1 text-xs bg-slate-100 text-slate-600 font-semibold py-2 rounded-lg">
                   Detalhes
                 </button>
-                {!order.hasFeedback && !ratedOrderIds.has(order.id) && (
+                {order.feedbacks && order.feedbacks.length > 0 ? (
+                  <div className="flex-1 text-xs text-amber-600 font-semibold py-2 text-center">
+                    ⭐ {order.feedbacks[0].rating}/5
+                  </div>
+                ) : !ratedOrderIds.has(order.id) && (
                   <button onClick={() => onGiveFeedback(order)} className="flex-1 text-xs bg-amber-100 text-amber-600 font-semibold py-2 rounded-lg">
                     Avaliar
                   </button>

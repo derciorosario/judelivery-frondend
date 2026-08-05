@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import Icon from "../common/Icon";
 import StatCard from "../common/StatCard";
 import { changeProfilePassword, updateDriverProfile, getDriverOperationalReport } from "../../api/client";
@@ -69,7 +70,8 @@ const MotoristaProfile = ({ user, profileData, onProfileUpdated, onOrderClick })
   });
   const [saving, setSaving] = useState(false);
  const [showReportModal, setShowReportModal] = useState(false);
- const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const navigate = useNavigate();
   const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
 
   const [dateFrom, setDateFrom] = useState("");
@@ -351,9 +353,12 @@ const MotoristaProfile = ({ user, profileData, onProfileUpdated, onOrderClick })
          Ver Relatório
        </button>
     </div>
-    <button disabled={saving} onClick={() => setShowPasswordModal(true)} className="w-full bg-slate-800 text-white text-sm font-semibold py-3 rounded-xl disabled:opacity-50">
-      Alterar Senha
-    </button>
+     <button disabled={saving} onClick={() => setShowPasswordModal(true)} className="w-full bg-slate-800 text-white text-sm font-semibold py-3 rounded-xl disabled:opacity-50">
+       Alterar Senha
+     </button>
+      <button onClick={() => navigate('/forgot-password')} className="w-full bg-orange-500 text-white text-sm font-semibold py-3 rounded-xl mt-2">
+       Recuperar Senha
+     </button>
 
       {showPasswordModal && (
         <div className="fixed inset-0 !mb-0 z-50 flex items-center justify-center p-4 bg-black/50">

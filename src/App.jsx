@@ -21,10 +21,41 @@ import ProtectedRoute from './ProtectedRoute';
 import { SocketProvider } from './contexts/SocketContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { SettingsProvider } from './contexts/SettingsContext';
-import { isNative } from './api/client';
+import { isNative, APP_VERSION, getVersion } from './api/client';
+import UpdateAvailableModal from './components/common/UpdateAvailableModal';
+import NoInternetModal from './components/common/NoInternetModal';
+import { useState, useEffect } from 'react';
 
 const AppInner = () => {
   const { user, loading } = useAuth();
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [showNoInternetModal, setShowNoInternetModal] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+
+  const checkVersion = async () => {
+    if (!isNative) return;
+    try {
+      const { data } = await getVersion();
+      if (data?.version && data.version !== APP_VERSION) {
+        setShowUpdateModal(true);
+      }
+      setShowNoInternetModal(false);
+    } catch {
+      setShowNoInternetModal(true);
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    await checkVersion();
+    window.location.reload();
+  };
+
+  useEffect(() => {
+    checkVersion();
+  }, []);
 
   if (loading) {
     return (
@@ -52,21 +83,25 @@ const AppInner = () => {
   };
 
   return (
-    <Routes>
-      <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/" replace />} />
-      <Route path="/register" element={!user ? <RegisterPage /> : <Navigate to="/" replace />} />
-      <Route path="/start" element={<StartPage />} />
-      <Route path="/guest-order" element={<GuestOrderPage />} />
-      <Route path="/verify-registration" element={<VerificationPage />} />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/faq" element={<FaqPage />} />
-      <Route path="/" element={user ? getAppComponent() : (isNative ? <NativeStartPage /> : <LandingPage />)} />
-      <Route element={<ProtectedRoute />}>
-        <Route path="/*" element={getAppComponent()} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/" replace />} />
+        <Route path="/register" element={!user ? <RegisterPage /> : <Navigate to="/" replace />} />
+        <Route path="/start" element={<StartPage />} />
+        <Route path="/guest-order" element={<GuestOrderPage />} />
+        <Route path="/verify-registration" element={<VerificationPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/faq" element={<FaqPage />} />
+        <Route path="/" element={user ? getAppComponent() : (isNative ? <NativeStartPage /> : <LandingPage />)} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/*" element={getAppComponent()} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <UpdateAvailableModal isOpen={showUpdateModal} onClose={() => setShowUpdateModal(false)} />
+      <NoInternetModal isOpen={showNoInternetModal} onRetry={handleRetry} retrying={retrying} />
+    </>
   );
 };
 

@@ -37,7 +37,7 @@ const Footer = () => {
              
             </div>
             <p className="text-gray-400 text-xs sm:text-sm mb-4 sm:mb-6">Sua entrega, nossa missão!</p>
-            <div className="flex justify-center sm:justify-start space-x-3 sm:space-x-4">
+            <div className="flex justify-center sm:justify-start space-x-3 sm:space-x-4 hidden">
               {[FaFacebook, FaInstagram, FaWhatsapp].map((Icon, i) => (
                 <a 
                   key={i}

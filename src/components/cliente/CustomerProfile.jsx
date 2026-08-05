@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Icon from "../common/Icon";
 import Modal from "../common/Modal";
 import { GoogleMap, Marker, Autocomplete, useJsApiLoader } from "@react-google-maps/api";
@@ -41,7 +42,8 @@ const CustomerProfile = ({
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [addresses, setAddresses] = useState(profileData?.addresses || customer.addressesData || []);
-  const {setAddresses:authSetAddresses, addresses:authAddresses} = useAuth()
+  const { setAddresses:authSetAddresses, addresses:authAddresses} = useAuth()
+  const navigate = useNavigate();
   const [paymentMethods, setPaymentMethods] = useState(
     profileData?.paymentMethods || customer.paymentMethods || []
   );
@@ -645,6 +647,10 @@ const [newAddress, setNewAddress] = useState("");
           </button>
         </div>
       </div>
+
+      <button onClick={() => navigate('/forgot-password')} className="w-full bg-orange-500 text-white text-sm font-semibold py-3 rounded-xl mt-2">
+        Recuperar Senha
+      </button>
 
       {showAddressModal && (
         <div className="fixed inset-0 !mb-0 z-50 flex items-center justify-center p-4 bg-black/50">

@@ -8,6 +8,7 @@ import { getDrivers, createDriver, updateDriver, deleteDriver, getUserAuditLogs,
 import { toast } from "../../lib/toast";
 import ImageViewer from "../common/ImageViewer";
 import { Capacitor } from '@capacitor/core';
+import { useAuth } from "../../contexts/AuthContext";
 
 // FileUploadInput component with camera support
 const FileUploadInput = ({ 
@@ -849,11 +850,12 @@ const AdminDrivers = () => {
   const [locationNames, setLocationNames] = useState({});
   const [isGeocoderLoaded, setIsGeocoderLoaded] = useState(false);
   const geocoderRef = useRef(null);
-   const [activityOpen, setActivityOpen] = useState(false);
-   const [activityDriver, setActivityDriver] = useState(null);
-   const [activityLogs, setActivityLogs] = useState([]);
-   const [activityLoading, setActivityLoading] = useState(false);
-   const [refreshing, setRefreshing] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [activityDriver, setActivityDriver] = useState(null);
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const {user} = useAuth()
 
    const fetchDriversData = async () => {
      setLoading(true);
@@ -1362,13 +1364,13 @@ const AdminDrivers = () => {
             )}
 
             <div className="flex gap-2 pt-2 border-t border-slate-100">
-              <button
+             { <button 
                 onClick={() => openActivityModal(d)}
                 className="flex-1 text-xs bg-slate-100 text-slate-600 font-semibold py-2 rounded-lg hover:bg-orange-50 hover:text-orange-700 transition-colors"
               >
                 <Icon name="history" size={14} className="inline mr-1" />
                 Histórico
-              </button>
+              </button>}
               <button
                 onClick={() => {
                   setEditDriver(d);

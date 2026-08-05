@@ -1,12 +1,14 @@
 import axios from "axios";
-export const env = "pro";
+export const env = "dev";
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 export const isNative = Capacitor.isNativePlatform();
+export const APP_VERSION="1.0"
 export const API_URL = 
  env == "dev" ? isNative ? "http://192.168.18.3:5001/api" : "http://localhost:5001/api" :
   // env == "dev" ? true ? "https://judelivery-api.derflash.com/api" : "http://localhost:5001/api" :
    env == "test" ? "https://judelivery-api.derflash.com/api" :
                   "https://judelivery-api.derflash.com/api";
+export const APK_DOWNLOAD_URL = `${API_URL.replace('/api', '')}/download/android/app-debug.apk`;
 
 const client = axios.create({
   baseURL: API_URL,
@@ -439,3 +441,5 @@ export const getAuditFilterOptions = () => client.get('/audit-logs/meta/options'
 export const getAvailableDriversForReassignment = (orderId, params) => client.get(`/orders/${orderId}/available-drivers`, { params });
 
 export const rejectOrder = (orderId, data) => client.post(`/orders/${orderId}/reject`, data);
+
+export const getVersion = () => client.get('/version');
