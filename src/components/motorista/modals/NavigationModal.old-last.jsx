@@ -22,9 +22,7 @@ import {
   Maximize2,
   Minimize2,
   CheckCircle,
-  ArrowRight,
-  LocateFixed,
-  Crosshair
+  ArrowRight
 } from "lucide-react";
 
 const GOOGLE_MAPS_KEY = "AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak";
@@ -114,6 +112,7 @@ const getDriverCarIcon = () => {
   if (!window.google || !window.google.maps) return null;
   
   try {
+    // Check if Point class exists
     const anchor = window.google.maps.Point 
       ? new window.google.maps.Point(12, 12)
       : { x: 12, y: 12 };
@@ -174,6 +173,7 @@ const createMarkerIcon = (color, scale = 8) => {
       scale: scale,
     };
     
+    // Only add anchor if Point is available
     if (window.google.maps.Point) {
       icon.anchor = new window.google.maps.Point(0, 0);
     }
@@ -216,8 +216,6 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
   const mapRef = useRef(null);
   const directionsServiceRef = useRef(null);
   const watchIdRef = useRef(null);
-  const mapDragListenerRef = useRef(null);
-  const hasInitializedMap = useRef(false);
   
   const [driverPosition, setDriverPosition] = useState(null);
   const [originCoords, setOriginCoords] = useState(null);
@@ -235,8 +233,6 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
   const [remainingDuration, setRemainingDuration] = useState(null);
   const [showStepDetails, setShowStepDetails] = useState(false);
   const [mapError, setMapError] = useState(false);
-  const [autoFollowDriver, setAutoFollowDriver] = useState(false);
-  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
   const isActive = order?.status === "in_transit" || order?.status === "Em entrega";
 
@@ -273,6 +269,7 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
   // Calculate route
   const calculateRoute = useCallback(() => {
     if (!isLoaded || !window.google || !originCoords || !destCoords) {
+      console.log("Cannot calculate route: missing dependencies");
       return;
     }
 
@@ -333,7 +330,6 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
 
   // Get driver's current location
   const getCurrentLocation = async () => {
-    setIsLoadingLocation(true);
     try {
       const position = await getCurrentPosition();
       const pos = {
@@ -343,23 +339,24 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
       setDriverPosition(pos);
       setMapCenter(pos);
       
+      // Send location to server via socket
       if (socket && order?.id) {
         socket.emit("order:location", { orderId: order.id, coords: pos });
       }
       
+      // Update current step based on position
       updateCurrentStep(pos);
     } catch (error) {
       console.error("Error getting location:", error);
       alert("Não foi possível obter sua localização. Verifique as permissões.");
-    } finally {
-      setIsLoadingLocation(false);
     }
   };
 
-  // Start navigation
+  // Start navigation (continuous location tracking)
   const startNavigation = async () => {
     setIsNavigating(true);
     
+    // Get initial position
     await getCurrentLocation();
     
     if (isNative) {
@@ -367,14 +364,12 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
         const permission = await Geolocation.checkPermissions();
         if (permission.location === "denied") {
           alert("Permissão de localização negada");
-          setIsNavigating(false);
           return;
         }
         if (permission.location !== "granted") {
           const request = await Geolocation.requestPermissions();
           if (request.location === "denied") {
             alert("Permissão de localização negada");
-            setIsNavigating(false);
             return;
           }
         }
@@ -392,7 +387,7 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
               };
               setDriverPosition(pos);
               
-              if (mapRef.current && isNavigating && autoFollowDriver) {
+              if (mapRef.current && isNavigating) {
                 mapRef.current.panTo(pos);
               }
               
@@ -409,17 +404,16 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
       } catch (error) {
         console.error("Error starting native geolocation watch:", error);
         alert("Não foi possível iniciar a navegação.");
-        setIsNavigating(false);
       }
       return;
     }
 
     if (!navigator.geolocation) {
       alert("Geolocalização não é suportada");
-      setIsNavigating(false);
       return;
     }
 
+    // Start watching position
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
         const pos = {
@@ -428,15 +422,20 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
         };
         setDriverPosition(pos);
         
-        if (mapRef.current && isNavigating && autoFollowDriver) {
+        // Update map center if navigating
+        if (mapRef.current && isNavigating) {
           mapRef.current.panTo(pos);
         }
         
+        // Send location to server
         if (socket && order?.id) {
           socket.emit("order:location", { orderId: order.id, coords: pos });
         }
         
+        // Update current step based on position
         updateCurrentStep(pos);
+        
+        // Update remaining distance and duration
         updateRemainingInfo(pos);
       },
       (error) => {
@@ -449,20 +448,14 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
   // Stop navigation
   const stopNavigation = () => {
     if (watchIdRef.current !== null) {
-      if (isNative && watchIdRef.current) {
+      if (isNative) {
         Geolocation.clearWatch({ id: watchIdRef.current });
-      } else if (navigator.geolocation && watchIdRef.current) {
+      } else if (navigator.geolocation) {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
       watchIdRef.current = null;
     }
     setIsNavigating(false);
-    setAutoFollowDriver(false);
-    
-    if (mapDragListenerRef.current && window.google) {
-      window.google.maps.event.removeListener(mapDragListenerRef.current);
-      mapDragListenerRef.current = null;
-    }
   };
 
   // Update current step based on driver position
@@ -471,9 +464,12 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
     
     for (let i = routeInfo.steps.length - 1; i >= 0; i--) {
       const step = routeInfo.steps[i];
-      if (step.lat && step.lng) {
-        const distance = getDistance(position, { lat: step.lat, lng: step.lng });
-        if (distance < 50) {
+      const stepLat = step.lat;
+      const stepLng = step.lng;
+      
+      if (stepLat && stepLng) {
+        const distance = getDistance(position, { lat: stepLat, lng: stepLng });
+        if (distance < 50) { // Within 50 meters
           setCurrentStepIndex(i);
           break;
         }
@@ -494,13 +490,13 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
       if (!foundCurrent && i === currentStepIndex) {
         const stepPos = { lat: step.lat, lng: step.lng };
         const distanceToStep = getDistance(position, stepPos);
-        const stepDistance = step.distanceValue || 0;
+        const stepDistance = step.distanceValue;
         remainingDist += Math.max(0, stepDistance - distanceToStep);
-        remainingDur += (step.durationValue || 0) * (1 - (distanceToStep / (stepDistance || 1)));
+        remainingDur += step.durationValue * (1 - (distanceToStep / stepDistance));
         foundCurrent = true;
       } else {
-        remainingDist += step.distanceValue || 0;
-        remainingDur += step.durationValue || 0;
+        remainingDist += step.distanceValue;
+        remainingDur += step.durationValue;
       }
     }
     
@@ -510,7 +506,7 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
 
   // Calculate distance between two points in meters
   const getDistance = (point1, point2) => {
-    const R = 6371000;
+    const R = 6371000; // meters
     const lat1 = point1.lat * Math.PI / 180;
     const lat2 = point2.lat * Math.PI / 180;
     const deltaLat = (point2.lat - point1.lat) * Math.PI / 180;
@@ -546,59 +542,8 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
   // Center map on driver
   const centerOnDriver = () => {
     if (mapRef.current && driverPosition) {
-      setAutoFollowDriver(true);
       mapRef.current.panTo(driverPosition);
       mapRef.current.setZoom(16);
-      
-      if (mapDragListenerRef.current && window.google) {
-        window.google.maps.event.removeListener(mapDragListenerRef.current);
-        mapDragListenerRef.current = null;
-      }
-      
-      if (window.google) {
-        mapDragListenerRef.current = mapRef.current.addListener('dragstart', () => {
-          setAutoFollowDriver(false);
-          if (mapDragListenerRef.current) {
-            window.google.maps.event.removeListener(mapDragListenerRef.current);
-            mapDragListenerRef.current = null;
-          }
-        });
-      }
-    }
-  };
-
-  // Toggle auto-follow
-  const toggleAutoFollow = () => {
-    if (!driverPosition) return;
-    
-    const newAutoFollow = !autoFollowDriver;
-    setAutoFollowDriver(newAutoFollow);
-    
-    if (newAutoFollow) {
-      if (mapRef.current && driverPosition) {
-        mapRef.current.panTo(driverPosition);
-        mapRef.current.setZoom(16);
-        
-        if (mapDragListenerRef.current && window.google) {
-          window.google.maps.event.removeListener(mapDragListenerRef.current);
-          mapDragListenerRef.current = null;
-        }
-        
-        if (window.google) {
-          mapDragListenerRef.current = mapRef.current.addListener('dragstart', () => {
-            setAutoFollowDriver(false);
-            if (mapDragListenerRef.current) {
-              window.google.maps.event.removeListener(mapDragListenerRef.current);
-              mapDragListenerRef.current = null;
-            }
-          });
-        }
-      }
-    } else {
-      if (mapDragListenerRef.current && window.google) {
-        window.google.maps.event.removeListener(mapDragListenerRef.current);
-        mapDragListenerRef.current = null;
-      }
     }
   };
 
@@ -606,18 +551,10 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
   const fitBounds = () => {
     if (mapRef.current && window.google && originCoords && destCoords) {
       try {
-        setAutoFollowDriver(false);
-        if (mapDragListenerRef.current) {
-          window.google.maps.event.removeListener(mapDragListenerRef.current);
-          mapDragListenerRef.current = null;
-        }
-        
         const bounds = new window.google.maps.LatLngBounds();
-        bounds.extend(new window.google.maps.LatLng(originCoords.lat, originCoords.lng));
-        bounds.extend(new window.google.maps.LatLng(destCoords.lat, destCoords.lng));
-        if (driverPosition) {
-          bounds.extend(new window.google.maps.LatLng(driverPosition.lat, driverPosition.lng));
-        }
+        bounds.extend(originCoords);
+        bounds.extend(destCoords);
+        if (driverPosition) bounds.extend(driverPosition);
         mapRef.current.fitBounds(bounds);
       } catch (error) {
         console.error("Error fitting bounds:", error);
@@ -630,18 +567,18 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
     const mapElement = mapRef.current?.getDiv();
     if (mapElement) {
       if (!isFullscreen) {
-        mapElement.requestFullscreen?.();
+        mapElement.requestFullscreen();
         setIsFullscreen(true);
       } else {
-        document.exitFullscreen?.();
+        document.exitFullscreen();
         setIsFullscreen(false);
       }
     }
   };
 
-  // Speak instruction
+  // Simulate voice instruction (text-to-speech)
   const speakInstruction = (instruction) => {
-    if (isMuted || !instruction) return;
+    if (isMuted) return;
     try {
       const utterance = new SpeechSynthesisUtterance(instruction);
       utterance.lang = "pt-BR";
@@ -655,11 +592,11 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
   const getNextInstruction = () => {
     if (routeInfo?.steps && currentStepIndex < routeInfo.steps.length) {
       const step = routeInfo.steps[currentStepIndex];
-      const cleanInstruction = step.instruction?.replace(/<[^>]*>/g, '') || '';
+      const cleanInstruction = step.instruction.replace(/<[^>]*>/g, '');
       return {
         instruction: cleanInstruction,
-        distance: step.distance || '',
-        duration: step.duration || ''
+        distance: step.distance,
+        duration: step.duration
       };
     }
     return null;
@@ -668,40 +605,33 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
   const onMapLoad = useCallback((map) => {
     mapRef.current = map;
     if (originCoords && destCoords) {
-      setTimeout(() => {
-        fitBounds();
-        hasInitializedMap.current = true;
-      }, 100);
+      setTimeout(() => fitBounds(), 100);
     }
   }, [originCoords, destCoords]);
 
-  // Cleanup on unmount
-  useEffect(() => {
+  // Cleanup on unmount - do not uncomment this line because it is breaking my app
+ /* useEffect(() => {
     return () => {
       if (watchIdRef.current !== null) {
-        if (isNative && watchIdRef.current) {
+        if (isNative) {
           Geolocation.clearWatch({ id: watchIdRef.current });
-        } else if (navigator.geolocation && watchIdRef.current) {
+        } else if (navigator.geolocation) {
           navigator.geolocation.clearWatch(watchIdRef.current);
         }
         watchIdRef.current = null;
       }
-      if (mapDragListenerRef.current && window.google) {
-        window.google.maps.event.removeListener(mapDragListenerRef.current);
-        mapDragListenerRef.current = null;
-      }
-      window.speechSynthesis?.cancel();
+      window.speechSynthesis.cancel();
     };
-  }, []);
+  }, []);*/
 
   if (!isOpen || !order) return null;
 
   const currentInstruction = getNextInstruction();
   
-  // Safely create icons
-  const DriverIcon = isLoaded ? (getDriverCarIconSVG() || getDriverCarIcon()) : null;
-  const originIcon = isLoaded ? (createMarkerIconSVG("#10b981", 10) || createMarkerIcon("#10b981", 10)) : null;
-  const destIcon = isLoaded ? (createMarkerIconSVG("#ef4444", 10) || createMarkerIcon("#ef4444", 10)) : null;
+  // Safely create icons - using SVG versions as fallback
+  const DriverIcon = isLoaded ? getDriverCarIconSVG() || getDriverCarIcon() : null;
+  const originIcon = isLoaded ? createMarkerIconSVG("#10b981", 10) || createMarkerIcon("#10b981", 10) : null;
+  const destIcon = isLoaded ? createMarkerIconSVG("#ef4444", 10) || createMarkerIcon("#ef4444", 10) : null;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Navegação">
@@ -732,13 +662,14 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
                 onLoad={onMapLoad}
                 options={{
                   disableDefaultUI: true,
-                  zoomControl: false,
+                  zoomControl: true,
                   mapTypeControl: false,
                   streetViewControl: false,
                   fullscreenControl: false,
                   gestureHandling: 'greedy'
                 }}
               >
+                {/* Route */}
                 {directions && (
                   <DirectionsRenderer
                     directions={directions}
@@ -754,6 +685,7 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
                   />
                 )}
 
+                {/* Origin Marker */}
                 {originCoords && originIcon && (
                   <Marker
                     position={originCoords}
@@ -773,6 +705,7 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
                   </Marker>
                 )}
 
+                {/* Destination Marker */}
                 {destCoords && destIcon && (
                   <Marker
                     position={destCoords}
@@ -792,9 +725,9 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
                   </Marker>
                 )}
 
-                {driverPosition && DriverIcon && (
+                {/* Driver Marker */}
+                {driverPosition && DriverIcon && isLoaded && (
                   <Marker
-                    key={`driver-${driverPosition.lat}-${driverPosition.lng}`}
                     position={driverPosition}
                     icon={DriverIcon}
                     onClick={() => setSelectedMarker('driver')}
@@ -824,28 +757,13 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
                     <Compass size={18} />
                   </button>
                   {driverPosition && (
-                    <>
-                      <button
-                        onClick={centerOnDriver}
-                        className={`w-9 h-9 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center transition-colors ${
-                          autoFollowDriver ? 'text-orange-600 bg-orange-50 border-orange-300' : 'text-blue-600 hover:text-blue-700'
-                        }`}
-                        title="Centralizar no veículo"
-                      >
-                        <Navigation size={18} />
-                      </button>
-                      <button
-                        onClick={toggleAutoFollow}
-                        className={`w-9 h-9 rounded-full shadow-lg border flex items-center justify-center transition-colors ${
-                          autoFollowDriver 
-                            ? 'bg-orange-500 border-orange-500 text-white hover:bg-orange-600' 
-                            : 'bg-white border-slate-200 text-slate-600 hover:text-orange-600'
-                        }`}
-                        title={autoFollowDriver ? "Desativar seguimento" : "Ativar seguimento automático"}
-                      >
-                        <Crosshair size={18} />
-                      </button>
-                    </>
+                    <button
+                      onClick={centerOnDriver}
+                      className="w-9 h-9 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-blue-600 hover:text-blue-700 transition-colors"
+                      title="Centralizar no veículo"
+                    >
+                      <Navigation size={18} />
+                    </button>
                   )}
                   <button
                     onClick={toggleFullscreen}
@@ -862,46 +780,6 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
                     {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                   </button>
                 </div>
-              </div>
-
-              {/* Auto-follow indicator */}
-              {autoFollowDriver && driverPosition && (
-                <div className="absolute top-3 left-3">
-                  <div className="bg-orange-500/95 backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-lg flex items-center gap-2">
-                    <Crosshair size={14} className="text-white animate-pulse" />
-                    <span className="text-xs font-medium text-white">A seguir veículo</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Zoom Controls */}
-              <div className="absolute right-3 top-3 flex flex-col gap-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (mapRef.current) {
-                      const currentZoom = mapRef.current.getZoom();
-                      mapRef.current.setZoom(Math.min(currentZoom + 1, 20));
-                    }
-                  }}
-                  className="w-9 h-9 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:text-orange-600 transition-colors text-lg font-bold"
-                  title="Aumentar zoom"
-                >
-                  +
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (mapRef.current) {
-                      const currentZoom = mapRef.current.getZoom();
-                      mapRef.current.setZoom(Math.max(currentZoom - 1, 3));
-                    }
-                  }}
-                  className="w-9 h-9 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:text-orange-600 transition-colors text-lg font-bold"
-                  title="Diminuir zoom"
-                >
-                  −
-                </button>
               </div>
             </>
           )}
@@ -938,11 +816,11 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-white rounded-lg p-2 text-center">
                 <p className="text-xs text-slate-400">Distância restante</p>
-                <p className="text-lg font-bold text-blue-600">{remainingDistance || routeInfo?.distance || '--'}</p>
+                <p className="text-lg font-bold text-blue-600">{remainingDistance || routeInfo?.distance}</p>
               </div>
               <div className="bg-white rounded-lg p-2 text-center">
                 <p className="text-xs text-slate-400">Tempo restante</p>
-                <p className="text-lg font-bold text-green-600">{remainingDuration || routeInfo?.duration || '--'}</p>
+                <p className="text-lg font-bold text-green-600">{remainingDuration || routeInfo?.duration}</p>
               </div>
             </div>
           )}
@@ -953,15 +831,10 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
               <>
                 <button
                   onClick={getCurrentLocation}
-                  disabled={isLoadingLocation}
-                  className="flex-1 py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
                 >
-                  {isLoadingLocation ? (
-                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                  ) : (
-                    <Navigation size={16} />
-                  )}
-                  {isLoadingLocation ? 'A obter...' : 'Obter Localização'}
+                  <Navigation size={16} />
+                  Obter Localização
                 </button>
                 <button
                   onClick={startNavigation}
@@ -995,21 +868,6 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
             )}
           </div>
 
-          {/* Auto-follow toggle button in controls */}
-          {driverPosition && isNavigating && (
-            <button
-              onClick={toggleAutoFollow}
-              className={`w-full py-2 rounded-xl border font-semibold text-xs transition-colors flex items-center justify-center gap-2 ${
-                autoFollowDriver 
-                  ? 'bg-orange-500 border-orange-500 text-white hover:bg-orange-600' 
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              <LocateFixed size={14} />
-              {autoFollowDriver ? 'Seguindo veículo automaticamente' : 'Seguir veículo'}
-            </button>
-          )}
-
           {/* Step Details Toggle */}
           {routeInfo && (
             <button
@@ -1033,11 +891,11 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
                         <span className="text-[10px] font-bold">{idx + 1}</span>
                       </div>
                       <div className="flex-1 text-black">
-                        <div dangerouslySetInnerHTML={{ __html: step.instruction || '' }} />
+                        <div dangerouslySetInnerHTML={{ __html: step.instruction }} />
                         <div className="flex gap-2 mt-1">
-                          <span className="text-[10px] text-slate-400">{step.distance || ''}</span>
+                          <span className="text-[10px] text-slate-400">{step.distance}</span>
                           <span className="text-[10px] text-slate-400">•</span>
-                          <span className="text-[10px] text-slate-400">{step.duration || ''}</span>
+                          <span className="text-[10px] text-slate-400">{step.duration}</span>
                         </div>
                       </div>
                       {idx === currentStepIndex && (
@@ -1053,7 +911,7 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
           {/* Order Summary */}
           <div className="border-t border-slate-200 pt-3">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-slate-400">Pedido #{order.id?.slice(-8).toUpperCase() || 'N/A'}</p>
+              <p className="text-xs text-slate-400">Pedido #{order.id?.slice(-8).toUpperCase()}</p>
               <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
                 isActive ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
               }`}>
@@ -1062,7 +920,7 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
               </div>
             </div>
             <div className="flex items-center justify-between mt-2">
-              <p className="text-xs text-slate-400">Valor: {order.total || 0} MZN</p>
+              <p className="text-xs text-slate-400">Valor: {order.total} MZN</p>
               <button onClick={onClose} className="text-xs text-orange-500 font-semibold hover:text-orange-600">
                 Fechar
               </button>
