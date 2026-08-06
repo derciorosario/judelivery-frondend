@@ -119,7 +119,7 @@ const Footer = () => {
         
         <div className="border-t border-secondary-800 pt-6 sm:pt-8 text-center">
           <p className="text-xs sm:text-sm text-gray-500">
-            &copy; {new Date().getFullYear()} {appSettings.appName || 'judelivery'}. Todos os direitos reservados.
+            &copy; {new Date().getFullYear()} {appSettings.appName || 'J. RIBEIRO SERVIÇOS E.I'}. Todos os direitos reservados.
           </p>
         </div>
       </div>
