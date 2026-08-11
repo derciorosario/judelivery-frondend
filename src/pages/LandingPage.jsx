@@ -132,10 +132,11 @@ const LandingPage = () => {
 
       <div className="min-h-screen bg-white overflow-x-hidden relative">
    
-      {/* Enhanced Mobile-First Header */}
-   <motion.header 
+    
+   {/* Enhanced Mobile-First Header */}
+<motion.header 
   className={`fixed ${hasOrder ? 'top-[60px]' : 'top-0'} w-full z-50 transition-all duration-500 ${
-    scrolled ? 'bg-white/95 backdrop-blur-xl shadow-2xl' : 'bg-transparent'
+    scrolled || mobileMenuOpen ? 'bg-white shadow-2xl' : 'bg-transparent'
   }`}
   initial={{ y: -100 }}
   animate={{ y: 0 }}
@@ -148,20 +149,19 @@ const LandingPage = () => {
         whileHover={{ scale: 1.02 }}
       >
         <motion.div 
-          className=" flex items-center justify-center"
+          className="flex items-center justify-center"
           whileHover={{ rotate: -10 }}
         >
-           
-           <img src={Logo} className="w-[60px]"/>
+          <img src={Logo} className="w-[60px]" alt="Logo"/>
         </motion.div>
         <div className="hidden xs:block">
           <h1 className={`text-base sm:text-xl font-bold tracking-tight leading-tight ${
-            scrolled ? 'text-secondary-900' : 'text-white'
+            scrolled || mobileMenuOpen ? 'text-secondary-900' : 'text-white'
           }`}>
             J. RIBEIRO
           </h1>
           <p className={`text-[10px] sm:text-xs font-semibold tracking-wider ${
-            scrolled ? 'text-primary-600' : 'text-white/90'
+            scrolled || mobileMenuOpen ? 'text-primary-600' : 'text-white/90'
           }`}>
             ENTREGAS & TRANSPORTE
           </p>
@@ -173,7 +173,7 @@ const LandingPage = () => {
         <motion.a 
           href="#services" 
           className={`transition font-medium ${
-            scrolled ? 'text-secondary-600 hover:text-primary-600' : '!text-white hover:text-white/80'
+            scrolled || mobileMenuOpen ? 'text-secondary-600 hover:text-primary-600' : '!text-white hover:text-white/80'
           }`}
           whileHover={{ y: -2 }}
         >
@@ -182,7 +182,7 @@ const LandingPage = () => {
         <motion.a 
           href="#about" 
           className={`transition font-medium ${
-            scrolled ? 'text-secondary-600 hover:text-primary-600' : '!text-white hover:text-white/80'
+            scrolled || mobileMenuOpen ? 'text-secondary-600 hover:text-primary-600' : '!text-white hover:text-white/80'
           }`}
           whileHover={{ y: -2 }}
         >
@@ -191,7 +191,7 @@ const LandingPage = () => {
         <motion.a 
           href="#contact" 
           className={`transition font-medium ${
-            scrolled ? 'text-secondary-600 hover:text-primary-600' : '!text-white hover:text-white/80'
+            scrolled || mobileMenuOpen ? 'text-secondary-600 hover:text-primary-600' : '!text-white hover:text-white/80'
           }`}
           whileHover={{ y: -2 }}
         >
@@ -200,7 +200,7 @@ const LandingPage = () => {
         <Link 
           to="/faq" 
           className={`transition font-medium ${
-            scrolled ? 'text-secondary-600 hover:text-primary-600' : '!text-white hover:text-white/80'
+            scrolled || mobileMenuOpen ? 'text-secondary-600 hover:text-primary-600' : '!text-white hover:text-white/80'
           }`}
           whileHover={{ y: -2 }}
         >
@@ -209,7 +209,7 @@ const LandingPage = () => {
         <Link 
           to="/login" 
           className={`px-6 py-2.5 font-semibold transition ${
-            scrolled ? 'text-secondary-700 hover:text-primary-600' : '!text-white hover:text-white/80'
+            scrolled || mobileMenuOpen ? 'text-secondary-700 hover:text-primary-600' : '!text-white hover:text-white/80'
           }`}
         >
           Entrar
@@ -233,7 +233,7 @@ const LandingPage = () => {
         <Link 
           to="/login" 
           className={`font-semibold text-sm transition ${
-            scrolled ? 'text-secondary-700 hover:text-primary-600' : '!text-white hover:text-white/80'
+            scrolled || mobileMenuOpen ? 'text-secondary-700 hover:text-primary-600' : '!text-white hover:text-white/80'
           }`}
         >
           Entrar
@@ -241,7 +241,7 @@ const LandingPage = () => {
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className={`transition p-2 ${
-            scrolled ? 'text-secondary-700 hover:text-primary-600' : '!text-white hover:text-white/80'
+            scrolled || mobileMenuOpen ? 'text-secondary-700 hover:text-primary-600' : '!text-white hover:text-white/80'
           }`}
           aria-label="Toggle menu"
         >
@@ -260,40 +260,32 @@ const LandingPage = () => {
           transition={{ duration: 0.3 }}
           className="md:hidden overflow-hidden"
         >
-          <div className={`py-4 border-t ${scrolled ? 'border-gray-200' : 'border-white/20'}`}>
+          <div className="py-4 border-t border-gray-200">
             <div className="flex flex-col space-y-3">
               <a 
                 href="#services" 
-                className={`transition font-medium py-2 px-4 rounded-lg ${
-                  scrolled ? 'text-secondary-600 hover:text-primary-600 hover:bg-secondary-50' : '!text-white hover:text-white/80 hover:bg-white/10'
-                }`}
+                className="transition font-medium py-2 px-4 rounded-lg text-secondary-600 hover:text-primary-600 hover:bg-secondary-50"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Serviços
               </a>
               <a 
                 href="#about" 
-                className={`transition font-medium py-2 px-4 rounded-lg ${
-                  scrolled ? 'text-secondary-600 hover:text-primary-600 hover:bg-secondary-50' : '!text-white hover:text-white/80 hover:bg-white/10'
-                }`}
+                className="transition font-medium py-2 px-4 rounded-lg text-secondary-600 hover:text-primary-600 hover:bg-secondary-50"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Sobre
               </a>
               <a 
                 href="#contact" 
-                className={`transition font-medium py-2 px-4 rounded-lg ${
-                  scrolled ? 'text-secondary-600 hover:text-primary-600 hover:bg-secondary-50' : '!text-white hover:text-white/80 hover:bg-white/10'
-                }`}
+                className="transition font-medium py-2 px-4 rounded-lg text-secondary-600 hover:text-primary-600 hover:bg-secondary-50"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Contacto
               </a>
               <Link
                 to="/faq"
-                className={`transition font-medium py-2 px-4 rounded-lg ${
-                  scrolled ? 'text-secondary-600 hover:text-primary-600 hover:bg-secondary-50' : '!text-white hover:text-white/80 hover:bg-white/10'
-                }`}
+                className="transition font-medium py-2 px-4 rounded-lg text-secondary-600 hover:text-primary-600 hover:bg-secondary-50"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 FAQ
@@ -312,8 +304,6 @@ const LandingPage = () => {
     </AnimatePresence>
   </div>
 </motion.header>
-
-
 
       {/* Hero Section - Mobile Optimized */}
       <section ref={heroRef} className="relative min-h-screen flex items-center overflow-hidden bg-secondary-900">
@@ -539,7 +529,7 @@ const LandingPage = () => {
                        */}
 
                       <motion.a 
-                        href={`${API_URL.replace('/api', '')}/download/android/app-debug.apk`}
+                        href={`${API_URL.replace(/\/api$/, '')}/download/android/app-debug.apk`}
                         download
                         className="flex items-center justify-center space-x-2 bg-white/10 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-xl border border-white/20 hover:bg-white/20 transition w-full sm:w-auto"
                         whileHover={{ scale: 1.05 }}

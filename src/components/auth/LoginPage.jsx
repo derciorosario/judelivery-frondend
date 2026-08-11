@@ -185,7 +185,7 @@ const LoginPage = () => {
           <div className="text-center">
             <Link to="/forgot-password" className="text-sm text-orange-500 hover:text-orange-600 font-medium">Esqueceu a palavra-passe?</Link>
           </div>
-          <button
+          {!isNative && <button
             onClick={handleGoogleClick}
             disabled={loading}
             className="w-full py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -204,7 +204,7 @@ const LoginPage = () => {
               </svg>
             )}
             {loading ? "" : "Entrar com Google"}
-          </button>
+          </button>}
           <div className="text-center">
             <Link to="/register" className="text-sm text-slate-500 hover:text-slate-700 font-medium">Não tem conta? Registe-se</Link>
           </div>

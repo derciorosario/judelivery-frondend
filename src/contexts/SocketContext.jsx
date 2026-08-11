@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 import { env } from "../api/client";
 import { useAuth } from "./AuthContext";
 
-const SOCKET_URL = env == "dev" ? "http://localhost:5001" : "https://judelivery-api.derflash.com";
+const SOCKET_URL = env == "dev" ? "http://localhost:5001" : "https://api.jrmultiservicos.co.mz";
 
 const SocketContext = createContext(null);
 

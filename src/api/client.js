@@ -3,12 +3,13 @@ export const env = "pro";
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 export const isNative = Capacitor.isNativePlatform();
 export const APP_VERSION="1.0"
+export const FRONTEND_URL = "https://jrmultiservicos.co.mz"
 export const API_URL = 
  env == "dev" ? isNative ? "http://192.168.18.3:5001/api" : "http://localhost:5001/api" :
-  // env == "dev" ? true ? "https://judelivery-api.derflash.com/api" : "http://localhost:5001/api" :
-   env == "test" ? "https://judelivery-api.derflash.com/api" :
-                  "https://judelivery-api.derflash.com/api";
-export const APK_DOWNLOAD_URL = `${API_URL.replace('/api', '')}/download/android/app-debug.apk`;
+  // env == "dev" ? true ? "https://api.jrmultiservicos.co.mz/api" : "http://localhost:5001/api" :
+   env == "test" ? "https://api.jrmultiservicos.co.mz/api" :
+                  "https://api.jrmultiservicos.co.mz/api";
+export const APK_DOWNLOAD_URL = `${API_URL.replace(/\/api$/, '')}/download/android/app-debug.apk`;
 
 const client = axios.create({
   baseURL: API_URL,

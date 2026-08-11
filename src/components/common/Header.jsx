@@ -2,9 +2,22 @@ import React, { useState, useEffect, useRef } from 'react';
 import Icon from './Icon';
 import { useSocket } from '../../contexts/SocketContext';
 import client from '../../api/client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import ContactSupportModal from './modals/ContactSupportModal';
 import ConfirmDialog from './ConfirmDialog';
+const isNative = Capacitor.isNativePlatform();
+
+const isMobile = () => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
+
+const getMobileOS = () => {
+  const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+  if (/android/i.test(userAgent)) return 'android';
+  if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) return 'ios';
+  return null;
+};
+
 
 // Import sound file
 import notificationSound from '../../assets/sound/notification-1.mp3';
@@ -24,6 +37,22 @@ const Header = ({ user, onLogout, title, onNotificationClick, urgentOrdersCount 
   const audioRef = useRef(null);
   const { socket } = useSocket();
   const {pathname} = useAuth()
+
+  const [showMobileBanner, setShowMobileBanner] = useState(false);
+
+  useEffect(() => {
+    const dismissed = localStorage.getItem('mobileAppBannerDismissed');
+    const dismissedDate = localStorage.getItem('mobileAppBannerDismissedDate');
+    const today = new Date().toDateString();
+
+  
+    if (!dismissed || dismissedDate !== today) {
+      if (!isNative && isMobile() && getMobileOS()) {
+        setShowMobileBanner(true);
+      }
+    }
+
+  }, []);
 
 
 
@@ -104,6 +133,12 @@ const Header = ({ user, onLogout, title, onNotificationClick, urgentOrdersCount 
     if (onNotificationClick) {
       onNotificationClick();
     }
+  };
+
+  const handleCloseMobileBanner = () => {
+    setShowMobileBanner(false);
+    localStorage.setItem('mobileAppBannerDismissed', 'true');
+    localStorage.setItem('mobileAppBannerDismissedDate', new Date().toDateString());
   };
 
   useEffect(() => {
@@ -197,6 +232,42 @@ const Header = ({ user, onLogout, title, onNotificationClick, urgentOrdersCount 
   return (
     <>
       <div className="sticky top-0 z-30">
+        {/* Mobile App Download Banner */}
+        {showMobileBanner && (() => {
+          const os = getMobileOS();
+          const isAndroid = os === 'android';
+          const isIOS = os === 'ios';
+          return (
+            <div className="bg-slate-800 text-white py-2 px-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <Icon name="smartphone" size={18} className="text-blue-400 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium truncate !text-white">
+                  {isAndroid && 'Baixe o nosso aplicativo para Android'}
+                  {isIOS && 'Em breve, disponível na App Store!'}
+                </span>
+                 {isAndroid && (
+                  <Link
+                    to="/download"
+                    className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 !text-white text-xs font-semibold rounded-lg transition-colors whitespace-nowrap"
+                  >
+                    Baixar
+                  </Link>
+                )}
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+               
+                <button
+                  onClick={handleCloseMobileBanner}
+                  className="p-1 rounded-full hover:bg-slate-700 transition-colors"
+                  aria-label="Fechar banner"
+                >
+                  <Icon name="x" size={16} />
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
         <div className="bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between">
           <div>
             <p className="text-xs text-slate-400">Olá, {user.name?.split(" ")[0]}</p>
