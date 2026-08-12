@@ -27,7 +27,7 @@ const LoginPage = () => {
   }, []);
 
   const credentials = [
-    { role: "Super Admin", email: "superadmin@jrmultiservicos.mz", pass: "superadmin123", color: "bg-red-50 border-red-200", dot: "bg-red-400" },
+    //{ role: "Super Admin", email: "superadmin@jrmultiservicos.mz", pass: "superadmin123", color: "bg-red-50 border-red-200", dot: "bg-red-400" },
     { role: "Admin", email: "admin@jrmultiservicos.mz", pass: "admin123", color: "bg-orange-50 border-orange-200", dot: "bg-orange-400" },
     { role: "Manager", email: "manager@jrmultiservicos.mz", pass: "manager123", color: "bg-teal-50 border-teal-200", dot: "bg-teal-400" },
     { role: "Driver", email: "driver@jrmultiservicos.mz", pass: "driver123", color: "bg-blue-50 border-blue-200", dot: "bg-blue-400" },

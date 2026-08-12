@@ -26,6 +26,7 @@ import {
   LocateFixed,
   Crosshair
 } from "lucide-react";
+import { useData } from "../../../contexts/DataContext";
 
 const GOOGLE_MAPS_KEY = "AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak";
 const libraries = ["places"];
@@ -210,7 +211,7 @@ const createMarkerIconSVG = (color, scale = 8) => {
   }
 };
 
-const NavigationModal = ({ isOpen, onClose, order }) => {
+const NavigationModal = ({ autoClose, isOpen, onClose, order }) => {
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_KEY, libraries });
   const { socket } = useSocket();
   const mapRef = useRef(null);
@@ -237,6 +238,18 @@ const NavigationModal = ({ isOpen, onClose, order }) => {
   const [mapError, setMapError] = useState(false);
   const [autoFollowDriver, setAutoFollowDriver] = useState(false);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const data=useData()
+
+
+  useEffect(()=>{
+  if(!data.postDialogOpen && autoClose){
+      onClose()
+  }
+  },[data.postDialogOpen])
+  
+  useEffect(()=>{
+    data.setPostDialogOpen(isOpen)
+  },[isOpen])
 
   const isActive = order?.status === "in_transit" || order?.status === "Em entrega";
 

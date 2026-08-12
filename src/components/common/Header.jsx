@@ -6,6 +6,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import ContactSupportModal from './modals/ContactSupportModal';
 import ConfirmDialog from './ConfirmDialog';
 const isNative = Capacitor.isNativePlatform();
+import { useData } from "../../contexts/DataContext";
 
 const isMobile = () => {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -23,6 +24,8 @@ const getMobileOS = () => {
 import notificationSound from '../../assets/sound/notification-1.mp3';
 import { useAuth } from '../../contexts/AuthContext';
 import { Phone } from 'lucide-react';
+import { App } from '@capacitor/app'
+import { Capacitor } from "@capacitor/core";
 
 const Header = ({ user, onLogout, title, onNotificationClick, urgentOrdersCount }) => {
   const navigate = useNavigate();
@@ -37,6 +40,83 @@ const Header = ({ user, onLogout, title, onNotificationClick, urgentOrdersCount 
   const audioRef = useRef(null);
   const { socket } = useSocket();
   const {pathname} = useAuth()
+  const data=useData()
+
+
+
+
+
+
+    useEffect(() => {
+
+
+
+    const isNative = Capacitor.isNativePlatform();
+    let backListener;
+
+    // -------------------------
+    // ANDROID HARDWARE BACK
+    // -------------------------
+    if (isNative) {
+      backListener = App.addListener("backButton", (event) => {
+        // CASE 1: Dialog open → close dialog, block navigation + app exit
+        if (data.postDialogOpen) {
+          event.preventDefault?.();
+          data.setPostDialogOpen(false);
+          return;
+        }
+
+        // CASE 2: Dialog closed → normal navigation rules
+        const path = location.pathname;
+
+        // IF in "/", "/people" → exit app
+        if (path === "/" || path === "/people") {
+          App.exitApp();
+          return;
+        }
+
+        // Otherwise → navigate back inside the app
+        if (window.history.length > 1) {
+          window.history.back();
+          return;
+        }
+
+        // If somehow no history → exit
+        App.exitApp();
+      });
+    }
+
+    // -------------------------
+    // BROWSER BACK BUTTON
+    // -------------------------
+    const handlePopState = (e) => {
+      if (data.postDialogOpen) {
+        // Close dialog instead of going back
+        e.preventDefault();
+        data.setPostDialogOpen(false);
+
+        // Push the state back to prevent actual navigation
+        window.history.pushState(null, "", window.location.href);
+      }
+    };
+
+    if (data.postDialogOpen) {
+      // Trap browser back
+      window.history.pushState(null, "", window.location.href);
+      window.addEventListener("popstate", handlePopState);
+    }
+
+    // Cleanup
+    return () => {
+      if (backListener) backListener.remove();
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [data.postDialogOpen, location.pathname]);
+
+
+
+
+
 
   const [showMobileBanner, setShowMobileBanner] = useState(false);
 
@@ -113,6 +193,7 @@ const Header = ({ user, onLogout, title, onNotificationClick, urgentOrdersCount 
 
   const handleLogoutClick = () => {
     setShowLogoutConfirm(true);
+    data.setPostDialogOpen(true)
   };
 
   const handleLogoutConfirm = () => {
@@ -319,7 +400,13 @@ const Header = ({ user, onLogout, title, onNotificationClick, urgentOrdersCount 
               {urgentOrdersCount === 1 ? 'Existe' : 'Existem'} {urgentOrdersCount} {urgentOrdersCount === 1 ? 'pedido urgente' : 'pedidos urgentes'}
             </span>
             <button
-              onClick={() => setShowSupportModal(true)}
+
+              onClick={() =>{
+                 setShowSupportModal(true)
+                 data.setPostDialogOpen(true)
+                 
+              }}
+
               className="ml-2 px-3 py-0.5 flex items-center justify-center gap-2 bg-white text-amber-600 rounded-lg text-xs font-semibold hover:bg-slate-100 transition-colors"
             >
               <Phone className="w-4"/> Suporte
@@ -403,6 +490,7 @@ const Header = ({ user, onLogout, title, onNotificationClick, urgentOrdersCount 
 {/* Support Modal for Customers */}
        {showSupportModal && user?.role === 'customer' && (
          <ContactSupportModal
+           autoClose={true}
            isOpen={showSupportModal}
            onClose={() => setShowSupportModal(false)}
          />
@@ -411,6 +499,7 @@ const Header = ({ user, onLogout, title, onNotificationClick, urgentOrdersCount 
        {/* Logout Confirmation Dialog */}
        {showLogoutConfirm && (
          <ConfirmDialog
+           autoClose={true}
            isOpen={showLogoutConfirm}
            onClose={handleLogoutCancel}
            onConfirm={handleLogoutConfirm}

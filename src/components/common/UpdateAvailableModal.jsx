@@ -10,7 +10,7 @@ const UpdateAvailableModal = ({ isOpen, onClose }) => {
           <FaDownload className="text-primary-600 text-2xl" />
         </div>
         <p className="text-slate-600">
-          Há uma nova versão do aplicativo disponível. Por favor, atualize para continuar usando o J. Ribeiro com os recursos mais recentes.
+          Há uma nova versão do aplicativo disponível. Por favor, atualize para continuar usando com os recursos mais recentes.
         </p>
         <a
           href={APK_DOWNLOAD_URL}

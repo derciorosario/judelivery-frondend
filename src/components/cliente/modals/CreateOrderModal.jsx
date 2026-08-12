@@ -22,7 +22,7 @@ const libraries = ["places"];
 // Set to false to use Haversine (straight-line distance & estimated duration)
 const USE_DIRECTIONS_DISTANCE = true;
 
-const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated, onOrderUpdated, repeatOrder, editOrder, serviceType, clientId, onClientSelectClick, selectedClient, settings, settingsLoading }) => {
+const CreateOrderModal = ({ autoClose, isOpen, onClose, user, customerData, onOrderCreated, onOrderUpdated, repeatOrder, editOrder, serviceType, clientId, onClientSelectClick, selectedClient, settings, settingsLoading }) => {
   const {user:authUser} = useAuth()
   const { settings: contextSettings, loading: contextSettingsLoading } = usePlatformSettings();
   const platformSettings = settings || contextSettings;
@@ -54,6 +54,16 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
   const [createdOrder, setCreatedOrder] = useState(null);
   const [locationError, setLocationError] = useState(null);
   const data = useData()
+
+  useEffect(()=>{
+  if(!data.postDialogOpen && autoClose){
+      onClose()
+  }
+  },[data.postDialogOpen])
+  
+  useEffect(()=>{
+    data.setPostDialogOpen(isOpen)
+  },[isOpen])
 
 
   const isComputer = () => {
@@ -1118,18 +1128,18 @@ const CreateOrderModal = ({ isOpen, onClose, user, customerData, onOrderCreated,
     return ["Item", "Endereços", "Detalhes", "Resumo"][step - 1];
   };
   
-const distance = calculateDistance();
-   const duration = resolvedServiceType === "taxi" ? calculateDuration() : calculateDeliveryDuration();
-   const isAnyManual = resolvedServiceType === "taxi"
+  const distance = calculateDistance();
+  const duration = resolvedServiceType === "taxi" ? calculateDuration() : calculateDeliveryDuration();
+  const isAnyManual = resolvedServiceType === "taxi"
      ? (form.manualPickup || form.manualDropoff)
      : (form.manualOrigin || form.manualDest);
-   const ridePrice = resolvedServiceType === "taxi" ? calculateRidePrice() : 0;
-   const baseRidePrice = resolvedServiceType === "taxi" ? calculateRideBasePrice() : 0;
-   const deliveryPrice = resolvedServiceType === "delivery" ? calculateDeliveryPrice() : 0;
-   const baseDeliveryPrice = resolvedServiceType === "delivery" ? calculateDeliveryBasePrice() : 0;
-   const displayPrice = isAnyManual ? 0 : (resolvedServiceType === "taxi" ? ridePrice : deliveryPrice);
-   const displayBasePrice = isAnyManual ? 0 : (resolvedServiceType === "taxi" ? baseRidePrice : baseDeliveryPrice);
-   const currency = platformSettings.app?.currency || "MZN";
+  const ridePrice = resolvedServiceType === "taxi" ? calculateRidePrice() : 0;
+  const baseRidePrice = resolvedServiceType === "taxi" ? calculateRideBasePrice() : 0;
+  const deliveryPrice = resolvedServiceType === "delivery" ? calculateDeliveryPrice() : 0;
+  const baseDeliveryPrice = resolvedServiceType === "delivery" ? calculateDeliveryBasePrice() : 0;
+  const displayPrice = isAnyManual ? 0 : (resolvedServiceType === "taxi" ? ridePrice : deliveryPrice);
+  const displayBasePrice = isAnyManual ? 0 : (resolvedServiceType === "taxi" ? baseRidePrice : baseDeliveryPrice);
+  const currency = platformSettings.app?.currency || "MZN";
   const countryRestriction = platformSettings.app?.countryRestriction || "mz";
   const enabledPaymentMethods = getEnabledPaymentMethods(platformSettings);
   const supportContact = platformSettings.app?.support || platformSettings.app || {};

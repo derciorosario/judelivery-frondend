@@ -2,7 +2,7 @@ import axios from "axios";
 export const env = "pro";
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 export const isNative = Capacitor.isNativePlatform();
-export const APP_VERSION="1.0"
+export const APP_VERSION="1.2"
 export const FRONTEND_URL = "https://jrmultiservicos.co.mz"
 export const API_URL = 
  env == "dev" ? isNative ? "http://192.168.18.3:5001/api" : "http://localhost:5001/api" :

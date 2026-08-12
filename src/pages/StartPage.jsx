@@ -11,6 +11,7 @@ import CreateOrderModal from '../components/cliente/modals/CreateOrderModal';
 import GuestOrderBar from '../components/common/GuestOrderBar';
 import FullLogo from '../assets/full-logo.png'
 import Logo from '../assets/logo.png'
+import { useData } from '../contexts/DataContext';
 
 const GUEST_ORDER_KEY = 'guest_order_id';
 
@@ -24,6 +25,7 @@ const StartPage = () => {
   const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [guestInfo, setGuestInfo] = useState(null);
   const [selectedServiceType, setSelectedServiceType] = useState(null);
+  const data=useData()
 
   useEffect(()=>{
          document.body.scrollIntoView({ behavior:'instant' })
@@ -95,12 +97,14 @@ const StartPage = () => {
     setGuestInfo(info);
     setShowGuestInfo(false);
     setShowServiceSelection(true);
+    data.setPostDialogOpen(true)
   };
 
   const handleServiceSelect = (serviceType) => {
     setSelectedServiceType(serviceType);
     setShowServiceSelection(false);
     setShowCreateOrder(true);
+    data.setPostDialogOpen(true)
   };
 
   const handleCloseCreateOrder = (refresh) => {
@@ -315,6 +319,7 @@ const StartPage = () => {
       />
 
       <ServiceSelectionModal
+        autoClose={true}
         isOpen={showServiceSelection}
         onClose={() => {
           setShowServiceSelection(false);
@@ -325,6 +330,7 @@ const StartPage = () => {
       />
 
       <CreateOrderModal
+        autoClose={true}
         isOpen={showCreateOrder}
         onClose={handleCloseCreateOrder}
         user={null}

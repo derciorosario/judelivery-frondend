@@ -4,6 +4,7 @@ import Icon from "../common/Icon";
 import StatCard from "../common/StatCard";
 import { changeProfilePassword, updateDriverProfile, getDriverOperationalReport } from "../../api/client";
 import { toast } from "../../lib/toast";
+import { useData } from "../../contexts/DataContext";
 
 const formatShortId = (id) => {
   if (!id) return "MZ-0000";
@@ -18,6 +19,16 @@ const formatDate = (value) => {
 };
 
 const MotoristaProfile = ({ user, profileData, onProfileUpdated, onOrderClick }) => {
+
+  const data=useData()
+
+  useEffect(()=>{
+      if(!data.postDialogOpen){
+         setShowPasswordModal(false)
+         setShowReportModal(false)
+      }
+  },[data.postDialogOpen])
+
   const driver = profileData?.driver || {};
   const documents = profileData?.documents || [
     {
@@ -349,11 +360,19 @@ const MotoristaProfile = ({ user, profileData, onProfileUpdated, onOrderClick })
       </div>
 
      <div className="flex gap-2 pb-4">
-       <button disabled={saving} onClick={() => setShowReportModal(true)} className="flex-1 bg-slate-100 text-slate-600 text-sm font-semibold py-3 rounded-xl disabled:opacity-50">
+       <button disabled={saving} onClick={() => {
+        setShowReportModal(true)
+        data.setPostDialogOpen(true)
+       }} className="flex-1 bg-slate-100 text-slate-600 text-sm font-semibold py-3 rounded-xl disabled:opacity-50">
          Ver Relatório
        </button>
     </div>
-     <button disabled={saving} onClick={() => setShowPasswordModal(true)} className="w-full bg-slate-800 text-white text-sm font-semibold py-3 rounded-xl disabled:opacity-50">
+     <button disabled={saving} onClick={() => {
+
+      setShowPasswordModal(true)
+      data.setPostDialogOpen(true)
+
+     }} className="w-full bg-slate-800 text-white text-sm font-semibold py-3 rounded-xl disabled:opacity-50">
        Alterar Senha
      </button>
       <button onClick={() => navigate('/forgot-password')} className="w-full bg-orange-500 text-white text-sm font-semibold py-3 rounded-xl mt-2">

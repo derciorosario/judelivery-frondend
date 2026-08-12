@@ -42,6 +42,7 @@ import PaymentDialog from "../common/PaymentDialog";
 import ReassignOrderModal from "./ReassignOrderModal";
 import OrderMapTab from "./OrderMapTab";
 import { uploadClient, API_URL } from "../../api/client";
+import { useData } from "../../contexts/DataContext";
 
 const INCIDENT_TYPE_LABELS = {
   "accident": "Acidente",
@@ -50,7 +51,7 @@ const INCIDENT_TYPE_LABELS = {
 };
 
 const OrderDetailModal = ({
-  
+  autoClose,
   isOpen,
   onClose,
   order,
@@ -81,6 +82,23 @@ const OrderDetailModal = ({
   const [feedbackToDelete, setFeedbackToDelete] = useState(null);
   const [showReassignDialog, setShowReassignDialog] = useState(false);
   const [pendingRejection, setPendingRejection] = useState(null);
+
+  const data=useData()
+
+
+
+   useEffect(()=>{
+    if(!data.postDialogOpen && autoClose){
+      onClose()
+    }
+    },[data.postDialogOpen])
+    
+    useEffect(()=>{
+      data.setPostDialogOpen(isOpen)
+    },[isOpen])
+
+
+
 
   
    // Incidents state
@@ -1447,7 +1465,10 @@ const OrderDetailModal = ({
 
        {isActive && (
          <button 
-           onClick={() => setShowNavigation(true)} 
+           onClick={() =>{
+             setShowNavigation(true)
+             data.setPostDialogOpen(true)
+            }} 
            disabled={updating} 
            className="w-full py-2.5 rounded-xl bg-indigo-500 text-white font-semibold text-sm hover:bg-indigo-600 disabled:opacity-50 flex items-center justify-center gap-2"
          >
@@ -1505,7 +1526,10 @@ const OrderDetailModal = ({
         </>
       )}
       {isActive && (
-        <button onClick={() => setShowTrackModal(true)} className="flex-1 py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
+        <button onClick={() => {
+          setShowTrackModal(true)
+          data.setPostDialogOpen(true)
+        }} className="flex-1 py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
           <Navigation size={16} /> Acompanhar
         </button>
       )}
@@ -1515,7 +1539,10 @@ const OrderDetailModal = ({
         </button>
       )}
       {!isCompleted && !isActive && !canCancel && (
-        <button onClick={() => setShowTrackModal(true)} className="flex-1 py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
+        <button onClick={() => {
+          setShowTrackModal(true)
+          data.setPostDialogOpen(true)
+        }} className="flex-1 py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
           <Navigation size={16} /> Acompanhar
         </button>
       )}
@@ -1527,7 +1554,10 @@ const OrderDetailModal = ({
     if (isDriver && isActive) {
       return (
         <div className="flex gap-2">
-          <button onClick={() => setShowNavigation(true)} disabled={updating} className="flex-1 py-2.5 rounded-xl bg-green-500 text-white font-semibold text-sm hover:bg-green-600 disabled:opacity-50 flex items-center justify-center gap-2">
+          <button onClick={() => {
+            setShowNavigation(true)
+            data.setPostDialogOpen(true)
+            }} disabled={updating} className="flex-1 py-2.5 rounded-xl bg-green-500 text-white font-semibold text-sm hover:bg-green-600 disabled:opacity-50 flex items-center justify-center gap-2">
             <Navigation size={16} /> Navegar
           </button>
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors">
@@ -1993,6 +2023,7 @@ const OrderDetailModal = ({
       {/* Track Order Modal */}
       {showTrackModal && (
         <TrackOrderModal
+          autoClose={true}
           isOpen={showTrackModal}
           onClose={() => setShowTrackModal(false)}
           order={localOrder}
@@ -2015,6 +2046,7 @@ const OrderDetailModal = ({
       {/* Navigation Modal for Driver */}
       {showNavigation && localOrder && isDriver && (
         <NavigationModal
+          autoClose={true}
           isOpen={showNavigation}
           onClose={() => setShowNavigation(false)}
           order={localOrder}

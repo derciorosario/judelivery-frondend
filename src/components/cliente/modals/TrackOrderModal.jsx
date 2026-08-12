@@ -21,6 +21,7 @@ import {
   ChevronUp,
   Crosshair
 } from "lucide-react";
+import { useData } from "../../../contexts/DataContext";
 
 const GOOGLE_MAPS_KEY = "AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak";
 const MAPUTO_CENTER = { lat: -25.9653, lng: 32.5778 };
@@ -149,7 +150,7 @@ const getDriverMotoIcon = () => {
   }
 };
 
-const TrackOrderModal = ({ isOpen, onClose, order }) => {
+const TrackOrderModal = ({ autoClose, isOpen, onClose, order }) => {
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_KEY, libraries });
   const { socket } = useSocket();
   const mapRef = useRef(null);
@@ -158,6 +159,17 @@ const TrackOrderModal = ({ isOpen, onClose, order }) => {
   const mapContainerRef = useRef(null);
   const routeDetailsRef = useRef(null);
   const driverInfoRef = useRef(null);
+  const data=useData()
+
+  useEffect(()=>{
+  if(!data.postDialogOpen && autoClose){
+      onClose()
+  }
+  },[data.postDialogOpen])
+  
+  useEffect(()=>{
+    data.setPostDialogOpen(isOpen)
+  },[isOpen])
   
   const [driverPosition, setDriverPosition] = useState(null);
   const [originCoords, setOriginCoords] = useState(null);

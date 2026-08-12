@@ -5,6 +5,7 @@ import { usePlatformSettings } from "../../contexts/SettingsContext";
 import CreateOrderModal from "./modals/CreateOrderModal";
 import { useNavigate } from "react-router-dom";
 import client, { getOrder, updateOrder } from "../../api/client";
+import { useData } from "../../contexts/DataContext";
 
 const CustomerHome = ({
   user,
@@ -37,6 +38,8 @@ const CustomerHome = ({
   const [guestOrder, setGuestOrder] = useState(null);
   const [guestOrderLoading, setGuestOrderLoading] = useState(false);
   const [showGuestOrderModal, setShowGuestOrderModal] = useState(false);
+
+  const data=useData()
 
   const navigate= useNavigate();
 
@@ -129,6 +132,7 @@ const CustomerHome = ({
 
     setSelectedService(service);
     setShowServiceModal(true);
+    data.setPostDialogOpen(true)
   };
 
   const handleRepeatOrder = (order) => {
@@ -366,6 +370,7 @@ const CustomerHome = ({
       {showServiceModal && (
         <CreateOrderModal 
           isOpen={showServiceModal}
+          autoClose={true}
           onClose={() => {
             setShowServiceModal(false);
             setSelectedService(null);

@@ -1,8 +1,25 @@
 import { useEffect } from "react";
 import Icon from "../../common/Icon";
+import { useData } from "../../../contexts/DataContext";
 
-const ServiceSelectionModal = ({ isOpen, onClose, onSelectService, settings, settingsLoading }) => {
+const ServiceSelectionModal = ({ autoClose, isOpen, onClose, onSelectService, settings, settingsLoading }) => {
+
+  const data=useData()
+
+ 
+
   if (!isOpen) return null;
+
+   useEffect(()=>{
+    if(!data.postDialogOpen && autoClose){
+        onClose()
+    }
+  },[data.postDialogOpen])
+  
+  useEffect(()=>{
+    data.setPostDialogOpen(isOpen)
+  },[isOpen])
+
 
 
   const canDelivery = !settingsLoading && settings?.order?.allowDelivery;

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "../common/Icon";
 import Modal from "../common/Modal";
+import ConfirmDialog from "../common/ConfirmDialog";
 import { GoogleMap, Marker, Autocomplete, useJsApiLoader } from "@react-google-maps/api";
 import {
   changeCustomerPassword,
@@ -17,6 +18,7 @@ import { toast } from "../../lib/toast";
 import { Geolocation } from "@capacitor/geolocation";
 import { isNative } from "../../api/client";
 import { useAuth } from "../../contexts/AuthContext";
+import { useData } from "../../contexts/DataContext";
 
 const GOOGLE_MAPS_KEY = "AIzaSyAt3JMQnStFWcbODF6HBHGck0IUseek_Ak";
 const MAPUTO_CENTER = { lat: -25.9653, lng: 32.5778 };
@@ -30,6 +32,7 @@ const CustomerProfile = ({
   signOut,
   onProfileUpdated
 }) => {
+
  const customer = profileData?.customer || customerData || {};
  const [editMode, setEditMode] = useState(false);
  const [formData, setFormData] = useState({
@@ -37,12 +40,14 @@ const CustomerProfile = ({
    phone: customer.phone || user?.phone || "",
    defaultAddress: customer.address || ""
  });
+
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [addresses, setAddresses] = useState(profileData?.addresses || customer.addressesData || []);
-  const { setAddresses:authSetAddresses, addresses:authAddresses} = useAuth()
+  const {setAddresses:authSetAddresses, addresses:authAddresses} = useAuth()
   const navigate = useNavigate();
   const [paymentMethods, setPaymentMethods] = useState(
     profileData?.paymentMethods || customer.paymentMethods || []
@@ -51,7 +56,9 @@ const CustomerProfile = ({
     themeMode: "light",
     notificationsEnabled: true
   });
-const [newAddress, setNewAddress] = useState("");
+
+   const data=useData()
+   const [newAddress, setNewAddress] = useState("");
    const [newAddressCoords, setNewAddressCoords] = useState(null);
    const [loadingLocation, setLoadingLocation] = useState(false);
    const [loadingMapLocation, setLoadingMapLocation] = useState(false);
@@ -59,9 +66,9 @@ const [newAddress, setNewAddress] = useState("");
    const [mapCenter, setMapCenter] = useState(MAPUTO_CENTER);
    const [mapMarker, setMapMarker] = useState(null);
    const [locationError, setLocationError] = useState(null);
-  const mapRef = useRef(null);
-  const autocompleteRef = useRef(null);
-  const [newPaymentMethod, setNewPaymentMethod] = useState({
+   const mapRef = useRef(null);
+   const autocompleteRef = useRef(null);
+   const [newPaymentMethod, setNewPaymentMethod] = useState({
     type: "cash",
     displayName: "",
     maskedNumber: "",
@@ -73,18 +80,27 @@ const [newAddress, setNewAddress] = useState("");
     newPassword: "",
     confirmPassword: ""
   });
+
   const [saving, setSaving] = useState(false);
   const { isLoaded: mapsLoaded, loadError: mapsLoadError } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_KEY,
     libraries: GOOGLE_MAPS_LIBRARIES
   });
 
+  useEffect(()=>{
+      if(!data.postDialogOpen){
+         setShowAddressModal(false)
+         setShowPaymentModal(false)
+         setShowChangePassword(false)
+      }
+  },[data.postDialogOpen])
+
   useEffect(() => {
     setFormData({
-     name: customer.name || user?.name || "",
-     phone: customer.phone || user?.phone || "",
-     defaultAddress: customer.address || ""
-   });
+      name: customer.name || user?.name || "",
+      phone: customer.phone || user?.phone || "",
+      defaultAddress: customer.address || ""
+    });
     setAddresses(profileData?.addresses || customer.addressesData || []);
     setPaymentMethods(profileData?.paymentMethods || customer.paymentMethods || []);
     setPreference(profileData?.preference || customer.preference || {
@@ -455,6 +471,22 @@ const [newAddress, setNewAddress] = useState("");
     }
   };
 
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+    data.setPostDialogOpen(true)
+  };
+
+  const handleLogoutConfirm = () => {
+    setShowLogoutConfirm(false);
+    if (signOut) {
+      signOut();
+    }
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutConfirm(false);
+  };
+
   const formatPaymentType = (type) => ({
     cash: "Dinheiro na entrega",
     mpesa: "M-Pesa",
@@ -503,9 +535,9 @@ const [newAddress, setNewAddress] = useState("");
               <button onClick={() => setEditMode(true)} className="flex-1 bg-orange-500 text-white text-sm font-semibold py-2 rounded-xl">
                 Editar Perfil
               </button>
-              <button onClick={signOut} className="flex-1 bg-red-50 text-red-500 text-sm font-semibold py-2 rounded-xl">
-                Sair
-              </button>
+               <button onClick={handleLogoutClick} className="flex-1 bg-red-50 text-red-500 text-sm font-semibold py-2 rounded-xl">
+                 Sair
+               </button>
             </div>
           </>
         ) : (
@@ -563,7 +595,10 @@ const [newAddress, setNewAddress] = useState("");
       <div className="bg-white rounded-2xl p-4 border border-slate-100">
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-bold text-slate-700">Meus Endereços</p>
-          <button disabled={saving} onClick={() => setShowAddressModal(true)} className="text-xs bg-orange-500 text-white px-3 py-1 rounded-lg disabled:opacity-50">
+          <button disabled={saving} onClick={() => {
+            setShowAddressModal(true)
+            data.setPostDialogOpen(true)
+          }} className="text-xs bg-orange-500 text-white px-3 py-1 rounded-lg disabled:opacity-50">
             + Adicionar
           </button>
         </div>
@@ -623,7 +658,10 @@ const [newAddress, setNewAddress] = useState("");
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-        <button disabled={saving} onClick={() => setShowChangePassword(true)} className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50 disabled:opacity-50">
+        <button disabled={saving} onClick={() => {
+          setShowChangePassword(true)
+          data.setPostDialogOpen(true)
+        }} className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50 disabled:opacity-50">
           <Icon name="lock" size={18} className="text-slate-400" />
           <span className="text-sm text-slate-700 flex-1 text-left">Alterar Senha</span>
           <Icon name="chevronRight" size={16} className="text-slate-400" />
@@ -934,28 +972,42 @@ const [newAddress, setNewAddress] = useState("");
          </div>
        )}
 
-       {locationError && (
-         <Modal isOpen={!!locationError} onClose={closeLocationErrorDialog} title="Erro de Localização">
-           <div className="space-y-4">
-             <div className="flex items-start gap-3">
-               <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                 <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                 </svg>
-               </div>
-               <p className="text-sm text-slate-600">{locationError}</p>
-             </div>
-             <button
-               type="button"
-               onClick={closeLocationErrorDialog}
-               className="w-full py-2.5 rounded-xl bg-red-500 text-white font-bold text-sm shadow-lg shadow-red-500/30 hover:bg-red-600 transition-colors"
-             >
-               OK
-             </button>
-           </div>
-         </Modal>
-       )}
-     </div>
+        {locationError && (
+          <Modal isOpen={!!locationError} onClose={closeLocationErrorDialog} title="Erro de Localização">
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <p className="text-sm text-slate-600">{locationError}</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeLocationErrorDialog}
+                className="w-full py-2.5 rounded-xl bg-red-500 text-white font-bold text-sm shadow-lg shadow-red-500/30 hover:bg-red-600 transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          </Modal>
+        )}
+
+        {showLogoutConfirm && (
+          <ConfirmDialog
+            autoClose={true}
+            isOpen={showLogoutConfirm}
+            onClose={handleLogoutCancel}
+            onConfirm={handleLogoutConfirm}
+            title="Confirmar Saída"
+            message="Tem certeza que deseja sair da sua conta?"
+            confirmText="Sair"
+            cancelText="Cancelar"
+            variant="danger"
+          />
+        )}
+      </div>
   );
 };
 

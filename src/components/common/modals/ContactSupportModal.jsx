@@ -1,6 +1,8 @@
 import { Phone, HelpCircle, ChevronRight } from "lucide-react";
 import Icon from "../Icon";
 import { usePlatformSettings } from "../../../contexts/SettingsContext";
+import { useData } from "../../../contexts/DataContext";
+import { useEffect } from "react";
 
 const DEFAULT_SUPPORT = {
   name: "Plataforma/Suporte",
@@ -33,13 +35,17 @@ const FAQ_ITEMS = [
 ];
 
 const ContactSupportModal = ({ 
+  autoClose,
   isOpen, 
   onClose, 
   order,
   supportContact
 }) => {
+
+
   const { settings } = usePlatformSettings();
 
+  const data=useData()
 
   const isComputer = () => {
     const userAgent = navigator.userAgent || navigator.vendor || window.opera;
@@ -54,7 +60,23 @@ const ContactSupportModal = ({
     responseTime: settings.app?.supportResponseTime || DEFAULT_SUPPORT.responseTime
   };
 
+  
+  useEffect(()=>{
+    if(!data.postDialogOpen && autoClose){
+        onClose()
+    }
+  },[data.postDialogOpen])
+  
+  useEffect(()=>{
+    data.setPostDialogOpen(isOpen)
+  },[isOpen])
+
+
+
   if (!isOpen) return null;
+
+
+
 
   const handleCall = (phone) => {
     if (phone) {

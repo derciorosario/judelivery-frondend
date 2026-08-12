@@ -19,6 +19,7 @@ import AdminClientSelectModal from "./AdminClientSelectModal";
 import { getOrder, getUrgentCount } from "../../api/client";
 import Notifications from "../common/Notifications";
 import OrderDetailModal from "../modals/OrderDetailModal";
+import { useData } from "../../contexts/DataContext";
 
 const AdminApp = () => {
   const [customerRequests] = useState([]);
@@ -33,6 +34,7 @@ const AdminApp = () => {
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const data=useData()
 
   const tabs = useMemo(() => [
     { id: "home", label: "Início", icon: "home", path: "/" },
@@ -73,6 +75,7 @@ const AdminApp = () => {
       setSelectedOrder(response.data);
       setOrderDetailTab(tab || "details");
       setShowOrderDetails(true);
+      data.setPostDialogOpen(true)
     } catch (err) {
       console.error("Failed to fetch order for notification:", err);
     }
@@ -159,6 +162,7 @@ const AdminApp = () => {
     setSelectedClientForOrder(client);
     setShowClientSelect(false);
     setShowAdminCreateOrder(true);
+    data.setPostDialogOpen(true)
   };
 
   const handleOrderCreated = () => {
@@ -208,6 +212,7 @@ const AdminApp = () => {
 
       {showAdminCreateOrder && (
         <CreateOrderModal
+          autoClose={true}
           isOpen={showAdminCreateOrder}
           onClose={() => {
             setShowAdminCreateOrder(false);
@@ -227,6 +232,7 @@ const AdminApp = () => {
       )}
 
       <OrderDetailModal
+        autoClose={true}
         isOpen={showOrderDetails}
         onClose={() => {
           setShowOrderDetails(false);

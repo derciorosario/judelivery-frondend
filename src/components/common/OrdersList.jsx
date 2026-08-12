@@ -405,6 +405,7 @@ const OrdersList = ({
       if (order) {
         setSelectedOrder(order);
         setShowOrderDetails(true);
+        data.setPostDialogOpen(true)
         initialProcessed.current = true;
       }
     }
@@ -437,10 +438,12 @@ const OrdersList = ({
       const response = await getOrder(order.id);
       setSelectedOrder(response.data);
       setShowOrderDetails(true);
+      data.setPostDialogOpen(true)
     } catch (err) {
       console.error(err);
       setSelectedOrder(order);
       setShowOrderDetails(true);
+      data.setPostDialogOpen(true)
     }
     setMenuOpenId(null);
   };
@@ -521,6 +524,7 @@ const OrdersList = ({
    const handleRepeatOrder = (order) => {
      setRepeatOrderData(order);
      setShowEditOrder(true);
+     data.setPostDialogOpen(true)
      setShowOrderDetails(false);
      setMenuOpenId(null);
    };
@@ -528,12 +532,14 @@ const OrdersList = ({
    const handleEditOrder = (order) => {
      setRepeatOrderData(null);
      setSelectedOrder(order);
+     data.setPostDialogOpen(true)
      setShowEditOrder(true);
      setMenuOpenId(null);
    };
 
   const handleTrackOrder = () => {
     setShowTrackOrder(true);
+    data.setPostDialogOpen(true)
     setShowOrderDetails(false);
     setMenuOpenId(null);
   };
@@ -543,6 +549,7 @@ const OrdersList = ({
     setShowNavigation(true);
     setShowOrderDetails(false);
     setMenuOpenId(null);
+    data.setPostDialogOpen(true)
   };
 
   const handleCancelClick = (order) => {
@@ -554,6 +561,7 @@ const OrdersList = ({
   const handleContactClick = (order) => {
     setSelectedOrder(order);
     setShowContactModal(true);
+    data.setPostDialogOpen(true)
     setMenuOpenId(null);
   };
 
@@ -580,6 +588,8 @@ const OrdersList = ({
     setSelectedOrder(order);
     setLoadingIncidents(true);
     setShowIncidentList(true);
+    data.setPostDialogOpen(true)
+    
     try {
       const res = await getOrderIncidents(order.id);
       setOrderIncidents(res.data);
@@ -741,6 +751,7 @@ const OrdersList = ({
     if (isStaff) {
       return (
         <OrderDetailModal
+          autoClose={true}
           isOpen={showOrderDetails}
           onClose={(refresh) => {
             setShowOrderDetails(false);
@@ -762,6 +773,7 @@ const OrdersList = ({
     } else if (isDriver) {
       return (
         <OrderDetailModal
+          autoClose={true}
           isOpen={showOrderDetails}
           onClose={() => {
             setShowOrderDetails(false);
@@ -782,6 +794,7 @@ const OrdersList = ({
     } else if (isCustomer) {
       return (
         <OrderDetailModal
+          autoClose={true}
           isOpen={showOrderDetails}
           onClose={(refresh) => {
             setShowOrderDetails(false);
@@ -1213,6 +1226,7 @@ const OrdersList = ({
       {/* Track Order Modal */}
       {showTrackOrder && selectedOrder && (
         <TrackOrderModal
+          autoClose={true}
           isOpen={showTrackOrder}
           onClose={() => {
             setShowTrackOrder(false);
@@ -1265,6 +1279,7 @@ const OrdersList = ({
        {showEditOrder && selectedOrder && (
          <CreateOrderModal
            isOpen={showEditOrder}
+           autoClose={true}
            onClose={() => {
              setShowEditOrder(false);
              setSelectedOrder(null);
@@ -1310,6 +1325,7 @@ const OrdersList = ({
             setSelectedClientForEdit(client);
             setShowClientSelect(false);
             setShowEditOrder(true);
+            data.setPostDialogOpen(true)
           }}
           selectedClient={selectedClientForEdit}
         />
@@ -1318,6 +1334,7 @@ const OrdersList = ({
       {/* Navigation Modal for Driver */}
       {showNavigation && selectedOrder && (
         <NavigationModal
+          autoClose={true}
           isOpen={showNavigation}
           onClose={() => {
             setShowNavigation(false);
@@ -1330,6 +1347,7 @@ const OrdersList = ({
 {/* Contact Support Modal */}
        {showContactModal && selectedOrder && (
          <ContactSupportModal
+           autoClose={true}
            isOpen={showContactModal}
            onClose={() => {
              setShowContactModal(false);
@@ -1355,7 +1373,7 @@ const OrdersList = ({
 
        {/* Incident List Modal for Driver */}
       {showIncidentList && (
-        <Modal isOpen={showIncidentList} onClose={() => { setShowIncidentList(false); setSelectedOrder(null); setOrderIncidents([]); }} title="Incidentes do Pedido">
+        <Modal autoClose={true} isOpen={showIncidentList} onClose={() => { setShowIncidentList(false); setSelectedOrder(null); setOrderIncidents([]); }} title="Incidentes do Pedido">
           <div className="space-y-4">
             {loadingIncidents ? (
               <div className="text-center py-6">
@@ -1407,7 +1425,12 @@ const OrdersList = ({
               </div>
             )}
             <div className="flex gap-2 pt-2">
-              <button type="button" onClick={() => { setShowIncidentList(false); setShowIncidentModal(true); }} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 flex items-center justify-center gap-2">
+              <button type="button" onClick={() => { 
+                setShowIncidentList(false);
+                setShowIncidentModal(true);
+                data.setPostDialogOpen(true)
+                
+               }} className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 flex items-center justify-center gap-2">
                 <Icon name="plus" size={14} /> Novo Incidente
               </button>
               <button type="button" onClick={() => { setShowIncidentList(false); setSelectedOrder(null); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
@@ -1420,7 +1443,7 @@ const OrdersList = ({
 
       {/* Report Incident Modal for Driver */}
       {showIncidentModal && (
-        <Modal isOpen={showIncidentModal} onClose={() => { setShowIncidentModal(false); setSelectedOrder(null); setIncidentPhotos([]); setIncidentDocuments([]); setIncidentForm({ type: "breakdown", title: "", description: "" }); }} title="Reportar Incidente">
+        <Modal autoClose={true} isOpen={showIncidentModal} onClose={() => { setShowIncidentModal(false); setSelectedOrder(null); setIncidentPhotos([]); setIncidentDocuments([]); setIncidentForm({ type: "breakdown", title: "", description: "" }); }} title="Reportar Incidente">
           <form onSubmit={handleSubmitIncident} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1">Tipo de Incidente</label>

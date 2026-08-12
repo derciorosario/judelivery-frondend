@@ -1,7 +1,9 @@
 // src/components/common/ConfirmDialog.jsx
+import { useEffect } from "react";
 import Modal from "./Modal";
+import { useData } from "../../contexts/DataContext";
 
-const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText, cancelText, variant = "danger" }) => {
+const ConfirmDialog = ({ autoClose, isOpen, onClose, onConfirm, title, message, confirmText, cancelText, variant = "danger" }) => {
   const getVariantStyles = () => {
     switch (variant) {
       case "danger":
@@ -12,6 +14,18 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText
         return "bg-blue-500 hover:bg-blue-600";
     }
   };
+
+  const data=useData()
+
+   useEffect(()=>{
+      if(!data.postDialogOpen && autoClose){
+          onClose()
+      }
+    },[data.postDialogOpen])
+    
+    useEffect(()=>{
+      data.setPostDialogOpen(isOpen)
+    },[isOpen])
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">

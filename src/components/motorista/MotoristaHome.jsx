@@ -33,6 +33,7 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
   const handleNavigate = (order) => {
     setSelectedOrder(order);
     setShowNavigationModal(true);
+    data.setPostDialogOpen(true)
   };
 
   const requestAction = (type, order) => {
@@ -140,6 +141,7 @@ const MotoristaHome = ({ online, setOnline, location, onOrderUpdate, refreshKey 
   return (
     <div className="space-y-4">
       <NavigationModal
+        autoClose={true}
         isOpen={showNavigationModal}
         onClose={() => setShowNavigationModal(false)}
         order={selectedOrder}

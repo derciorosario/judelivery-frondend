@@ -4,6 +4,7 @@ import { getCustomerOrders, deleteOrder } from "../../api/client";
 import { toast } from "../../lib/toast";
 import TrackOrderModal from "./modals/TrackOrderModal";
 import CreateOrderModal from "./modals/CreateOrderModal";
+import { useData } from "../../contexts/DataContext";
 
 const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, onOpenCreateOrder }) => {
   const [filter, setFilter] = useState("Todos");
@@ -12,6 +13,7 @@ const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, on
   const [fullEditOrder, setFullEditOrder] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [trackOrder, setTrackOrder] = useState(null);
+  const data=useData()
 
   const filters = ["Todos", "Em andamento", "Aguardando", "Concluídos", "Cancelados"];
 
@@ -251,7 +253,10 @@ const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, on
                 )}
                 {displayStatus !== "Concluído" && displayStatus !== "Em entrega" && (
                   <button
-                    onClick={() => setFullEditOrder(order)}
+                    onClick={() =>{
+                       setFullEditOrder(order)
+                       data.setPostDialogOpen(true)
+                    }}
                     className="flex-1 text-xs bg-green-100 text-green-600 font-semibold py-2 rounded-lg hover:bg-green-200"
                   >
                     Editar
@@ -272,6 +277,7 @@ const CustomerOrders = ({ user, onViewDetails, onRepeatOrder, onGiveFeedback, on
         <CreateOrderModal
           isOpen={!!fullEditOrder}
           onClose={() => setFullEditOrder(null)}
+          autoClose={true}
           editOrder={fullEditOrder}
           serviceType={fullEditOrder.serviceType || "delivery"}
           customerData={user}

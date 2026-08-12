@@ -230,6 +230,7 @@ const AdminOrders = ({ onOpenCreateDelivery, refreshKey, initialOrderId }) => {
                   <button
                     onClick={() => {
                       setEditOrder(order);
+                      data.setPostDialogOpen(true)
                       setSelectedClientForEdit(null);
                     }}
                     className="flex-1 text-xs bg-slate-100 text-slate-600 font-semibold py-2 rounded-lg hover:bg-green-100 hover:text-green-700"
@@ -266,6 +267,7 @@ const AdminOrders = ({ onOpenCreateDelivery, refreshKey, initialOrderId }) => {
             setSelectedClientForEdit(null);
           }}
           editOrder={editOrder}
+          autoClose={true}
           serviceType={editOrder.serviceType || "delivery"}
           clientId={selectedClientForEdit?.userId || selectedClientForEdit?.id || editOrder.clientId}
           selectedClient={selectedClientForEdit || (editOrder.client && {

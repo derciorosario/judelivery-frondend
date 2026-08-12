@@ -149,6 +149,7 @@ const CustomerApp = () => {
           setOrderDetailTab("details");
         }
         setShowOrderDetails(true);
+        data.setPostDialogOpen(true)
         setShouldRefreshOrders(prev => !prev);
       }
     };
@@ -166,6 +167,7 @@ const CustomerApp = () => {
     setSelectedOrderId(orderId);
     setOrderDetailTab("details");
     setShowOrderDetails(true);
+    data.setPostDialogOpen(true)
     setShouldRefreshOrders(prev => !prev);
   }, [location.search]);
 
@@ -219,6 +221,7 @@ const CustomerApp = () => {
 
     setSelectedServiceType(resolvedServiceType);
     setShowCreateOrder(true);
+    data.setPostDialogOpen(true)
   };
  
   const handleOpenCreateOrder = () => {
@@ -233,6 +236,7 @@ const CustomerApp = () => {
     }
 
     setShowServiceSelection(true);
+    data.setPostDialogOpen(true)
   };
 
   const handleServiceSelect = (serviceType) => {
@@ -250,12 +254,14 @@ const CustomerApp = () => {
     setSelectedServiceType(serviceType);
     setShowServiceSelection(false);
     setShowCreateOrder(true);
+    data.setPostDialogOpen(true)
 
   };
 
   const handleViewOrderDetails = (order) => {
     setSelectedOrder(order);
     setShowOrderDetails(true);
+    data.setPostDialogOpen(true)
   };
 
   const handleGiveFeedback = (order, feedback = null) => {
@@ -312,6 +318,7 @@ const CustomerApp = () => {
     if (order) {
       setSelectedTrackOrder(order);
       setShowTrackOrder(true);
+      data.setPostDialogOpen(true)
       return;
     }
     if (activeOrder) {
@@ -351,7 +358,10 @@ const CustomerApp = () => {
               onViewOrderDetails={handleViewOrderDetails}
               onTrackOrder={handleTrackOrder}
               onGiveFeedback={handleGiveFeedback}
-              onContactSupport={() => setShowSupport(true)}
+              onContactSupport={() => {
+                setShowSupport(true)
+                data.setPostDialogOpen(true)
+              }}
               onNavigateToHistory={() => setTab("history")}
               settings={settings}
               settingsLoading={settingsLoading}
@@ -405,6 +415,7 @@ const CustomerApp = () => {
 
       <CreateOrderModal
         isOpen={showCreateOrder}
+        autoClose={true}
         onClose={(refresh) => {
           setShowCreateOrder(false);
           setSelectedOrder(null);
@@ -426,6 +437,7 @@ const CustomerApp = () => {
 
      <ServiceSelectionModal
        isOpen={showServiceSelection}
+       autoClose={true}
        onClose={() => setShowServiceSelection(false)}
        onSelectService={handleServiceSelect}
        settings={settings}
@@ -475,6 +487,7 @@ const CustomerApp = () => {
            setRefreshData(true);
            setOrderDetailTab("details");
          }}
+         autoClose={true}
          order={selectedOrder}
          orderId={selectedOrderId}
          onGiveFeedback={handleGiveFeedback}
@@ -482,6 +495,7 @@ const CustomerApp = () => {
        />
 
       <TrackOrderModal
+        autoClose={true}
         isOpen={showTrackOrder}
         onClose={() => {
           setShowTrackOrder(false);
@@ -491,6 +505,7 @@ const CustomerApp = () => {
       />
 
       <ContactSupportModal
+        autoClose={true}
         isOpen={showSupport}
         onClose={() => {
           setShowSupport(false);

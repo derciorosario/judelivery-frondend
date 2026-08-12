@@ -1,8 +1,24 @@
 import React, { useEffect } from 'react';
 import Icon from './Icon';
+import { useData } from '../../contexts/DataContext';
 
-const Modal = ({ isOpen, onClose, title, children, showClose = true }) => {
+const Modal = ({ autoClose, isOpen, onClose, title, children, showClose = true }) => {
+
+  const data=useData()
+
+  useEffect(()=>{
+    if(!data.postDialogOpen && autoClose){
+        onClose()
+    }
+  },[data.postDialogOpen])
+  
+  useEffect(()=>{
+    data.setPostDialogOpen(isOpen)
+  },[isOpen])
+
   if (!isOpen) return null;
+
+
   return (
     <div className="fixed inset-0 !mb-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">

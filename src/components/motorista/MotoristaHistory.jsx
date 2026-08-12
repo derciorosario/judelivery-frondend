@@ -3,12 +3,14 @@ import Icon from "../common/Icon";
 import { getDriverOrders } from "../../api/client";
 import { toast } from "../../lib/toast";
 import OrderDetailModal from "../modals/OrderDetailModal";
+import { useData } from "../../contexts/DataContext";
 
 const MotoristaHistory = ({ refreshKey }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const data=useData()
 
   const toShortId = (id) => {
     if (!id) return "---";
@@ -61,6 +63,7 @@ const MotoristaHistory = ({ refreshKey }) => {
   const handleViewDetails = (order) => {
     setSelectedOrder(order);
     setShowOrderDetails(true);
+    data.setPostDialogOpen(true)
   };
 
   // Calculate statistics
@@ -189,6 +192,7 @@ const MotoristaHistory = ({ refreshKey }) => {
       {/* Order Detail Modal */}
       {showOrderDetails && selectedOrder && (
         <OrderDetailModal
+          autoClose={true}
           isOpen={showOrderDetails}
           onClose={() => {
             setShowOrderDetails(false);

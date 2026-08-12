@@ -9,6 +9,7 @@ import TrackOrderModal from "../cliente/modals/TrackOrderModal";
 import CancelOrderDialog from "../common/CancelOrderDialog";
 import ContactSupportModal from "../common/modals/ContactSupportModal";
 import { useNavigate } from "react-router-dom";
+import { useData } from "../../contexts/DataContext";
 
 const AdminHome = ({ onOrderUpdate, refreshKey }) => {
   const [dashboard, setDashboard] = useState(null);
@@ -21,6 +22,7 @@ const AdminHome = ({ onOrderUpdate, refreshKey }) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const data=useData()
 
   const navigate=useNavigate()
 
@@ -49,6 +51,7 @@ const AdminHome = ({ onOrderUpdate, refreshKey }) => {
   const handleContactClick = (order) => {
     setSelectedOrder(order);
     setShowContactModal(true);
+    data.setPostDialogOpen(true)
   };
 
   const handleDeleteOrder = async (order) => {
@@ -243,6 +246,7 @@ const AdminHome = ({ onOrderUpdate, refreshKey }) => {
       {/* Track Order Modal */}
       {showTrackOrder && selectedOrder && (
         <TrackOrderModal
+          autoClose={true}
           isOpen={showTrackOrder}
           onClose={() => {
             setShowTrackOrder(false);
@@ -294,6 +298,7 @@ const AdminHome = ({ onOrderUpdate, refreshKey }) => {
       {/* Contact Support Modal */}
       {showContactModal && selectedOrder && (
         <ContactSupportModal
+          autoClose={true}
           isOpen={showContactModal}
           onClose={() => {
             setShowContactModal(false);

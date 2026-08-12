@@ -3,12 +3,14 @@ import Icon from "../common/Icon";
 import { getCustomerOrders } from "../../api/client";
 import { toast } from "../../lib/toast";
 import OrderDetailModal from "../modals/OrderDetailModal";
+import { useData } from "../../contexts/DataContext";
 
 const CustomerHistory = ({ onGiveFeedback }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const data=useData()
 
   const toShortId = (id) => {
     if (!id) return "---";
@@ -60,6 +62,7 @@ const CustomerHistory = ({ onGiveFeedback }) => {
   const handleViewDetails = (order) => {
     setSelectedOrder(order);
     setShowOrderDetails(true);
+    data.setPostDialogOpen(true)
   };
 
   // Calculate statistics
@@ -189,6 +192,7 @@ const CustomerHistory = ({ onGiveFeedback }) => {
       {/* Order Detail Modal */}
       {showOrderDetails && selectedOrder && (
         <OrderDetailModal
+          autoClose={true}
           isOpen={showOrderDetails}
           onClose={() => {
             setShowOrderDetails(false);

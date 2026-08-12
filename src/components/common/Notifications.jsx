@@ -260,10 +260,12 @@ const Notifications = () => {
       return;
     }
 
+
+
     if (n.category === "order" || n.category === "customer_order" || n.category === "customer_driver") {
       const orderId = n.content?.orderId;
       if (orderId) {
-        window.dispatchEvent(new CustomEvent('notification:openOrder', { detail: { orderId } }));
+        window.dispatchEvent(new CustomEvent('notification:openOrder', { detail: { orderId, tab: n.actionType.includes('tax') ? 'taxes':'details'} }));
       }
     } else if (n.category === "driver") {
       const driverId = n.content?.driverId;
@@ -278,7 +280,9 @@ const Notifications = () => {
           detail: { orderId, tab: "incidents" } 
         }));
       }
-    }
+    } 
+
+    
   };
 
   const formatTime = (dateString) => {

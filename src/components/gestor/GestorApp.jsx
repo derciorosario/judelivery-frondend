@@ -99,6 +99,7 @@ const GestorApp = () => {
       setSelectedOrder(response.data);
       setOrderDetailTab(tab || "details");
       setShowOrderDetails(true);
+      data.setPostDialogOpen(true)
     } catch (err) {
       console.error("Failed to fetch order for notification:", err);
     }
@@ -149,6 +150,7 @@ const GestorApp = () => {
     setSelectedClientForOrder(client);
     setShowClientSelect(false);
     setShowAdminCreateOrder(true);
+    data.setPostDialogOpen(true)
   };
 
   const handleOrderCreated = () => {
@@ -206,6 +208,7 @@ const GestorApp = () => {
 
       {showAdminCreateOrder && (
         <CreateOrderModal
+          autoClose={true}
           isOpen={showAdminCreateOrder}
           onClose={handleAdminCreateOrderClose}
           onOrderCreated={handleOrderCreated}
@@ -220,6 +223,7 @@ const GestorApp = () => {
       )}
 
       <OrderDetailModal
+        autoClose={true}
         isOpen={showOrderDetails}
         onClose={() => {
           setShowOrderDetails(false);

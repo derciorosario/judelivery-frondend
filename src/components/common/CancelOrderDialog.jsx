@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Modal from "./Modal";
 import { XCircle, AlertCircle } from "lucide-react";
+import { useData } from "../../contexts/DataContext";
 
 const CANCELLATION_REASONS = {
   customer: [
@@ -35,10 +36,23 @@ const CANCELLATION_REASONS = {
   ]
 };
 
-const CancelOrderDialog = ({ isOpen, onClose, onConfirm, role = "customer", orderStatus }) => {
+const CancelOrderDialog = ({ autoClose, isOpen, onClose, onConfirm, role = "customer", orderStatus }) => {
   const [selectedReason, setSelectedReason] = useState("");
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const data=useData()
+  
+  useEffect(()=>{
+    if(!data.postDialogOpen && autoClose){
+        onClose()
+    }
+  },[data.postDialogOpen])
+  
+  useEffect(()=>{
+    data.setPostDialogOpen(isOpen)
+  },[isOpen])
+
 
   const reasons = CANCELLATION_REASONS[role] || CANCELLATION_REASONS.customer;
   const isCompletedOrCancelled = orderStatus === "completed" || orderStatus === "cancelled";

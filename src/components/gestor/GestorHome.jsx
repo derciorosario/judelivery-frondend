@@ -8,7 +8,8 @@ import OrderDetailModal from "../modals/OrderDetailModal";
 import TrackOrderModal from "../cliente/modals/TrackOrderModal";
 import CancelOrderDialog from "../common/CancelOrderDialog";
 import ContactSupportModal from "../common/modals/ContactSupportModal";
-import { useNavigate } from "react-router-dom";
+import {  useNavigate } from "react-router-dom";
+import { useData } from "../../contexts/DataContext";
 
 const GestorHome = ({ onOrderUpdate, refreshKey }) => {
   const [dashboard, setDashboard] = useState(null);
@@ -21,6 +22,14 @@ const GestorHome = ({ onOrderUpdate, refreshKey }) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const data=useData()
+
+
+   useEffect(()=>{
+      if(!data.postDialogOpen){
+        setShowDeleteDialog(false)
+      }
+  },[data.postDialogOpen])
 
   const navigate=useNavigate()
 
@@ -29,31 +38,37 @@ const GestorHome = ({ onOrderUpdate, refreshKey }) => {
       const response = await getOrder(order.id);
       setSelectedOrder(response.data);
       setShowOrderDetails(true);
+      data.setPostDialogOpen(true)
     } catch (err) {
       console.error(err);
       setSelectedOrder(order);
       setShowOrderDetails(true);
+      data.setPostDialogOpen(true)
     }
   };
 
   const handleTrackOrder = (order) => {
     setSelectedOrder(order);
     setShowTrackOrder(true);
+    data.setPostDialogOpen(true)
   };
 
   const handleCancelClick = (order) => {
     setSelectedOrder(order);
     setShowCancelDialog(true);
+    data.setPostDialogOpen(true)
   };
 
   const handleContactClick = (order) => {
     setSelectedOrder(order);
     setShowContactModal(true);
+    data.setPostDialogOpen(true)
   };
 
   const handleDeleteOrder = async (order) => {
     setSelectedOrder(order);
     setShowDeleteDialog(true);
+    data.setPostDialogOpen(true)
   };
 
   const handleConfirmDelete = async () => {
@@ -168,6 +183,7 @@ const GestorHome = ({ onOrderUpdate, refreshKey }) => {
                 onEdit={(order) => {
                   setSelectedOrder(order);
                   setShowOrderDetails(true);
+                  data.setPostDialogOpen(true)
                 }}
               />
             </div>
@@ -182,6 +198,7 @@ const GestorHome = ({ onOrderUpdate, refreshKey }) => {
       {/* Order Detail Modal */}
       {showOrderDetails && selectedOrder && (
         <OrderDetailModal
+          autoClose={true}
           isOpen={showOrderDetails}
           onClose={(refresh) => {
             setShowOrderDetails(false);
@@ -211,6 +228,7 @@ const GestorHome = ({ onOrderUpdate, refreshKey }) => {
       {/* Track Order Modal */}
       {showTrackOrder && selectedOrder && (
         <TrackOrderModal
+          autoClose={true}
           isOpen={showTrackOrder}
           onClose={() => {
             setShowTrackOrder(false);
@@ -223,6 +241,7 @@ const GestorHome = ({ onOrderUpdate, refreshKey }) => {
       {/* Cancel Order Dialog */}
       {showCancelDialog && selectedOrder && (
         <CancelOrderDialog
+          autoClose={true}
           isOpen={showCancelDialog}
           onClose={() => {
             setShowCancelDialog(false);
@@ -248,7 +267,9 @@ const GestorHome = ({ onOrderUpdate, refreshKey }) => {
               </p>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setShowDeleteDialog(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
+              <button onClick={() => {
+                setShowDeleteDialog(false)
+              }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
                 Cancelar
               </button>
               <button onClick={handleConfirmDelete} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-bold text-sm shadow-lg shadow-red-300 hover:bg-red-600">
@@ -262,6 +283,7 @@ const GestorHome = ({ onOrderUpdate, refreshKey }) => {
       {/* Contact Support Modal */}
       {showContactModal && selectedOrder && (
         <ContactSupportModal
+          autoClose={true}
           isOpen={showContactModal}
           onClose={() => {
             setShowContactModal(false);

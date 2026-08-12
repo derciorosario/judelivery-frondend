@@ -89,6 +89,7 @@ const MotoristaApp = () => {
       setSelectedOrder(response.data);
       setOrderDetailTab(tab || "details");
       setShowOrderDetails(true);
+      data.setPostDialogOpen(true)
     } catch (err) {
       console.error("Failed to fetch order for notification:", err);
     }
@@ -245,6 +246,7 @@ const MotoristaApp = () => {
       <BottomNav tabs={tabs} active={activeTab} setActive={setTab} urgentOrdersCount={urgentOrdersCount} />
 
       <OrderDetailModal
+        autoClose={true}
         isOpen={showOrderDetails}
         onClose={handleCloseOrderDetails}
         order={selectedOrder}
