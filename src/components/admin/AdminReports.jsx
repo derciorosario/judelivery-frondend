@@ -19,6 +19,7 @@ import {
 } from "../../api/client";
 
 const AdminReports = () => {
+  
   const [reportType, setReportType] = useState("operacional");
   const [period, setPeriod] = useState("semanal");
   const [dateFrom, setDateFrom] = useState("");
@@ -277,6 +278,7 @@ const AdminReports = () => {
           url: result.uri,
           dialogTitle: 'Compartilhar relatório',
         });
+
       } else {
         // Web download
         const blob = new Blob([excelBuffer], { type: "application/octet-stream" });

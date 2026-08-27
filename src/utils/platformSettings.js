@@ -66,6 +66,7 @@ export const defaultPlatformSettings = {
     driverStatus: true,
     orderPriceUpdated: true,
     incidentReported: true,
+    whatsappEnabled: false,
   },
   drivers: {
     requireDriverOnline: true,

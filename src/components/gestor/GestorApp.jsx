@@ -43,7 +43,6 @@ const GestorApp = () => {
   const [orderDetailTab, setOrderDetailTab] = useState("details");
   const [urgentOrdersCount, setUrgentOrdersCount] = useState(0);
 
-
   useEffect(() => {
      if(user && !data.pushRegistered){
        registerPush(user?.id,navigate,data)

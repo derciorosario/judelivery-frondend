@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Icon from "../common/Icon";
-import { getPlatformSettings, updatePlatformSettings } from "../../api/client";
+import { getPlatformSettings, updatePlatformSettings, getWhatsAppStatus, getWhatsAppQr, sendWhatsAppTest, logoutWhatsApp } from "../../api/client";
 import { cloneSettings, defaultPlatformSettings, mergeSettings } from "../../utils/platformSettings";
 import { toast } from "../../lib/toast";
 
@@ -138,6 +138,289 @@ const NumberInput = ({ value, onChange, suffix, ...props }) => (
   </div>
 );
 
+const WhatsAppStatusBadge = ({ state, ready, connected }) => {
+  let label = state || "DESCONHECIDO";
+  let color = "bg-slate-100 text-slate-600";
+
+  if (ready && connected) {
+    label = "Conectado";
+    color = "bg-green-100 text-green-700";
+  } else if (state === "SCAN_QR_CODE") {
+    label = "Aguardando QR Code";
+    color = "bg-orange-100 text-orange-700";
+  } else if (state === "AUTHENTICATED") {
+    label = "Autenticado";
+    color = "bg-blue-100 text-blue-700";
+  } else if (state === "DISCONNECTED" || state === "AUTH_FAILURE") {
+    label = "Desconectado";
+    color = "bg-red-100 text-red-700";
+  } else if (state === "BOT_UNAVAILABLE") {
+    label = "Bot indisponível";
+    color = "bg-red-100 text-red-700";
+  } else if (state && state.includes("RECOVER")) {
+    label = "Reconectando";
+    color = "bg-amber-100 text-amber-700";
+  }
+
+  return (
+    <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${color}`}>
+      {label}
+    </span>
+  );
+};
+
+const WhatsAppPanel = () => {
+  const [status, setStatus] = useState(null);
+  const [qr, setQr] = useState(null);
+  const [lastQrUpdate, setLastQrUpdate] = useState(null);
+  const [form, setForm] = useState({ chatId: "", message: "" });
+  const [sending, setSending] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    let lastUpdated = null;
+
+    const refreshQR = async () => {
+      try {
+        const { data } = await getWhatsAppQr();
+        if (!mounted) return;
+        setStatus(data);
+        if (data?.dataUrl && data?.updatedAt !== lastUpdated) {
+          lastUpdated = data.updatedAt;
+          setQr(data.dataUrl);
+          setLastQrUpdate(data.updatedAt);
+        }
+        if (!data?.dataUrl) setQr(null);
+      } catch {
+        if (mounted) setQr(null);
+      }
+    };
+
+    const refreshStatus = async () => {
+      try {
+        const { data } = await getWhatsAppStatus();
+        if (mounted) setStatus(data);
+      } catch {
+        if (mounted) setStatus({ connected: false, ready: false, state: "BOT_UNAVAILABLE" });
+      }
+    };
+
+    refreshQR();
+    refreshStatus();
+
+    const qrTimer = setInterval(refreshQR, 2000);
+    const statusTimer = setInterval(refreshStatus, 5000);
+
+    return () => {
+      mounted = false;
+      clearInterval(qrTimer);
+      clearInterval(statusTimer);
+    };
+  }, []);
+
+  const sendTest = async () => {
+    if (sending) return;
+    const chatId = form.chatId.replace(/\D/g, "");
+    const message = form.message.trim();
+
+    if (!chatId) {
+      setResult({ type: "error", text: "Informe o número do WhatsApp." });
+      return;
+    }
+    if (!message) {
+      setResult({ type: "error", text: "Digite uma mensagem." });
+      return;
+    }
+
+    setSending(true);
+    setResult({ type: "warning", text: "Enviando mensagem..." });
+    try {
+      const { data } = await sendWhatsAppTest(chatId, message);
+      if (data?.success) {
+        setResult({ type: "success", text: "Mensagem enviada com sucesso." });
+        setForm((previous) => ({ ...previous, message: "" }));
+      } else {
+        setResult({ type: "error", text: data?.error || "Falha ao enviar mensagem." });
+      }
+    } catch (error) {
+      setResult({
+        type: "error",
+        text: error?.response?.data?.error || "Não foi possível contactar o servidor.",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const confirmLogout = async () => {
+    setShowLogoutConfirm(false);
+    setLoggingOut(true);
+    setResult({ type: "warning", text: "A terminar sessão do WhatsApp..." });
+    try {
+      await logoutWhatsApp();
+      setResult({ type: "success", text: "Sessão terminada. Escaneie o novo QR Code." });
+    } catch (error) {
+      setResult({
+        type: "error",
+        text: error?.response?.data?.error || "Não foi possível terminar a sessão.",
+      });
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
+  const handleLogout = () => {
+    if (loggingOut) return;
+    setShowLogoutConfirm(true);
+  };
+
+  const showQr =
+    status &&
+    !status.connected &&
+    !status.authenticated &&
+    status.state !== "BOT_UNAVAILABLE" &&
+    (status.state === "SCAN_QR_CODE" || status.state === "STARTING");
+
+  const canSend = status?.ready && status?.connected;
+
+  const resultColor =
+    result?.type === "success"
+      ? "text-green-700 bg-green-50 border-green-200"
+      : result?.type === "error"
+      ? "text-red-700 bg-red-50 border-red-200"
+      : "text-orange-700 bg-orange-50 border-orange-200";
+
+  return (
+    <div className="space-y-4 pb-10">
+      <SectionCard icon="whatsapp" title="WhatsApp Bot" description="Ligue o número do WhatsApp escaneando o QR Code e envie mensagens pela plataforma.">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <WhatsAppStatusBadge state={status?.state} ready={status?.ready} connected={status?.connected} />
+          <span className="text-[11px] text-slate-400">
+            {status?.lastReadyAt ? `Pronto: ${new Date(status.lastReadyAt).toLocaleTimeString("pt-MZ")}` : "Aguardando..."}
+          </span>
+        </div>
+
+        {(status?.authenticated || status?.ready || status?.connected) && (
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className={`w-full py-2.5 rounded-xl text-sm font-bold shadow-sm mb-3 ${
+              loggingOut ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-red-500 text-white hover:bg-red-600"
+            }`}
+          >
+            {loggingOut ? "A terminar..." : "Terminar sessão do WhatsApp"}
+          </button>
+        )}
+
+        {showQr && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
+            <p className="text-xs font-semibold text-slate-700 mb-2">Escaneie com o WhatsApp</p>
+            {qr ? (
+              <img src={qr} alt="QR Code" className="mx-auto w-56 rounded-lg bg-white" />
+            ) : (
+              <div className="mx-auto w-56 h-56 rounded-lg bg-slate-100 animate-pulse" />
+            )}
+            <p className="text-[11px] text-slate-400 mt-2">O código é atualizado automaticamente.</p>
+          </div>
+        )}
+
+        {status?.state === "BOT_UNAVAILABLE" && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+            O bot do WhatsApp não está a responder. Verifique se o servidor está online.
+          </div>
+        )}
+
+        {canSend && (
+          <div className="rounded-2xl border border-green-200 bg-green-50 p-3 text-xs text-green-700">
+            WhatsApp ligado e pronto para enviar mensagens.
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard icon="send" title="Enviar mensagem de teste" description="Envia uma mensagem através da fila do bot (intervalo).">
+        <div className="grid grid-cols-1 gap-3">
+          <Field label="Número" hint="ex: 258858616109 ou 858616109">
+            <input
+              type="tel"
+              value={form.chatId}
+              onChange={(event) => setForm((previous) => ({ ...previous, chatId: event.target.value }))}
+              placeholder="258858616109"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300"
+            />
+          </Field>
+          <Field label="Mensagem">
+            <textarea
+              rows={3}
+              value={form.message}
+              onChange={(event) => setForm((previous) => ({ ...previous, message: event.target.value }))}
+              placeholder="Olá! Esta é uma mensagem."
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300"
+            />
+          </Field>
+        </div>
+
+        <button
+          type="button"
+          onClick={sendTest}
+          disabled={sending || !canSend}
+          className={`mt-3 w-full py-2.5 rounded-xl text-white text-sm font-bold shadow-lg shadow-orange-300 ${
+            sending || !canSend ? "bg-orange-300 cursor-not-allowed" : "bg-orange-500 hover:bg-orange-600"
+          }`}
+        >
+          {!canSend ? "WhatsApp não está pronto" : sending ? "A enviar..." : "Enviar"}
+        </button>
+
+        {result && (
+          <div className={`mt-3 rounded-xl border px-3 py-2 text-xs font-medium ${resultColor}`}>
+            {result.text}
+          </div>
+        )}
+      </SectionCard>
+
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl overflow-hidden">
+            <div className="px-4 py-4 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+                <Icon name="whatsapp" size={18} />
+              </div>
+              <h2 className="text-sm font-bold text-slate-800">Terminar sessão do WhatsApp</h2>
+            </div>
+            <div className="p-4">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Tem a certeza que deseja terminar a sessão? A autenticação será removida e o QR Code
+                terá de ser escaneado novamente para voltar a enviar mensagens.
+              </p>
+            </div>
+            <div className="flex gap-2 p-4 pt-0">
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(false)}
+                disabled={loggingOut}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-bold hover:bg-slate-50 disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmLogout}
+                disabled={loggingOut}
+                className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold shadow-sm bg-red-500 hover:bg-red-600 disabled:bg-red-300"
+              >
+                {loggingOut ? "A terminar..." : "Terminar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const AdminSettings = () => {
   const [settings, setSettings] = useState(() => cloneSettings(defaultPlatformSettings));
   const [activeTab, setActiveTab] = useState("orders");
@@ -154,6 +437,7 @@ const AdminSettings = () => {
     { id: "payments", label: "Pagamentos", icon: "creditCard" },
     { id: "promotion", label: "Promoção", icon: "gift" },
     { id: "app", label: "App", icon: "settings" },
+    { id: "whatsapp", label: "WhatsApp", icon: "whatsapp" },
   ];
 
   const formatMoney = (amount) => {
@@ -648,9 +932,14 @@ const AdminSettings = () => {
                     driverStatus: "Status do motorista",
                     orderPriceUpdated: "Preço atualizado",
                     incidentReported: "Incidente registado",
+                    whatsappEnabled: "WhatsApp",
+                  };
+                  const hintMap = {
+                    promotions: "Opcional",
+                    whatsappEnabled: "Notificações por WhatsApp",
                   };
                   return (
-                    <SwitchField key={key} checked={value} onChange={(next) => update("notifications", key, next)} label={labelMap[key] || key.replaceAll("_", " ")} hint={key === "promotions" ? "Opcional" : "Evento da app"} disabled={disabled} />
+                    <SwitchField key={key} checked={value} onChange={(next) => update("notifications", key, next)} label={labelMap[key] || key.replaceAll("_", " ")} hint={hintMap[key] || "Evento da app"} disabled={disabled} />
                   );
                 })}
               </div>
@@ -671,6 +960,8 @@ const AdminSettings = () => {
             </SectionCard>
           </div>
         )}
+
+        {activeTab === "whatsapp" && <WhatsAppPanel />}
 
         <div className="sticky bottom-20 bg-slate-50 pt-2">
           <div className="flex gap-2">

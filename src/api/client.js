@@ -444,3 +444,12 @@ export const getAvailableDriversForReassignment = (orderId, params) => client.ge
 export const rejectOrder = (orderId, data) => client.post(`/orders/${orderId}/reject`, data);
 
 export const getVersion = () => client.get('/version');
+
+// ==================== WHATSAPP BOT API ====================
+
+export const getWhatsAppStatus = () => client.get('/whatsapp/status');
+export const getWhatsAppQr = () => client.get('/whatsapp/qr');
+export const sendWhatsAppTest = (chatId, message) =>
+  client.post('/whatsapp/send', { chatId, message });
+export const logoutWhatsApp = () =>
+  client.post('/whatsapp/logout');

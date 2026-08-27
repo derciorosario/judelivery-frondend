@@ -3,14 +3,19 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import Icon from '../common/Icon';
 import { API_URL } from '../../api/client';
+import { useData } from '../../contexts/DataContext';
 const isNative = Capacitor.isNativePlatform();
 
 const RegisterPage = () => {
 
 
+  const _data=useData()
+
+
   useEffect(()=>{
        document.body.scrollIntoView({ behavior:'instant' })
   },[])
+
 
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -25,10 +30,25 @@ const RegisterPage = () => {
   const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [userId, setUserId] = useState(null);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [showPhoneConfirmModal, setShowPhoneConfirmModal] = useState(false);
+  const [confirmPhone, setConfirmPhone] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
+
+
+  useEffect(()=>{
+  
+   
+    if(!_data.postDialogOpen){
+       setShowPhoneConfirmModal(false)
+       setConfirmPhone(false)
+    }
+
+
+  },[_data.postDialogOpen])
+
 
   const { name, email, phone, password, confirmPassword } = formData;
 
@@ -36,11 +56,11 @@ const RegisterPage = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
-    if (!name || !email || !password) {
-      setError('Nome, email e palavra-passe são obrigatórios.');
+    if (!name || !email || !phone || !password) {
+      setError('Nome, email, telefone e palavra-passe são obrigatórios.');
       return;
     }
     if (password !== confirmPassword) {
@@ -51,17 +71,26 @@ const RegisterPage = () => {
       setError('A palavra-passe deve ter pelo menos 6 caracteres.');
       return;
     }
+    setConfirmPhone(phone);
+    setShowPhoneConfirmModal(true);
+    _data.setPostDialogOpen(true)
+  };
+
+  const handlePhoneConfirm = async (e) => {
+    e.preventDefault();
     setLoading(true);
     try {
       const response = await fetch(API_URL+'/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, phone, password })
+        body: JSON.stringify({ name, email, phone: confirmPhone, password })
       });
       const data = await response.json();
       if (response.ok) {
         setUserId(data.userId);
         setShowVerifyModal(true);
+        _data.setPostDialogOpen(true)
+        setShowPhoneConfirmModal(false);
         setCountdown(120);
       } else {
         setError(data.message || 'Erro ao criar conta.');
@@ -204,8 +233,8 @@ const RegisterPage = () => {
             <input type="email" name="email" value={email} onChange={handleChange} placeholder="seu@email.com" className="mt-1 w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-slate-50" required />
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Telefone (opcional)</label>
-            <input type="tel" name="phone" value={phone} onChange={handleChange} placeholder="+258 8XX XXX XXX" className="mt-1 w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-slate-50" />
+            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Telefone / WhatsApp</label>
+            <input type="tel" name="phone" value={phone} onChange={handleChange} placeholder="+258 8XX XXX XXX" className="mt-1 w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-slate-50" required />
           </div>
           <div>
             <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Palavra-passe</label>
@@ -260,13 +289,16 @@ const RegisterPage = () => {
 
       {showVerifyModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm">
+          <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm relative">
+            <button type="button" onClick={() => setShowVerifyModal(false)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-700">
+              <Icon name="x" size={20} />
+            </button>
             <div className="text-center mb-4">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Icon name="mailCheck" size={24} className="text-green-600" />
               </div>
-              <h3 className="text-base font-semibold text-slate-800">Verificar Email</h3>
-              <p className="text-xs text-slate-500 mt-1">Enviamos um código de 6 dígitos para <strong>{email}</strong></p>
+              <h3 className="text-base font-semibold text-slate-800">Verificar WhatsApp ou Email</h3>
+              <p className="text-xs text-slate-500 mt-1">Enviamos um código de 6 dígitos para <strong>{email}</strong> e também para o seu WhatsApp (<strong>{phone}</strong>)</p>
             </div>
 
             {error && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-xl mb-4">{error}</p>}
@@ -297,6 +329,45 @@ const RegisterPage = () => {
                 <button type="button" onClick={handleResend} disabled={loading} className="text-sm text-orange-500 hover:text-orange-600 font-medium">Reenviar código</button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {showPhoneConfirmModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm">
+            <div className="text-center mb-4">
+              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Icon name="phone" size={24} className="text-orange-600" />
+              </div>
+              <h3 className="text-base font-semibold text-slate-800">Confirmar Telefone</h3>
+              <p className="text-xs text-slate-500 mt-1">Confirme o seu número de telefone para receber notificações.</p>
+            </div>
+
+            {error && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-xl mb-4">{error}</p>}
+
+            <form onSubmit={handlePhoneConfirm} className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Telefone</label>
+                <input
+                  type="tel"
+                  value={confirmPhone}
+                  onChange={(e) => setConfirmPhone(e.target.value)}
+                  placeholder="+258 8XX XXX XXX"
+                  className="mt-1 w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-slate-50"
+                  required
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setShowPhoneConfirmModal(false)} className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-200 transition-all">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={loading} className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-semibold text-sm shadow-lg shadow-orange-500/30 hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                  {loading ? 'A criar...' : 'Confirmar e Criar'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
