@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FaFacebook, FaInstagram, FaWhatsapp, FaMotorcycle, FaPhone, FaEnvelope, FaMapMarkerAlt } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
 import { getPublicSettings } from '../../api/client';
 
 
@@ -117,11 +118,26 @@ const Footer = () => {
           </div>
         </div>
         
-        <div className="border-t border-secondary-800 pt-6 sm:pt-8 text-center">
-          <p className="text-xs sm:text-sm text-gray-500">
-            &copy; {new Date().getFullYear()} {appSettings.appName || 'J. RIBEIRO SERVIÇOS E.I'}. Todos os direitos reservados.
-          </p>
-        </div>
+          <div className="text-center sm:text-left">
+            <h5 className="font-bold text-base sm:text-lg mb-3 sm:mb-4">Informações</h5>
+            <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
+              <li>
+                <Link to="/privacy" className="!text-gray-400 hover:text-white transition">
+                  Política de Privacidade
+                </Link>
+              </li>
+              <li>
+                <Link to="/politics" className="!text-gray-400 hover:text-white transition">
+                  Termos e Condições
+                </Link>
+              </li>
+            </ul>
+          </div>
+          <div className="border-t border-secondary-800 pt-6 sm:pt-8 text-center">
+            <p className="text-xs sm:text-sm text-gray-500">
+              &copy; {new Date().getFullYear()} {appSettings.appName || 'J. RIBEIRO SERVIÇOS E.I'}. Todos os direitos reservados.
+            </p>
+          </div>
       </div>
     </footer>
   );

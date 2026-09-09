@@ -17,6 +17,8 @@ import StartPage from './pages/StartPage';
 import GuestOrderPage from './pages/GuestOrderPage';
 import NativeStartPage from './pages/NativeStartPage';
 import FaqPage from './pages/FaqPage';
+import PrivacyPage from './pages/PrivacyPage';
+import PoliticsPage from './pages/PoliticsPage';
 import DownloadPage from './pages/DownloadPage';
 import ProtectedRoute from './ProtectedRoute';
 import { SocketProvider } from './contexts/SocketContext';
@@ -93,7 +95,9 @@ const AppInner = () => {
         <Route path="/verify-registration" element={<VerificationPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/faq" element={<FaqPage />} />
+         <Route path="/faq" element={<FaqPage />} />
+         <Route path="/privacy" element={<PrivacyPage />} />
+         <Route path="/politics" element={<PoliticsPage />} />
         <Route path="/download" element={<DownloadPage />} />
         <Route path="/" element={user ? getAppComponent() : (isNative ? <NativeStartPage /> : <LandingPage />)} />
         <Route element={<ProtectedRoute />}>

@@ -9,7 +9,8 @@ export const API_URL =
   // env == "dev" ? true ? "https://api.jrmultiservicos.co.mz/api" : "http://localhost:5001/api" :
    env == "test" ? "https://api.jrmultiservicos.co.mz/api" :
                   "https://api.jrmultiservicos.co.mz/api";
-export const APK_DOWNLOAD_URL = `${API_URL.replace(/\/api$/, '')}/download/android/app-debug.apk`;
+
+                  export const APK_DOWNLOAD_URL = `${API_URL.replace(/\/api$/, '')}/download/android/app-debug.apk`;
 
 const client = axios.create({
   baseURL: API_URL,
