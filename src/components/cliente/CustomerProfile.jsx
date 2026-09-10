@@ -10,6 +10,7 @@ import {
   createCustomerPaymentMethod,
   deleteCustomerAddress,
   deleteCustomerPaymentMethod,
+  requestAccountDeletion,
   updateCustomerAddress,
   updateCustomerProfile,
   updateProfilePreferences
@@ -45,6 +46,7 @@ const CustomerProfile = ({
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showAccountDeletionConfirm, setShowAccountDeletionConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [addresses, setAddresses] = useState(profileData?.addresses || customer.addressesData || []);
   const {setAddresses:authSetAddresses, addresses:authAddresses} = useAuth()
@@ -487,6 +489,19 @@ const CustomerProfile = ({
     setShowLogoutConfirm(false);
   };
 
+  const handleAccountDeletionRequest = async () => {
+    setSaving(true);
+    try {
+      await requestAccountDeletion({ reason: 'Solicitação via perfil' });
+      setShowAccountDeletionConfirm(false);
+      toast.success("Pedido de eliminação de conta enviado com sucesso. Nossa equipa entrará em contacto.");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Erro ao enviar pedido");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const formatPaymentType = (type) => ({
     cash: "Dinheiro na entrega",
     mpesa: "M-Pesa",
@@ -688,6 +703,13 @@ const CustomerProfile = ({
 
       <button onClick={() => navigate('/forgot-password')} className="w-full bg-orange-500 text-white text-sm font-semibold py-3 rounded-xl mt-2">
         Recuperar Senha
+      </button>
+
+      <button
+        onClick={() => setShowAccountDeletionConfirm(true)}
+        className="w-full bg-red-50 text-red-600 text-xs font-semibold py-2.5 rounded-xl mt-2 border border-red-200 hover:bg-red-100 transition-colors"
+      >
+        Pedir Eliminação de Conta
       </button>
 
       {showAddressModal && (
@@ -1003,6 +1025,19 @@ const CustomerProfile = ({
             title="Confirmar Saída"
             message="Tem certeza que deseja sair da sua conta?"
             confirmText="Sair"
+            cancelText="Cancelar"
+            variant="danger"
+          />
+        )}
+
+        {showAccountDeletionConfirm && (
+          <ConfirmDialog
+            isOpen={showAccountDeletionConfirm}
+            onClose={() => setShowAccountDeletionConfirm(false)}
+            onConfirm={handleAccountDeletionRequest}
+            title="Eliminar Conta"
+            message="Tem a certeza de que deseja pedir a eliminação da sua conta? Todos os seus dados pessoais serão eliminados, excepto aqueles que devemos manter por motivos legais. Esta ação não pode ser revertida."
+            confirmText="Enviar Pedido"
             cancelText="Cancelar"
             variant="danger"
           />

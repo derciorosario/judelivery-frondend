@@ -338,6 +338,7 @@ export const getProfilePreferences = () => client.get('/profile/preferences');
 export const updateProfilePreferences = (data) => client.put('/profile/preferences', data);
 export const createSupportTicket = (data) => client.post('/profile/support-ticket', data);
 export const getSupportTickets = () => client.get('/profile/support-tickets');
+export const requestAccountDeletion = (data) => client.post('/profile/account-deletion-request', data);
 
 // ==================== ORDERS API ====================
 

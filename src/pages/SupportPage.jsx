@@ -2,11 +2,12 @@ import { Link } from 'react-router-dom';
 import {
   FaFacebook, FaInstagram, FaWhatsapp, FaMotorcycle,
   FaShieldAlt, FaClock, FaMapMarkerAlt, FaUsers,
-  FaBox, FaTruck, FaStar, FaCheckCircle, FaArrowRight,
+  FaBox, FaTruck, FaStar, FaUser,
+  FaCheckCircle, FaArrowRight,
   FaPhone, FaEnvelope, FaChevronDown, FaRocket,
   FaCreditCard, FaHeadset, FaMobileAlt, FaGooglePlay,
   FaApple, FaPlay, FaInfoCircle, FaSmile, FaGift,
-  FaBars, FaTimes, FaChevronUp
+  FaBars, FaTimes
 } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
@@ -15,7 +16,7 @@ import Footer from '../components/common/Footer';
 import Logo from '../assets/logo.png'
 import { getPublicSettings } from '../api/client';
 
-const PrivacyPage = () => {
+const SupportPage = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settings, setSettings] = useState(null);
@@ -62,7 +63,7 @@ const PrivacyPage = () => {
     visible: {
       opacity: 1,
       y: 0,
-       transition: {
+      transition: {
         duration: 0.6,
         ease: [0.6, -0.05, 0.01, 0.99]
       }
@@ -80,35 +81,80 @@ const PrivacyPage = () => {
     }
   };
 
-  const sections = [
+  const contactMethods = [
     {
-      title: '1. Informação que recolhemos',
-      content: 'Recolhemos informações pessoais quando cria uma conta, efetua uma encomenda ou entra em contacto connosco. Estas informações podem incluir o seu nome, número de telefone, endereço de email, morada de entrega e informações de pagamento.'
+      icon: FaPhone,
+      title: 'Telefone',
+      description: 'Ligue-nos diretamente e fale com um consultor',
+      value: appSettings.supportPhone || '+258 82 333 4455',
+      action: `tel:${(appSettings.supportPhone || '+258 82 333 4455').replace(/\s/g, '')}`
     },
     {
-      title: '2. Como utilizamos a sua informação',
-      content: 'Utilizamos as suas informações para processar encomendas, fornecer suporte ao cliente, enviar atualizações sobre os seus pedidos e melhorar os nossos serviços. Não partilhamos as suas informações com terceiros sem o seu consentimento, exceto quando exigido por lei.'
+      icon: FaEnvelope,
+      title: 'Email',
+      description: 'Envie-nos uma mensagem e responderemos o quanto antes',
+      value: appSettings.supportEmail || 'suporte@jrmultiservicos.co.mz',
+      action: `mailto:${appSettings.supportEmail || 'suporte@jrmultiservicos.co.mz'}`
     },
     {
-      title: '3. Segurança dos dados',
-      content: 'Implementamos medidas de segurança técnicas e organizacionais para proteger as suas informações pessoais contra acesso não autorizado, alteração, divulgação ou destruição.'
+      icon: FaWhatsapp,
+      title: 'WhatsApp',
+      description: 'Suporte rápido via WhatsApp 24/7',
+      value: appSettings.supportPhone || '+258 82 333 4455',
+      action: `https://wa.me/${(appSettings.supportPhone || '+258 82 333 4455').replace(/\D/g, '')}`
     },
     {
-      title: '4. Cookies',
-      content: 'Utilizamos cookies para melhorar a sua experiência no nosso site e aplicação. Os cookies ajudam-nos a lembrar das suas preferências e a entender como utiliza os nossos serviços.'
-    },
-    {
-      title: '5. Eliminação da Conta e Dados',
-      content: 'Pode pedir a eliminação da sua conta e de todos os dados associados no seu perfil (CustomerProfile) ou contactando-nos pelo suporte. Dados que são eliminados: dados pessoais (nome, telefone, email, morada), métodos de pagamento, preferências e endereços guardados. Dados que mantemos por motivos legais: registos de encomendas, transacções financeiras e comprovativos de pagamento são retenção por um período adicional de 5 anos para cumprimento das obrigações fiscais e de auditoria. Após este período, todos os dados restantes são eliminados definitivamente.'
-    },
-    {
-      title: '6. Os seus direitos',
-      content: 'Tem o direito de acceder, corrigir ou eliminar as suas informações pessoais. Para exercer estes direitos, entre em contacto connosco através dos canais disponibilizados.'
-    },
-    {
-      title: '7. Contacto',
-      content: `Se tiver dúvidas sobre a nossa política de privacidade, pode contactar-nos através do email ${appSettings.supportEmail || 'suporte@jrmultiservicos.co.mz'} ou pelo telefone ${appSettings.supportPhone || '+258 82 333 4455'}.`
+      icon: FaMapMarkerAlt,
+      title: 'Localização',
+      description: 'Visite-nos na nossa sede em Maputo',
+      value: 'Maputo, Moçambique',
+      action: 'https://maps.google.com/?q=Maputo,Mozambique'
     }
+  ];
+
+  const supportTopics = [
+    {
+      icon: FaBox,
+      title: 'Problemas com encomendas',
+      description: 'Rastreio, alterações, cancelamentos e atrasos.'
+    },
+    {
+      icon: FaCreditCard,
+      title: 'Pagamentos e facturas',
+      description: 'Questões relacionadas com pagamentos e comprovativos.'
+    },
+    {
+      icon: FaUsers,
+      title: 'Conta e perfil',
+      description: 'Gestão da sua conta, credenciais e dados pessoais.'
+    },
+    {
+      icon: FaTruck,
+      title: 'Motoristas e veículos',
+      description: 'Denúncias, reclamações e sugestões sobre motoristas.'
+    },
+    {
+      icon: FaStar,
+      title: 'Avaliações e serviços',
+      description: 'Feedback sobre a qualidade do nosso serviço.'
+    },
+    {
+      icon: FaUser,
+      title: 'Eliminação de Conta',
+      description: 'Solicite a eliminação da sua conta e de todos os dados associados.',
+      action: '/privacy'
+    },
+    {
+      icon: FaInfoCircle,
+      title: 'Outras questões',
+      description: 'Qualquer assunto não contemplado acima.'
+    }
+  ];
+
+  const hours = appSettings.supportHours ? appSettings.supportHours.split('|') : [
+    'Segunda - Sexta: 24h',
+    'Sábado: 24h',
+    'Domingo: 24h'
   ];
 
   return (
@@ -169,20 +215,12 @@ const PrivacyPage = () => {
                   FAQ
                 </Link>
                 <Link
-                  to="/privacy"
+                  to="/support"
                   className={`transition font-medium ${
                     scrolled ? 'text-primary-600 hover:text-primary-700' : '!text-white hover:text-white/80'
                   }`}
                 >
-                  Privacidade
-                </Link>
-                <Link
-                  to="/politics"
-                  className={`transition font-medium ${
-                    scrolled ? 'text-secondary-600 hover:text-primary-600' : '!text-white hover:text-white/80'
-                  }`}
-                >
-                  Políticas
+                  Suporte
                 </Link>
                 <Link
                   to="/login"
@@ -257,22 +295,13 @@ const PrivacyPage = () => {
                         FAQ
                       </Link>
                       <Link
-                        to="/privacy"
+                        to="/support"
                         className={`transition font-medium py-2 px-4 rounded-lg ${
                           scrolled ? 'text-primary-600 hover:text-primary-700 bg-primary-50' : '!text-white hover:text-white/80 hover:bg-white/10'
                         }`}
                         onClick={() => setMobileMenuOpen(false)}
                       >
-                        Privacidade
-                      </Link>
-                      <Link
-                        to="/politics"
-                        className={`transition font-medium py-2 px-4 rounded-lg ${
-                          scrolled ? 'text-secondary-600 hover:text-primary-600 hover:bg-secondary-50' : '!text-white hover:text-white/80 hover:bg-white/10'
-                        }`}
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        Políticas
+                        Suporte
                       </Link>
                       <Link
                         to="/start"
@@ -310,15 +339,15 @@ const PrivacyPage = () => {
               variants={fadeInUp}
               className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full mb-6 border border-white/20"
             >
-              <FaShieldAlt className="text-primary-400 text-sm" />
-              <span className="text-white text-xs sm:text-sm font-medium">Privacidade</span>
+              <FaHeadset className="text-primary-400 text-sm" />
+              <span className="text-white text-xs sm:text-sm font-medium">Suporte ao Cliente</span>
             </motion.div>
 
             <motion.h1
               variants={fadeInUp}
               className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-4 sm:mb-6"
             >
-              Política de Privacidade
+              Centro de Suporte
               <span className="bg-gradient-to-r from-gold-400 via-gold-300 to-gold-400 bg-clip-text text-transparent">
               </span>
             </motion.h1>
@@ -327,43 +356,159 @@ const PrivacyPage = () => {
               variants={fadeInUp}
               className="text-base sm:text-lg lg:text-xl text-white/80 mb-6 sm:mb-10 max-w-2xl mx-auto leading-relaxed"
             >
-              A sua privacidade é importante para nós. Saiba como protegemos e utilizamos os seus dados pessoais.
+              Estamos aqui para ajudar. Encontre a informação de contacto e resolva as suas questões rapidamente.
             </motion.p>
           </motion.div>
         </section>
 
         <section className="py-12 sm:py-16 md:py-20 lg:py-24 bg-white">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <motion.div
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true }}
               variants={staggerContainer}
-              className="space-y-6"
+              className="text-center mb-8 sm:mb-12 lg:mb-20"
             >
-              {sections.map((section, index) => (
+              <motion.div
+                variants={fadeInUp}
+                className="inline-block bg-secondary-100 text-secondary-600 px-3 sm:px-4 py-1 rounded-full text-xs sm:text-sm font-semibold mb-3 sm:mb-4"
+                whileHover={{ scale: 1.05 }}
+              >
+                FALE CONOSCO
+              </motion.div>
+              <motion.h2
+                variants={fadeInUp}
+                className="text-3xl sm:text-4xl md:text-5xl font-bold text-secondary-900 mb-3 sm:mb-4"
+              >
+                Contactos de Suporte
+              </motion.h2>
+              <motion.p
+                variants={fadeInUp}
+                className="text-secondary-600 max-w-2xl mx-auto text-sm sm:text-base lg:text-lg px-4"
+              >
+                Vários canais disponíveis para lhe atender 24 horas por dia.
+              </motion.p>
+            </motion.div>
+
+            <motion.div
+              variants={staggerContainer}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 mb-12 sm:mb-16"
+            >
+              {contactMethods.map((method, index) => (
                 <motion.div
                   key={index}
                   variants={fadeInUp}
-                  className="bg-secondary-50 rounded-xl sm:rounded-2xl p-6 sm:p-8 border border-secondary-200 hover:shadow-lg transition-all duration-300"
+                  className="group bg-secondary-50 rounded-xl sm:rounded-2xl p-6 sm:p-8 border border-secondary-200 hover:shadow-xl transition-all duration-300 text-center"
+                  whileHover={{ y: -5 }}
                 >
-                  <div className="flex items-start space-x-3 sm:space-x-4">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-white font-bold text-xs sm:text-sm">
-                        {index + 1}
-                      </span>
-                    </div>
-                    <div>
-                      <h3 className="text-sm sm:text-base lg:text-lg font-bold text-secondary-900 mb-2 leading-snug">
-                        {section.title}
-                      </h3>
-                      <p className="text-sm sm:text-base text-secondary-600 leading-relaxed">
-                        {section.content}
-                      </p>
-                    </div>
-                  </div>
+                  <motion.div
+                    className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-primary-600 to-primary-700 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-lg group-hover:scale-110 transition-transform"
+                  >
+                    <method.icon className="text-white text-2xl sm:text-3xl" />
+                  </motion.div>
+                  <h3 className="text-lg sm:text-xl font-bold text-secondary-900 mb-2">{method.title}</h3>
+                  <p className="text-xs sm:text-sm text-secondary-600 mb-4 leading-relaxed">{method.description}</p>
+                  <a
+                    href={method.action}
+                    target={method.action.startsWith('http') && method.action !== '#' ? '_blank' : undefined}
+                    rel={method.action.startsWith('http') && method.action !== '#' ? 'noopener noreferrer' : undefined}
+                    className="text-primary-600 hover:text-primary-700 font-semibold text-xs sm:text-sm underline break-all"
+                  >
+                    {method.value}
+                  </a>
                 </motion.div>
               ))}
+            </motion.div>
+
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={staggerContainer}
+              className="text-center mb-12 sm:mb-16"
+            >
+              <motion.h2
+                variants={fadeInUp}
+                className="text-3xl sm:text-4xl font-bold text-secondary-900 mb-3 sm:mb-4"
+              >
+                Horário de Suporte
+              </motion.h2>
+              <p className="text-secondary-600 text-sm sm:text-base mb-6">
+                Estamos disponíveis 24 horas por dia, 7 dias por semana.
+              </p>
+              <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-8 lg:gap-12 max-w-3xl mx-auto">
+                {hours.map((hour, index) => (
+                  <motion.div key={index} className="text-center">
+                    <p className="text-white font-semibold bg-gradient-to-r from-primary-600 to-primary-700 px-4 py-2 rounded-lg">{hour.trim()}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={staggerContainer}
+              className="text-center mb-12 sm:mb-16"
+            >
+              <motion.h2
+                variants={fadeInUp}
+                className="text-3xl sm:text-4xl font-bold text-secondary-900 mb-3 sm:mb-4"
+              >
+                Temas de Suporte
+              </motion.h2>
+              <motion.p
+                variants={fadeInUp}
+                className="text-secondary-600 max-w-2xl mx-auto text-sm sm:text-base lg:text-lg px-4 mb-8"
+              >
+                Selecione um tema abaixo para obter ajuda sobre a questão específica.
+              </motion.p>
+              <motion.div
+                variants={staggerContainer}
+                className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+              >
+                {supportTopics.map((topic, index) => (
+                  <motion.div
+                    key={index}
+                    variants={fadeInUp}
+                    className="group bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 border border-secondary-200 hover:shadow-lg transition-all duration-300 text-left cursor-pointer"
+                    whileHover={{ y: -3 }}
+                  >
+                    {topic.action ? (
+                      <Link to={topic.action} className="block">
+                        <div className="flex items-start space-x-3 sm:space-x-4">
+                          <motion.div
+                            className="w-12 h-12 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform"
+                          >
+                            <topic.icon className="text-white text-xl sm:text-2xl" />
+                          </motion.div>
+                          <div>
+                            <h3 className="text-base sm:text-lg font-bold text-secondary-900 mb-1 sm:mb-2 group-hover:text-primary-600 transition">{topic.title}</h3>
+                            <p className="text-xs sm:text-sm text-secondary-600">{topic.description}</p>
+                          </div>
+                        </div>
+                      </Link>
+                    ) : (
+                      <div className="flex items-start space-x-3 sm:space-x-4">
+                        <motion.div
+                          className="w-12 h-12 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform"
+                        >
+                          <topic.icon className="text-white text-xl sm:text-2xl" />
+                        </motion.div>
+                        <div>
+                          <h3 className="text-base sm:text-lg font-bold text-secondary-900 mb-1 sm:mb-2">{topic.title}</h3>
+                          <p className="text-xs sm:text-sm text-secondary-600">{topic.description}</p>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </motion.div>
             </motion.div>
           </div>
         </section>
@@ -388,7 +533,7 @@ const PrivacyPage = () => {
               whileInView={{ scale: 1 }}
               viewport={{ once: true }}
             >
-              Ainda tem dúvidas?
+              Ainda precisa de ajuda?
             </motion.h2>
             <motion.p
               className="text-lg sm:text-xl lg:text-2xl text-white/80 mb-6 sm:mb-8 lg:mb-10"
@@ -397,28 +542,43 @@ const PrivacyPage = () => {
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
             >
-              Não encontrou a resposta que procurava? Contacte-nos!
+              Contacte-nos e nossa equipa de suporte estará encantada em ajudar.
             </motion.p>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Link
-                to="/start"
-                className="inline-flex items-center px-8 sm:px-10 lg:px-12 py-4 sm:py-5 bg-white text-primary-600 font-bold text-base sm:text-lg rounded-full hover:shadow-2xl transition-all duration-300 group"
+            <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
-                Começar Agora
-                <FaArrowRight className="ml-2 group-hover:translate-x-2 transition-transform" />
-              </Link>
-            </motion.div>
+                <a
+                  href={`https://wa.me/${(appSettings.supportPhone || '+258 82 333 4455').replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center px-6 sm:px-8 lg:px-10 py-3 sm:py-4 bg-gold-500 hover:bg-gold-400 text-secondary-900 font-bold text-base sm:text-lg rounded-full hover:shadow-2xl transition-all duration-300 group"
+                >
+                  <FaWhatsapp className="mr-2 text-lg sm:text-xl" />
+                  Chat via WhatsApp
+                </a>
+              </motion.div>
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Link
+                  to="/start"
+                  className="inline-flex items-center justify-center px-6 sm:px-8 lg:px-10 py-3 sm:py-4 bg-white text-primary-600 font-bold text-base sm:text-lg rounded-full hover:shadow-2xl transition-all duration-300 group"
+                >
+                  Voltar para Início
+                  <FaArrowRight className="ml-2 group-hover:translate-x-2 transition-transform" />
+                </Link>
+              </motion.div>
+            </div>
           </motion.div>
         </section>
 
         <Footer />
       </div>
-
     </div>
   );
 };
 
-export default PrivacyPage;
+export default SupportPage;

@@ -122,13 +122,18 @@ const Footer = () => {
             <h5 className="font-bold text-base sm:text-lg mb-3 sm:mb-4">Informações</h5>
             <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
               <li>
-                <Link to="/privacy" className="!text-gray-400 hover:text-white transition">
+                <Link to="/privacy" className="text-gray-400 hover:text-white transition">
                   Política de Privacidade
                 </Link>
               </li>
               <li>
-                <Link to="/politics" className="!text-gray-400 hover:text-white transition">
+                <Link to="/politics" className="text-gray-400 hover:text-white transition">
                   Termos e Condições
+                </Link>
+              </li>
+              <li>
+                <Link to="/support" className="text-gray-400 hover:text-white transition">
+                  Suporte
                 </Link>
               </li>
             </ul>

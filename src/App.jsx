@@ -19,6 +19,7 @@ import NativeStartPage from './pages/NativeStartPage';
 import FaqPage from './pages/FaqPage';
 import PrivacyPage from './pages/PrivacyPage';
 import PoliticsPage from './pages/PoliticsPage';
+import SupportPage from './pages/SupportPage';
 import DownloadPage from './pages/DownloadPage';
 import ProtectedRoute from './ProtectedRoute';
 import { SocketProvider } from './contexts/SocketContext';
@@ -98,6 +99,7 @@ const AppInner = () => {
          <Route path="/faq" element={<FaqPage />} />
          <Route path="/privacy" element={<PrivacyPage />} />
          <Route path="/politics" element={<PoliticsPage />} />
+         <Route path="/support" element={<SupportPage />} />
         <Route path="/download" element={<DownloadPage />} />
         <Route path="/" element={user ? getAppComponent() : (isNative ? <NativeStartPage /> : <LandingPage />)} />
         <Route element={<ProtectedRoute />}>

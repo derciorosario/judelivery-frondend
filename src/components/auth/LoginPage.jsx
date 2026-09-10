@@ -211,7 +211,7 @@ const LoginPage = () => {
         </div>
 
         {/* Demo credentials */}
-        <div className="mt-6">
+        <div className="mt-6 hidden">
           <p className="text-xs text-slate-400 text-center mb-3 font-medium">── CREDENCIAIS DE DEMONSTRAÇÃO ──</p>
           <div className="space-y-2">
             {credentials.map(c => (
